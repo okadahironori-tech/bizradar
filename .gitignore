@@ -6,6 +6,9 @@ __pycache__/
 venv/
 env/
 
+# 環境変数
+.env
+
 # データファイル（実行時生成）
 monitor_log.json
 content_store.json

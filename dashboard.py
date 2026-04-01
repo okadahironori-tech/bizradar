@@ -8,6 +8,9 @@ import os
 import threading
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, redirect, url_for
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -185,6 +188,13 @@ def api_status():
     })
 
 
+# Render 上ではモニターをバックグラウンドスレッドで起動
+if os.environ.get("RENDER"):
+    import monitor as _monitor
+    _t = threading.Thread(target=_monitor.main, daemon=True)
+    _t.start()
+
 if __name__ == "__main__":
-    print("ダッシュボード起動: http://localhost:5001")
-    app.run(debug=True, host="0.0.0.0", port=5001, threaded=True)
+    port = int(os.environ.get("PORT", 5001))
+    print(f"ダッシュボード起動: http://localhost:{port}")
+    app.run(debug=True, host="0.0.0.0", port=port, threaded=True)

@@ -16,6 +16,9 @@ from datetime import datetime
 import requests
 import urllib3
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+load_dotenv()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -25,11 +28,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # ============================================================
 
 EMAIL_SETTINGS = {
-    "smtp_server": "smtp.gmail.com",
-    "smtp_port": 587,
-    "sender_email": "hironori1973@gmail.com",
-    "sender_password": "oqajzbjhbdhnagaz",
-    "recipient_email": "hironori1973@gmail.com",
+    "smtp_server": os.environ.get("SMTP_SERVER", "smtp.gmail.com"),
+    "smtp_port": int(os.environ.get("SMTP_PORT", "587")),
+    "sender_email": os.environ.get("SENDER_EMAIL", ""),
+    "sender_password": os.environ.get("SENDER_PASSWORD", ""),
+    "recipient_email": os.environ.get("RECIPIENT_EMAIL", ""),
 }
 
 DEFAULT_CHECK_INTERVAL = 3600
