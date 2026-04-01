@@ -194,6 +194,38 @@ def send_news_email(keyword: str, articles: list):
         print(f"[エラー] ニュースメール送信に失敗しました: {e}")
 
 
+def check_single_keyword(keyword: str):
+    """単一キーワードのニュースをチェックしてログを更新する"""
+    print(f"[ニュースチェック] キーワード: {keyword}")
+    data = load_articles_data()
+    seen_urls = set(data.get("seen_urls", {}).keys())
+    try:
+        articles = fetch_news_articles(keyword)
+    except Exception as e:
+        print(f"  [エラー] 取得失敗: {e}")
+        return
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    new_articles = []
+    for article in articles:
+        url = article["url"]
+        if url and url not in seen_urls:
+            article["found_at"] = now_str
+            new_articles.append(article)
+            seen_urls.add(url)
+            data["articles"].insert(0, article)
+
+    if new_articles:
+        print(f"  → {len(new_articles)} 件の新着記事")
+        send_news_email(keyword, new_articles)
+    else:
+        print(f"  → 新着なし")
+
+    data["seen_urls"] = {url: True for url in seen_urls}
+    data["articles"] = data["articles"][:1000]
+    save_articles_data(data)
+
+
 def check_all_keywords():
     """全キーワードのニュースをチェックして新着があれば通知する"""
     keywords = load_keywords()

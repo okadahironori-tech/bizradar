@@ -33,7 +33,8 @@ CONFIG_FILE = "config.json"
 KEYWORDS_FILE = "keywords.json"
 ARTICLES_FILE = "articles.json"
 
-_check_running = set()  # 現在チェック中のURL
+_check_running = set()      # 現在チェック中のURL
+_keyword_collecting = set() # 現在収集中のキーワード
 
 
 def load_sites() -> list:
@@ -146,6 +147,7 @@ def index():
 
     kw_entries = load_keywords_data()
     keywords = [k.get("keyword", "") if isinstance(k, dict) else k for k in kw_entries]
+    collecting = set(_keyword_collecting)
     articles_data = load_articles_store()
     all_articles = articles_data.get("articles", [])
     articles = all_articles[:300]
@@ -165,6 +167,7 @@ def index():
         keywords=keywords,
         articles=articles,
         keyword_counts=keyword_counts,
+        keyword_collecting=collecting,
     )
 
 
@@ -224,6 +227,26 @@ def check_site():
     threading.Thread(target=run, daemon=True).start()
     label = site_name if site_name else url
     return redirect(url_for("index", msg=f"チェックを開始しました: {label}", msg_type="success"))
+
+
+@app.route("/collect_keyword", methods=["POST"])
+@login_required
+def collect_keyword():
+    keyword = request.form.get("keyword", "").strip()
+    if keyword in _keyword_collecting:
+        return redirect(url_for("index", msg=f"収集中です: {keyword}", msg_type="error"))
+
+    import monitor as monitor_module
+
+    def run():
+        _keyword_collecting.add(keyword)
+        try:
+            monitor_module.check_single_keyword(keyword)
+        finally:
+            _keyword_collecting.discard(keyword)
+
+    threading.Thread(target=run, daemon=True).start()
+    return redirect(url_for("index", msg=f"収集を開始しました: {keyword}", msg_type="success"))
 
 
 @app.route("/add_keyword", methods=["POST"])

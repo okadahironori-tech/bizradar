@@ -522,6 +522,7 @@
         </thead>
         <tbody>
           {% for kw in keywords %}
+          {% set is_collecting = kw in keyword_collecting %}
           <tr>
             <td style="font-weight:600">{{ kw }}</td>
             <td style="text-align:right; color:#6b7280; font-size:0.85rem">
@@ -529,6 +530,14 @@
             </td>
             <td>
               <div class="row-actions">
+                <form method="POST" action="/collect_keyword">
+                  <input type="hidden" name="keyword" value="{{ kw }}">
+                  <button type="submit" class="btn btn-check"
+                    {% if is_collecting %}disabled{% endif %}
+                    onclick="this.disabled=true; this.textContent='収集中...'">
+                    {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
+                  </button>
+                </form>
                 <form method="POST" action="/remove_keyword"
                       onsubmit="return confirm('「{{ kw }}」を削除しますか？')">
                   <input type="hidden" name="keyword" value="{{ kw }}">
