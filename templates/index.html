@@ -266,6 +266,41 @@
       min-width: 90px; text-align: center;
     }
 
+    /* キーワードフィルターバー */
+    .kw-filter-bar {
+      display: flex; gap: 8px; padding: 12px 16px;
+      border-bottom: 1px solid #f0f2f5; flex-wrap: wrap;
+    }
+    .kw-filter-btn {
+      border: 1.5px solid #d1d5db; border-radius: 20px;
+      padding: 4px 14px; font-size: 0.78rem; font-weight: 600;
+      background: #fff; color: #6b7280; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .kw-filter-btn:hover { border-color: #3949ab; color: #3949ab; }
+    .kw-filter-btn.active { background: #3949ab; color: #fff; border-color: #3949ab; }
+
+    /* 記事アイテム */
+    .article-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 20px; border-bottom: 1px solid #f0f2f5;
+    }
+    .article-item:last-child { border-bottom: none; }
+    .article-kw {
+      flex-shrink: 0; padding: 2px 9px; border-radius: 12px;
+      font-size: 0.72rem; font-weight: 600;
+      background: #e3f2fd; color: #1565c0;
+      white-space: nowrap; margin-top: 3px;
+    }
+    .article-body { flex: 1; min-width: 0; }
+    .article-title {
+      font-size: 0.9rem; font-weight: 600; color: #1a1a2e;
+      text-decoration: none; line-height: 1.45;
+      display: block;
+    }
+    .article-title:hover { color: #3949ab; text-decoration: underline; }
+    .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
+
     @media (max-width: 700px) {
       header { padding: 16px; flex-direction: column; align-items: flex-start; gap: 4px; }
       td, th { padding: 10px 10px; }
@@ -470,6 +505,114 @@
     </div>
   </section>
 
+  <!-- キーワード管理 -->
+  <section>
+    <div class="section-title">
+      キーワード管理
+      <span class="count">{{ keywords | length }} 件</span>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>キーワード</th>
+            <th style="text-align:right">収集記事数</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for kw in keywords %}
+          <tr>
+            <td style="font-weight:600">{{ kw }}</td>
+            <td style="text-align:right; color:#6b7280; font-size:0.85rem">
+              {{ keyword_counts.get(kw, 0) }} 件
+            </td>
+            <td>
+              <div class="row-actions">
+                <form method="POST" action="/remove_keyword"
+                      onsubmit="return confirm('「{{ kw }}」を削除しますか？')">
+                  <input type="hidden" name="keyword" value="{{ kw }}">
+                  <button type="submit" class="btn btn-remove">削除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not keywords %}
+          <tr>
+            <td colspan="3">
+              <div class="empty-state">
+                キーワードが登録されていません
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+      <form class="add-form" method="POST" action="/add_keyword">
+        <input class="input-url" type="text" name="keyword"
+               placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
+        <button type="submit" class="btn btn-add">+ キーワードを追加</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ニュース記事 -->
+  <section>
+    <div class="section-title">
+      ニュース記事
+      <span class="count" id="articles-count-badge">{{ articles | length }} 件</span>
+      {% if articles %}
+      <div class="history-controls">
+        <button id="articles-sort-toggle" class="btn-sort" onclick="toggleArticleSort()">降順</button>
+        <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
+          <option value="10" selected>10件</option>
+          <option value="20">20件</option>
+          <option value="30">30件</option>
+          <option value="50">50件</option>
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card">
+      {% if articles %}
+        <div class="kw-filter-bar">
+          <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
+          {% for kw in keywords %}
+          <button class="kw-filter-btn" data-kw="{{ kw }}" onclick="filterArticlesByKw('{{ kw }}')">{{ kw }}</button>
+          {% endfor %}
+        </div>
+        <div class="pagination-bar" id="articles-pagination-top"></div>
+        <div id="articles-container">
+          {% for article in articles %}
+          <div class="article-item" data-keyword="{{ article.keyword }}">
+            <span class="article-kw">{{ article.keyword }}</span>
+            <div class="article-body">
+              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">
+                {{ article.title }}
+              </a>
+              <div class="article-meta">
+                {% if article.source %}{{ article.source }}{% endif %}
+                {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
+                {% if article.published %}{{ article.published }}{% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="pagination-bar bottom" id="articles-pagination-bottom"></div>
+      {% else %}
+        <div class="empty-state">
+          {% if keywords %}
+            記事がまだ収集されていません。次のチェック時に自動収集されます。
+          {% else %}
+            キーワードを登録すると自動でニュース記事が収集されます。
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
 </main>
 
 <script>
@@ -558,6 +701,92 @@ document.addEventListener('DOMContentLoaded', () => {
   if (container) {
     window._historyItems = Array.from(container.querySelectorAll('.timeline-item'));
     renderHistory();
+  }
+});
+
+// ============================================================
+// 記事一覧
+// ============================================================
+let _articleItems = [];
+let _articleOrder = 'desc';
+let _articlePage = 1;
+let _articleFilter = 'all';
+
+function filterArticlesByKw(keyword) {
+  _articleFilter = keyword;
+  _articlePage = 1;
+  document.querySelectorAll('.kw-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.kw === keyword);
+  });
+  renderArticles();
+}
+
+function toggleArticleSort() {
+  _articleOrder = _articleOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('articles-sort-toggle').textContent = _articleOrder === 'desc' ? '降順' : '昇順';
+  _articlePage = 1;
+  renderArticles();
+}
+
+function changeArticlePageSize() {
+  _articlePage = 1;
+  renderArticles();
+}
+
+function goArticlePage(delta) {
+  const filtered = _getFilteredArticles();
+  const pageSize = parseInt(document.getElementById('articles-count-select').value);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  _articlePage = Math.max(1, Math.min(totalPages, _articlePage + delta));
+  renderArticles();
+}
+
+function _getFilteredArticles() {
+  let items = _articleFilter === 'all'
+    ? [..._articleItems]
+    : _articleItems.filter(item => item.dataset.keyword === _articleFilter);
+  return _articleOrder === 'desc' ? items : items.reverse();
+}
+
+function _renderArticlePaginationBar(id, cur, total) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  bar.innerHTML =
+    `<button class="btn-page" onclick="goArticlePage(-1)" ${cur <= 1 ? 'disabled' : ''}>← 前へ</button>` +
+    `<span class="page-info">${cur} / ${total} ページ</span>` +
+    `<button class="btn-page" onclick="goArticlePage(1)" ${cur >= total ? 'disabled' : ''}>次へ →</button>`;
+}
+
+function renderArticles() {
+  const container = document.getElementById('articles-container');
+  if (!container) return;
+  const pageSize = parseInt(document.getElementById('articles-count-select').value);
+  const filtered = _getFilteredArticles();
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (_articlePage > totalPages) _articlePage = totalPages;
+  const start = (_articlePage - 1) * pageSize;
+
+  container.innerHTML = '';
+  filtered.slice(start, start + pageSize).forEach(item => container.appendChild(item));
+
+  const badge = document.getElementById('articles-count-badge');
+  if (badge) {
+    if (total === 0) {
+      badge.textContent = '0 件';
+    } else {
+      badge.textContent = `${start + 1}–${Math.min(start + pageSize, total)} 件 / 全 ${total} 件`;
+    }
+  }
+  _renderArticlePaginationBar('articles-pagination-top', _articlePage, totalPages);
+  _renderArticlePaginationBar('articles-pagination-bottom', _articlePage, totalPages);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('articles-container');
+  if (container) {
+    _articleItems = Array.from(container.querySelectorAll('.article-item'));
+    renderArticles();
   }
 });
 </script>

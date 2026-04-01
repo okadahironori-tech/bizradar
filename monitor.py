@@ -13,6 +13,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
+import time as time_module
+from urllib.parse import quote
+
+import feedparser
 import requests
 import urllib3
 from bs4 import BeautifulSoup
@@ -46,6 +50,8 @@ MONITOR_LOG_FILE = "monitor_log.json"
 SITES_FILE = "sites.json"
 CONFIG_FILE = "config.json"
 CONTENT_STORE_FILE = "content_store.json"
+KEYWORDS_FILE = "keywords.json"
+ARTICLES_FILE = "articles.json"
 
 
 def load_sites() -> list:
@@ -98,6 +104,137 @@ def load_content_store() -> dict:
 def save_content_store(store: dict):
     with open(CONTENT_STORE_FILE, "w", encoding="utf-8") as f:
         json.dump(store, f, ensure_ascii=False, indent=2)
+
+
+def load_keywords() -> list:
+    if os.path.exists(KEYWORDS_FILE):
+        with open(KEYWORDS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f).get("keywords", [])
+    return []
+
+
+def load_articles_data() -> dict:
+    if os.path.exists(ARTICLES_FILE):
+        with open(ARTICLES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"articles": [], "seen_urls": {}}
+
+
+def save_articles_data(data: dict):
+    with open(ARTICLES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def fetch_news_articles(keyword: str) -> list:
+    """Google News RSSからキーワード関連記事を取得する（最新20件）"""
+    rss_url = f"https://news.google.com/rss/search?q={quote(keyword)}&hl=ja&gl=JP&ceid=JP:ja"
+    feed = feedparser.parse(
+        rss_url,
+        agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    )
+    articles = []
+    for entry in feed.entries[:20]:
+        title = entry.get("title", "").strip()
+        url = entry.get("link", "")
+        source = ""
+        if hasattr(entry, "source"):
+            source = entry.source.get("title", "")
+        if not source and " - " in title:
+            title, source = title.rsplit(" - ", 1)
+            title = title.strip()
+            source = source.strip()
+        published = ""
+        if entry.get("published_parsed"):
+            dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed))
+            published = dt.strftime("%Y-%m-%d %H:%M")
+        else:
+            published = entry.get("published", "")
+        articles.append({
+            "keyword": keyword,
+            "title": title,
+            "url": url,
+            "source": source,
+            "published": published,
+        })
+    return articles
+
+
+def send_news_email(keyword: str, articles: list):
+    """新着ニュース記事をメールで通知する"""
+    now = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+    subject = f"【ニュース新着通知】「{keyword}」の新着記事 {len(articles)} 件"
+    lines = [
+        f"「{keyword}」に関する新着記事が {len(articles)} 件見つかりました。",
+        "",
+        f"検出日時: {now}",
+        "",
+    ]
+    for i, a in enumerate(articles[:10], 1):
+        lines.append(f"{i}. {a['title']}")
+        if a.get("source"):
+            lines.append(f"   出典: {a['source']}")
+        if a.get("published"):
+            lines.append(f"   日時: {a['published']}")
+        lines.append(f"   {a['url']}")
+        lines.append("")
+    lines += ["---", "このメールはBizRadarにより自動送信されました。"]
+
+    msg = MIMEMultipart()
+    msg["From"] = EMAIL_SETTINGS["sender_email"]
+    msg["To"] = EMAIL_SETTINGS["recipient_email"]
+    msg["Subject"] = subject
+    msg.attach(MIMEText("\n".join(lines), "plain", "utf-8"))
+    try:
+        with smtplib.SMTP(EMAIL_SETTINGS["smtp_server"], EMAIL_SETTINGS["smtp_port"]) as server:
+            server.starttls()
+            server.login(EMAIL_SETTINGS["sender_email"], EMAIL_SETTINGS["sender_password"])
+            server.send_message(msg)
+        print(f"[通知] ニュースメールを送信しました → {EMAIL_SETTINGS['recipient_email']}")
+    except smtplib.SMTPException as e:
+        print(f"[エラー] ニュースメール送信に失敗しました: {e}")
+
+
+def check_all_keywords():
+    """全キーワードのニュースをチェックして新着があれば通知する"""
+    keywords = load_keywords()
+    if not keywords:
+        return
+
+    print(f"[ニュースチェック開始] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    data = load_articles_data()
+    seen_urls = set(data.get("seen_urls", {}).keys())
+
+    for kw_entry in keywords:
+        keyword = kw_entry.get("keyword", "") if isinstance(kw_entry, dict) else kw_entry
+        if not keyword:
+            continue
+        print(f"  キーワード: {keyword}")
+        try:
+            articles = fetch_news_articles(keyword)
+        except Exception as e:
+            print(f"  [エラー] 取得失敗: {e}")
+            continue
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_articles = []
+        for article in articles:
+            url = article["url"]
+            if url and url not in seen_urls:
+                article["found_at"] = now_str
+                new_articles.append(article)
+                seen_urls.add(url)
+                data["articles"].insert(0, article)
+
+        if new_articles:
+            print(f"  → {len(new_articles)} 件の新着記事")
+            send_news_email(keyword, new_articles)
+        else:
+            print(f"  → 新着なし")
+
+    data["seen_urls"] = {url: True for url in seen_urls}
+    data["articles"] = data["articles"][:1000]
+    save_articles_data(data)
+    print(f"[ニュースチェック完了]")
 
 
 def get_page_content(url: str):
@@ -265,6 +402,7 @@ def main():
 
     while True:
         check_all_sites()
+        check_all_keywords()
         config = load_config()
         interval = config.get("check_interval_seconds", DEFAULT_CHECK_INTERVAL)
         print(f"[待機中] 次回チェックまで {interval // 60} 分待機します...")

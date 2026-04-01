@@ -30,6 +30,8 @@ MONITOR_LOG_FILE = "monitor_log.json"
 HASH_FILE = "previous_hashes.json"
 SITES_FILE = "sites.json"
 CONFIG_FILE = "config.json"
+KEYWORDS_FILE = "keywords.json"
+ARTICLES_FILE = "articles.json"
 
 _check_running = set()  # 現在チェック中のURL
 
@@ -70,6 +72,25 @@ def load_config() -> dict:
 def save_config(config: dict):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
+
+
+def load_keywords_data() -> list:
+    if os.path.exists(KEYWORDS_FILE):
+        with open(KEYWORDS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f).get("keywords", [])
+    return []
+
+
+def save_keywords_data(keywords: list):
+    with open(KEYWORDS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"keywords": keywords}, f, ensure_ascii=False, indent=2)
+
+
+def load_articles_store() -> dict:
+    if os.path.exists(ARTICLES_FILE):
+        with open(ARTICLES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"articles": [], "seen_urls": {}}
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -123,6 +144,16 @@ def index():
     flash_type = request.args.get("msg_type", "info")
     interval = config.get("check_interval_seconds", 3600)
 
+    kw_entries = load_keywords_data()
+    keywords = [k.get("keyword", "") if isinstance(k, dict) else k for k in kw_entries]
+    articles_data = load_articles_store()
+    all_articles = articles_data.get("articles", [])
+    articles = all_articles[:300]
+    keyword_counts = {}
+    for a in all_articles:
+        kw = a.get("keyword", "")
+        keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
+
     return render_template(
         "index.html",
         sites=sites,
@@ -131,6 +162,9 @@ def index():
         flash_msg=flash_msg,
         flash_type=flash_type,
         check_interval=interval,
+        keywords=keywords,
+        articles=articles,
+        keyword_counts=keyword_counts,
     )
 
 
@@ -190,6 +224,33 @@ def check_site():
     threading.Thread(target=run, daemon=True).start()
     label = site_name if site_name else url
     return redirect(url_for("index", msg=f"チェックを開始しました: {label}", msg_type="success"))
+
+
+@app.route("/add_keyword", methods=["POST"])
+@login_required
+def add_keyword():
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        return redirect(url_for("index", msg="キーワードを入力してください", msg_type="error"))
+    keywords = load_keywords_data()
+    existing = [k.get("keyword", "") if isinstance(k, dict) else k for k in keywords]
+    if keyword in existing:
+        return redirect(url_for("index", msg=f"すでに登録済みです: {keyword}", msg_type="error"))
+    keywords.append({"keyword": keyword})
+    save_keywords_data(keywords)
+    return redirect(url_for("index", msg=f"キーワードを追加しました: {keyword}", msg_type="success"))
+
+
+@app.route("/remove_keyword", methods=["POST"])
+@login_required
+def remove_keyword():
+    keyword = request.form.get("keyword", "").strip()
+    keywords = load_keywords_data()
+    new_keywords = [k for k in keywords if (k.get("keyword", "") if isinstance(k, dict) else k) != keyword]
+    if len(new_keywords) == len(keywords):
+        return redirect(url_for("index", msg="該当キーワードが見つかりません", msg_type="error"))
+    save_keywords_data(new_keywords)
+    return redirect(url_for("index", msg=f"キーワードを削除しました: {keyword}", msg_type="success"))
 
 
 @app.route("/set_interval", methods=["POST"])
