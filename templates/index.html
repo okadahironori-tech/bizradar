@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    .updated-at { font-size: 0.78rem; color: #8892b0; }
+
+    main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
+    section + section { margin-top: 32px; }
+
+    .section-title {
+      font-size: 1rem; font-weight: 700; color: #4a4a6a;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-title .count {
+      background: #e8eaf6; color: #3949ab;
+      font-size: 0.72rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 12px;
+    }
+
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: #f5f7fa; text-align: left;
+      font-size: 0.75rem; font-weight: 700; color: #6b7280;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 12px 16px; border-bottom: 1px solid #e5e7eb;
+    }
+    td {
+      padding: 13px 16px; font-size: 0.87rem;
+      border-bottom: 1px solid #f0f2f5; vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbff; }
+
+    .site-name { font-weight: 700; color: #1a1a2e; font-size: 0.95rem; }
+    .url-link { color: #3949ab; text-decoration: none; word-break: break-all; font-size: 0.82rem; }
+
+    /* 2行構成の行スタイル */
+    tr.row-primary td { border-bottom: none; padding-bottom: 4px; }
+    tr.row-secondary td {
+      border-bottom: 1px solid #e5e7eb; padding-top: 3px;
+      font-size: 0.8rem; color: #6b7280; background: #fafbff;
+    }
+    tr.row-primary:first-of-type td { padding-top: 14px; }
+    .row-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .row-meta-sep { color: #d1d5db; }
+    .row-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+    .url-link:hover { text-decoration: underline; }
+
+    /* ステータスバッジ */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+    }
+    .badge::before {
+      content: ""; width: 7px; height: 7px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .badge-ok      { background: #e8f5e9; color: #2e7d32; }
+    .badge-ok::before { background: #4caf50; }
+    .badge-changed { background: #fff3e0; color: #e65100; }
+    .badge-changed::before { background: #ff9800; animation: pulse 1.5s infinite; }
+    .badge-error   { background: #fce4ec; color: #b71c1c; }
+    .badge-error::before { background: #f44336; }
+    .badge-new     { background: #e3f2fd; color: #1565c0; }
+    .badge-new::before { background: #2196f3; }
+    .badge-unknown { background: #f5f5f5; color: #757575; }
+    .badge-unknown::before { background: #9e9e9e; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .hash {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.73rem; color: #9ca3af;
+      background: #f5f7fa; padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* ボタン共通 */
+    .btn {
+      border: none; border-radius: 7px; padding: 5px 12px;
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      white-space: nowrap; transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-check   { background: #e8eaf6; color: #3949ab; }
+    .btn-check:hover:not(:disabled) { background: #c5cae9; }
+    .btn-remove  { background: none; border: 1px solid #fca5a5; color: #ef4444; }
+    .btn-remove:hover { background: #fef2f2; }
+    .btn-add     { background: #3949ab; color: #fff; padding: 8px 18px; font-size: 0.88rem; }
+    .btn-add:hover { background: #303f9f; }
+    .btn-save    { background: #1a1a2e; color: #fff; padding: 8px 16px; font-size: 0.85rem; }
+    .btn-save:hover { background: #2d2d4e; }
+
+    /* 追加フォーム */
+    .add-form {
+      display: flex; gap: 10px;
+      padding: 14px 16px;
+      border-top: 1px solid #e5e7eb;
+      background: #f9fafb; align-items: center; flex-wrap: wrap;
+    }
+    .add-form input {
+      padding: 8px 12px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 0.88rem; outline: none;
+      transition: border-color 0.15s;
+    }
+    .add-form input:focus { border-color: #3949ab; }
+    .input-name { width: 160px; }
+    .input-url  { flex: 1; min-width: 220px; }
+
+    /* フラッシュメッセージ */
+    .flash {
+      padding: 12px 20px; border-radius: 8px;
+      font-size: 0.88rem; margin-bottom: 20px;
+    }
+    .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    /* 設定パネル */
+    .settings-panel {
+      display: flex; align-items: center; gap: 16px;
+      padding: 16px 20px; flex-wrap: wrap;
+    }
+    .settings-panel label { font-size: 0.88rem; font-weight: 600; color: #4a4a6a; }
+    .interval-options { display: flex; gap: 8px; flex-wrap: wrap; }
+    .interval-options label {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border: 1.5px solid #d1d5db;
+      border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem; font-weight: 500; color: #374151;
+      transition: all 0.15s;
+    }
+    .interval-options input[type="radio"] { display: none; }
+    .interval-options input[type="radio"]:checked + span {
+      /* handled via label styling below */
+    }
+    .interval-options label:has(input:checked) {
+      border-color: #3949ab; background: #e8eaf6; color: #3949ab;
+    }
+    .interval-options label:hover { border-color: #3949ab; }
+
+    /* 変更履歴 */
+    .timeline { padding: 4px 0; }
+    .timeline-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 14px 20px; border-bottom: 1px solid #f0f2f5;
+    }
+    .timeline-item:last-child { border-bottom: none; }
+    .timeline-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #ff9800; margin-top: 5px; flex-shrink: 0;
+    }
+    .timeline-content { flex: 1; min-width: 0; }
+    .timeline-meta { font-size: 0.75rem; color: #9ca3af; margin-bottom: 3px; }
+    .timeline-name { font-weight: 600; color: #1a1a2e; }
+    .timeline-url  { font-size: 0.82rem; color: #3949ab; word-break: break-all; }
+
+    /* 差分表示 */
+    .diff-toggle {
+      margin-top: 6px; font-size: 0.75rem; color: #6b7280;
+      cursor: pointer; text-decoration: underline;
+      background: none; border: none; padding: 0;
+    }
+    .diff-block {
+      margin-top: 6px; display: none;
+      border-radius: 6px; overflow: hidden;
+      border: 1px solid #e5e7eb; font-size: 0.78rem;
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+    .diff-block.open { display: block; }
+    .diff-line {
+      padding: 3px 10px; line-height: 1.5;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .diff-added   { background: #f0fdf4; color: #166534; }
+    .diff-added::before   { content: "+ "; }
+    .diff-removed { background: #fef2f2; color: #991b1b; }
+    .diff-removed::before { content: "− "; }
+
+    .empty-state {
+      padding: 40px 20px; text-align: center;
+      color: #9ca3af; font-size: 0.88rem;
+    }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+
+    /* 変更履歴コントロール */
+    .history-controls {
+      margin-left: auto; display: flex; gap: 8px; align-items: center;
+    }
+    .btn-sort {
+      background: #e8eaf6; color: #3949ab;
+      border: 1.5px solid #c5cae9; border-radius: 7px;
+      padding: 4px 12px; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-sort:hover { background: #c5cae9; }
+    .count-select {
+      border: 1.5px solid #d1d5db; border-radius: 7px;
+      padding: 4px 8px; font-size: 0.78rem; color: #374151;
+      background: #fff; cursor: pointer; outline: none;
+    }
+    .count-select:focus { border-color: #3949ab; }
+
+    /* ページネーション */
+    .pagination-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 10px 20px;
+      border-bottom: 1px solid #f0f2f5;
+    }
+    .pagination-bar.bottom {
+      border-bottom: none; border-top: 1px solid #f0f2f5;
+    }
+    .btn-page {
+      border: 1.5px solid #d1d5db; border-radius: 7px;
+      padding: 5px 16px; font-size: 0.82rem; font-weight: 600;
+      background: #fff; color: #374151; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-page:hover:not(:disabled) {
+      border-color: #3949ab; color: #3949ab; background: #e8eaf6;
+    }
+    .btn-page:disabled { opacity: 0.38; cursor: not-allowed; }
+    .page-info {
+      font-size: 0.82rem; color: #6b7280;
+      min-width: 90px; text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      header { padding: 16px; flex-direction: column; align-items: flex-start; gap: 4px; }
+      td, th { padding: 10px 10px; }
+      .add-form { flex-direction: column; }
+      .input-name, .input-url, .btn-add { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">ウェブサイト変更検知モニター</div>
+  </div>
+  <div class="updated-at">表示時刻: {{ now }}</div>
+</header>
+
+<main>
+
+  {% if flash_msg %}
+  <div class="flash flash-{{ flash_type }}">{{ flash_msg }}</div>
+  {% endif %}
+
+  <!-- モニターサイト一覧 -->
+  <section>
+    <div class="section-title">
+      モニターサイト一覧
+      <span class="count">{{ sites | length }} サイト</span>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>会社名</th>
+            <th>ステータス</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for site in sites %}
+          <!-- 1行目: 会社名・ステータス・ボタン -->
+          <tr class="row-primary">
+            <td>
+              <span class="site-name">{{ site.name if site.name else "—" }}</span>
+            </td>
+            <td>
+              {% if site.status == "ok" %}
+                <span class="badge badge-ok">正常</span>
+              {% elif site.status == "changed" %}
+                <span class="badge badge-changed">変更あり</span>
+              {% elif site.status == "error" %}
+                <span class="badge badge-error">取得エラー</span>
+              {% elif site.status == "new" %}
+                <span class="badge badge-new">初回記録</span>
+              {% else %}
+                <span class="badge badge-unknown">未チェック</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="row-actions">
+                <form method="POST" action="/check_site">
+                  <input type="hidden" name="url" value="{{ site.url }}">
+                  <button type="submit" class="btn btn-check"
+                    {% if site.checking %}disabled{% endif %}
+                    onclick="this.disabled=true; this.textContent='チェック中...'">
+                    {% if site.checking %}チェック中...{% else %}今すぐチェック{% endif %}
+                  </button>
+                </form>
+                <form method="POST" action="/remove_site"
+                      onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
+                  <input type="hidden" name="url" value="{{ site.url }}">
+                  <button type="submit" class="btn btn-remove">削除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <!-- 2行目: URL・最終チェック日時・ハッシュ値 -->
+          <tr class="row-secondary">
+            <td>
+              <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
+            </td>
+            <td>
+              最終チェック: {{ site.last_check }}
+            </td>
+            <td style="text-align:right">
+              {% if site.hash != "-" %}
+                <span class="hash">{{ site.hash[:12] }}...</span>
+              {% else %}
+                <span style="color:#ccc">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not sites %}
+          <tr>
+            <td colspan="3">
+              <div class="empty-state">
+                <div class="icon">📭</div>
+                モニターサイトが登録されていません
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+
+      <!-- モニターサイト追加フォーム -->
+      <form class="add-form" method="POST" action="/add_site"
+            onsubmit="return confirm('「' + this.url.value + '」を追加しますか？')">
+        <input class="input-name" type="text" name="name" placeholder="会社名（任意）">
+        <input class="input-url" type="url" name="url" placeholder="https://example.com" required>
+        <button type="submit" class="btn btn-add">+ モニターサイトを追加</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- モニター設定 -->
+  <section>
+    <div class="section-title">モニター設定</div>
+    <div class="card">
+      <form class="settings-panel" method="POST" action="/set_interval">
+        <label>チェック間隔</label>
+        <div class="interval-options">
+          {% for label, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
+          <label>
+            <input type="radio" name="seconds" value="{{ val }}"
+              {% if check_interval == val %}checked{% endif %}>
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-save">保存</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 変更検知履歴 -->
+  <section>
+    <div class="section-title">
+      変更検知履歴
+      <span class="count" id="history-count-badge">{{ change_history | length }} 件</span>
+      {% if change_history %}
+      <div class="history-controls">
+        <button id="sort-toggle" class="btn-sort" onclick="toggleSort()">降順</button>
+        <select id="count-select" class="count-select" onchange="applyHistoryFilter()">
+          <option value="5">5件</option>
+          <option value="10" selected>10件</option>
+          <option value="20">20件</option>
+          <option value="30">30件</option>
+          <option value="50">50件</option>
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card">
+      {% if change_history %}
+        <div class="pagination-bar" id="pagination-top"></div>
+        <div class="timeline" id="timeline-container">
+          {% for event in change_history %}
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-meta">
+                {{ event.timestamp }}
+                {% if event.name %}&nbsp;·&nbsp;<span class="timeline-name">{{ event.name }}</span>{% endif %}
+              </div>
+              <div class="timeline-url">
+                <a href="{{ event.url }}" target="_blank" rel="noopener"
+                   style="color:#3949ab;text-decoration:none;">{{ event.url }}</a>
+              </div>
+              {% if event.diff %}
+                <button class="diff-toggle" onclick="toggleDiff(this)">
+                  差分を表示（{{ event.diff | length }} 件）
+                </button>
+                <div class="diff-block">
+                  {% for d in event.diff %}
+                  <div class="diff-line diff-{{ d.type }}">{{ d.text }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="pagination-bar bottom" id="pagination-bottom"></div>
+      {% else %}
+        <div class="empty-state">
+          変更は検知されていません
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+</main>
+
+<script>
+function toggleDiff(btn) {
+  const block = btn.nextElementSibling;
+  block.classList.toggle('open');
+  btn.textContent = block.classList.contains('open')
+    ? '差分を隠す'
+    : btn.textContent.replace('隠す', '表示（' + block.children.length + ' 件）');
+}
+
+let historyOrder = 'desc';
+let currentPage = 1;
+
+function getPageSize() {
+  return parseInt(document.getElementById('count-select').value);
+}
+
+function toggleSort() {
+  historyOrder = historyOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('sort-toggle').textContent = historyOrder === 'desc' ? '降順' : '昇順';
+  currentPage = 1;
+  renderHistory();
+}
+
+function applyHistoryFilter() {
+  currentPage = 1;
+  renderHistory();
+}
+
+function goPage(delta) {
+  const total = window._historyItems.length;
+  const totalPages = Math.ceil(total / getPageSize());
+  currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+  renderHistory();
+}
+
+function renderPaginationBar(id, totalPages) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  const total = window._historyItems.length;
+  const pageSize = getPageSize();
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, total);
+  bar.innerHTML =
+    `<button class="btn-page" onclick="goPage(-1)" ${currentPage <= 1 ? 'disabled' : ''}>← 前へ</button>` +
+    `<span class="page-info">${currentPage} / ${totalPages} ページ</span>` +
+    `<button class="btn-page" onclick="goPage(1)" ${currentPage >= totalPages ? 'disabled' : ''}>次へ →</button>`;
+}
+
+function renderHistory() {
+  const container = document.getElementById('timeline-container');
+  if (!container) return;
+
+  const pageSize = getPageSize();
+  const total = window._historyItems.length;
+  const totalPages = Math.ceil(total / pageSize);
+
+  let items = historyOrder === 'desc'
+    ? [...window._historyItems]
+    : [...window._historyItems].reverse();
+
+  const start = (currentPage - 1) * pageSize;
+  container.innerHTML = '';
+  items.slice(start, start + pageSize).forEach(item => container.appendChild(item));
+
+  const badge = document.getElementById('history-count-badge');
+  if (badge) {
+    const s = start + 1, e = Math.min(start + pageSize, total);
+    badge.textContent = `${s}–${e} 件 / 全 ${total} 件`;
+  }
+
+  renderPaginationBar('pagination-top', totalPages);
+  renderPaginationBar('pagination-bottom', totalPages);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('timeline-container');
+  if (container) {
+    window._historyItems = Array.from(container.querySelectorAll('.timeline-item'));
+    renderHistory();
+  }
+});
+</script>
+
+</body>
+</html>

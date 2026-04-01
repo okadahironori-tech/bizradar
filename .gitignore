@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# データファイル（実行時生成）
+monitor_log.json
+content_store.json
+previous_hashes.json
+monitor_output.log
+
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# エディタ
+.vscode/
+.idea/
