@@ -16,3 +16,9 @@ services:
         sync: false
       - key: RECIPIENT_EMAIL
         sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: DASHBOARD_USER
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false

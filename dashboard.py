@@ -3,16 +3,28 @@
 monitor.py の監視データをブラウザで確認できるWebアプリ
 """
 
+import hmac
 import json
 import os
 import threading
 from datetime import datetime
-from flask import Flask, render_template, jsonify, request, redirect, url_for
+from functools import wraps
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login", next=request.path))
+        return f(*args, **kwargs)
+    return decorated
 
 MONITOR_LOG_FILE = "monitor_log.json"
 HASH_FILE = "previous_hashes.json"
@@ -60,7 +72,32 @@ def save_config(config: dict):
         json.dump(config, f, ensure_ascii=False, indent=2)
 
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        expected_user = os.environ.get("DASHBOARD_USER", "admin")
+        expected_pass = os.environ.get("DASHBOARD_PASSWORD", "")
+        input_user = request.form.get("username", "")
+        input_pass = request.form.get("password", "")
+        user_ok = hmac.compare_digest(input_user, expected_user)
+        pass_ok = hmac.compare_digest(input_pass, expected_pass)
+        if user_ok and pass_ok:
+            session["logged_in"] = True
+            next_url = request.form.get("next", "")
+            return redirect(next_url if next_url.startswith("/") else url_for("index"))
+        error = "IDまたはパスワードが正しくありません"
+    return render_template("login.html", error=error, next=request.args.get("next", ""))
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def index():
     log = load_monitor_log()
     hashes = load_hashes()
@@ -97,6 +134,7 @@ def index():
 
 
 @app.route("/add_site", methods=["POST"])
+@login_required
 def add_site():
     url = request.form.get("url", "").strip()
     name = request.form.get("name", "").strip()
@@ -118,6 +156,7 @@ def add_site():
 
 
 @app.route("/remove_site", methods=["POST"])
+@login_required
 def remove_site():
     url = request.form.get("url", "").strip()
     sites = load_sites()
@@ -129,6 +168,7 @@ def remove_site():
 
 
 @app.route("/check_site", methods=["POST"])
+@login_required
 def check_site():
     url = request.form.get("url", "").strip()
     if url in _check_running:
@@ -152,6 +192,7 @@ def check_site():
 
 
 @app.route("/set_interval", methods=["POST"])
+@login_required
 def set_interval():
     try:
         seconds = int(request.form.get("seconds", 3600))
@@ -166,6 +207,7 @@ def set_interval():
 
 
 @app.route("/api/status")
+@login_required
 def api_status():
     log = load_monitor_log()
     sites = load_sites()
