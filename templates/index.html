@@ -227,6 +227,21 @@
     }
     .count-select:focus { border-color: #3949ab; }
 
+    /* エラー詳細 */
+    .error-detail-toggle {
+      display: inline-block; margin-top: 5px;
+      font-size: 0.75rem; color: #b71c1c;
+      cursor: pointer; text-decoration: underline;
+      background: none; border: none; padding: 0;
+    }
+    .error-detail-toggle:hover { color: #7f0000; }
+    .error-detail {
+      display: none; margin-top: 5px;
+      font-size: 0.78rem; color: #b71c1c;
+      background: #fce4ec; border-radius: 5px;
+      padding: 5px 10px;
+    }
+
     /* ページネーション */
     .pagination-bar {
       display: flex; align-items: center; justify-content: center;
@@ -309,6 +324,11 @@
                 <span class="badge badge-changed">変更あり</span>
               {% elif site.status == "error" %}
                 <span class="badge badge-error">取得エラー</span>
+                {% if site.error %}
+                <br>
+                <button class="error-detail-toggle" onclick="toggleErrorDetail(this)">エラーの理由を確認する</button>
+                <div class="error-detail">{{ site.error }}</div>
+                {% endif %}
               {% elif site.status == "new" %}
                 <span class="badge badge-new">初回記録</span>
               {% else %}
@@ -453,6 +473,13 @@
 </main>
 
 <script>
+function toggleErrorDetail(btn) {
+  const detail = btn.nextElementSibling;
+  const open = detail.style.display === 'block';
+  detail.style.display = open ? 'none' : 'block';
+  btn.textContent = open ? 'エラーの理由を確認する' : '閉じる';
+}
+
 function toggleDiff(btn) {
   const block = btn.nextElementSibling;
   block.classList.toggle('open');

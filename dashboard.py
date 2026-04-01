@@ -113,6 +113,7 @@ def index():
             "name": s.get("name", ""),
             "last_check": check_info.get("timestamp", "未チェック"),
             "status": check_info.get("status", "unknown"),
+            "error": check_info.get("error", ""),
             "hash": hashes.get(url, "-"),
             "checking": url in _check_running,
         })

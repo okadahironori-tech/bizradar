@@ -101,7 +101,7 @@ def save_content_store(store: dict):
 
 
 def get_page_content(url: str):
-    """ウェブページのテキスト内容を取得する"""
+    """ウェブページのテキスト内容を取得する。戻り値: (content or None, error_message or None)"""
     headers = {"User-Agent": "Mozilla/5.0 (compatible; SiteMonitor/1.0)"}
     try:
         response = requests.get(url, headers=headers, timeout=30, verify=False)
@@ -112,10 +112,29 @@ def get_page_content(url: str):
             tag.decompose()
         text = soup.get_text(separator="\n")
         lines = [line.strip() for line in text.splitlines() if line.strip()]
-        return "\n".join(lines)
+        return "\n".join(lines), None
+    except requests.exceptions.SSLError:
+        error = "SSL証明書エラー"
+    except requests.exceptions.ConnectTimeout:
+        error = "接続タイムアウト"
+    except requests.exceptions.ReadTimeout:
+        error = "読み込みタイムアウト"
+    except requests.exceptions.ConnectionError as e:
+        msg = str(e)
+        if "Connection refused" in msg:
+            error = "接続拒否 (Connection refused)"
+        elif "Name or service not known" in msg or "getaddrinfo failed" in msg or "nodename nor servname" in msg:
+            error = "ホスト名を解決できません (DNS エラー)"
+        else:
+            error = "接続エラー"
+    except requests.exceptions.HTTPError as e:
+        error = f"HTTP {e.response.status_code} エラー"
+    except requests.exceptions.TooManyRedirects:
+        error = "リダイレクトが多すぎます"
     except requests.RequestException as e:
-        print(f"[エラー] {url} の取得に失敗しました: {e}")
-        return None
+        error = f"取得エラー ({type(e).__name__})"
+    print(f"[エラー] {url} の取得に失敗しました: {error}")
+    return None, error
 
 
 def compute_hash(content: str) -> str:
@@ -184,10 +203,10 @@ def check_single_site(url: str, site_name: str = ""):
     log = load_monitor_log()
     content_store = load_content_store()
 
-    content = get_page_content(url)
+    content, error = get_page_content(url)
 
     if content is None:
-        log["last_checks"][url] = {"timestamp": now_str, "status": "error"}
+        log["last_checks"][url] = {"timestamp": now_str, "status": "error", "error": error or "不明なエラー"}
     else:
         new_hash = compute_hash(content)
 
