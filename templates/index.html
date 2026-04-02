@@ -398,13 +398,7 @@
             <td>
               最終チェック: {{ site.last_check }}
             </td>
-            <td style="text-align:right">
-              {% if site.hash != "-" %}
-                <span class="hash">{{ site.hash[:12] }}...</span>
-              {% else %}
-                <span style="color:#ccc">—</span>
-              {% endif %}
-            </td>
+            <td></td>
           </tr>
           {% endfor %}
           {% if not sites %}
