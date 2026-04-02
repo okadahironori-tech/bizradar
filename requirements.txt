@@ -1,7 +1,0 @@
-requests
-beautifulsoup4
-flask
-python-dotenv
-gunicorn
-urllib3
-feedparser
