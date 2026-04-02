@@ -5,3 +5,4 @@ python-dotenv
 gunicorn
 urllib3
 feedparser
+psycopg2-binary
