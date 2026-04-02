@@ -419,9 +419,22 @@
   <section>
     <div class="section-title">
       モニターサイト一覧
-      <span class="count">{{ sites | length }} サイト</span>
+      <span class="count" id="sites-count-badge">{{ sites | length }} サイト</span>
+      {% if sites | length > 5 %}
+      <div class="history-controls">
+        <button id="sites-sort-toggle" class="btn-sort" onclick="toggleSitesSort()">降順</button>
+        <select id="sites-count-select" class="count-select" onchange="renderSites()">
+          <option value="5" selected>5件</option>
+          <option value="10">10件</option>
+          <option value="20">20件</option>
+        </select>
+      </div>
+      {% endif %}
     </div>
     <div class="card">
+      {% if sites | length > 5 %}
+      <div class="pagination-bar" id="sites-pagination-top"></div>
+      {% endif %}
       <table>
         <thead>
           <tr>
@@ -430,10 +443,10 @@
             <th style="text-align:right">操作</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="sites-tbody">
           {% for site in sites %}
           <!-- 1行目: 会社名・ステータス・ボタン -->
-          <tr class="row-primary">
+          <tr class="row-primary" data-site-index="{{ loop.index0 }}">
             <td>
               <span class="site-name">{{ site.name if site.name else "—" }}</span>
             </td>
@@ -473,8 +486,8 @@
               </div>
             </td>
           </tr>
-          <!-- 2行目: URL・最終チェック日時・ハッシュ値 -->
-          <tr class="row-secondary">
+          <!-- 2行目: URL・最終チェック日時 -->
+          <tr class="row-secondary" data-site-index="{{ loop.index0 }}">
             <td>
               <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
             </td>
@@ -496,6 +509,9 @@
           {% endif %}
         </tbody>
       </table>
+      {% if sites | length > 5 %}
+      <div class="pagination-bar bottom" id="sites-pagination-bottom"></div>
+      {% endif %}
 
       <!-- モニターサイト追加フォーム -->
       <form class="add-form" method="POST" action="/add_site"
@@ -568,9 +584,22 @@
   <section>
     <div class="section-title">
       キーワード管理
-      <span class="count">{{ keywords | length }} 件</span>
+      <span class="count" id="kw-count-badge">{{ keywords | length }} 件</span>
+      {% if keywords | length > 5 %}
+      <div class="history-controls">
+        <button id="kw-sort-toggle" class="btn-sort" onclick="toggleKwSort()">降順</button>
+        <select id="kw-count-select" class="count-select" onchange="renderKeywords()">
+          <option value="5" selected>5件</option>
+          <option value="10">10件</option>
+          <option value="20">20件</option>
+        </select>
+      </div>
+      {% endif %}
     </div>
     <div class="card">
+      {% if keywords | length > 5 %}
+      <div class="pagination-bar" id="kw-pagination-top"></div>
+      {% endif %}
       <table>
         <thead>
           <tr>
@@ -579,10 +608,10 @@
             <th style="text-align:right">操作</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="kw-tbody">
           {% for kw in keywords %}
           {% set is_collecting = kw in keyword_collecting %}
-          <tr>
+          <tr data-kw-index="{{ loop.index0 }}">
             <td style="font-weight:600">{{ kw }}</td>
             <td style="text-align:right; color:#6b7280; font-size:0.85rem">
               {{ keyword_counts.get(kw, 0) }} 件
@@ -617,6 +646,9 @@
           {% endif %}
         </tbody>
       </table>
+      {% if keywords | length > 5 %}
+      <div class="pagination-bar bottom" id="kw-pagination-bottom"></div>
+      {% endif %}
       <form class="add-form" method="POST" action="/add_keyword">
         <input class="input-url" type="text" name="keyword"
                placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
@@ -714,6 +746,123 @@
 </main>
 
 <script>
+// ============================================================
+// モニターサイト一覧
+// ============================================================
+let _siteOrder = 'desc';
+let _sitePage = 1;
+
+function getSitePageSize() {
+  const sel = document.getElementById('sites-count-select');
+  return sel ? parseInt(sel.value) : 999;
+}
+
+function toggleSitesSort() {
+  _siteOrder = _siteOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('sites-sort-toggle').textContent = _siteOrder === 'desc' ? '降順' : '昇順';
+  _sitePage = 1;
+  renderSites();
+}
+
+function goSitePage(delta) {
+  const pairs = window._sitePairs || [];
+  const totalPages = Math.ceil(pairs.length / getSitePageSize());
+  _sitePage = Math.max(1, Math.min(totalPages, _sitePage + delta));
+  renderSites();
+}
+
+function renderSitesPagination(id, totalPages) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  bar.innerHTML =
+    `<button class="btn-page" onclick="goSitePage(-1)" ${_sitePage<=1?'disabled':''}>← 前へ</button>` +
+    `<span class="page-info">${_sitePage} / ${totalPages} ページ</span>` +
+    `<button class="btn-page" onclick="goSitePage(1)" ${_sitePage>=totalPages?'disabled':''}>次へ →</button>`;
+}
+
+function renderSites() {
+  const tbody = document.getElementById('sites-tbody');
+  if (!tbody || !window._sitePairs) return;
+
+  const pageSize = getSitePageSize();
+  let pairs = _siteOrder === 'desc' ? [...window._sitePairs] : [...window._sitePairs].reverse();
+  const total = pairs.length;
+  const totalPages = Math.ceil(total / pageSize);
+  const start = (_sitePage - 1) * pageSize;
+
+  tbody.innerHTML = '';
+  pairs.slice(start, start + pageSize).forEach(([primary, secondary]) => {
+    tbody.appendChild(primary);
+    tbody.appendChild(secondary);
+  });
+
+  const badge = document.getElementById('sites-count-badge');
+  if (badge && total > 5) {
+    const s = start + 1, e = Math.min(start + pageSize, total);
+    badge.textContent = `${s}–${e} / 全 ${total} サイト`;
+  }
+
+  renderSitesPagination('sites-pagination-top', totalPages);
+  renderSitesPagination('sites-pagination-bottom', totalPages);
+}
+
+// ============================================================
+// キーワード管理
+// ============================================================
+let _kwOrder = 'desc';
+let _kwPage = 1;
+
+function getKwPageSize() {
+  const sel = document.getElementById('kw-count-select');
+  return sel ? parseInt(sel.value) : 999;
+}
+
+function toggleKwSort() {
+  _kwOrder = _kwOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('kw-sort-toggle').textContent = _kwOrder === 'desc' ? '降順' : '昇順';
+  _kwPage = 1;
+  renderKeywords();
+}
+
+function goKwPage(delta) {
+  const rows = window._kwRows || [];
+  const totalPages = Math.ceil(rows.length / getKwPageSize());
+  _kwPage = Math.max(1, Math.min(totalPages, _kwPage + delta));
+  renderKeywords();
+}
+
+function renderKwPagination(id, totalPages) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  bar.innerHTML =
+    `<button class="btn-page" onclick="goKwPage(-1)" ${_kwPage<=1?'disabled':''}>← 前へ</button>` +
+    `<span class="page-info">${_kwPage} / ${totalPages} ページ</span>` +
+    `<button class="btn-page" onclick="goKwPage(1)" ${_kwPage>=totalPages?'disabled':''}>次へ →</button>`;
+}
+
+function renderKeywords() {
+  const tbody = document.getElementById('kw-tbody');
+  if (!tbody || !window._kwRows) return;
+
+  const pageSize = getKwPageSize();
+  let rows = _kwOrder === 'desc' ? [...window._kwRows] : [...window._kwRows].reverse();
+  const total = rows.length;
+  const totalPages = Math.ceil(total / pageSize);
+  const start = (_kwPage - 1) * pageSize;
+
+  tbody.innerHTML = '';
+  rows.slice(start, start + pageSize).forEach(row => tbody.appendChild(row));
+
+  const badge = document.getElementById('kw-count-badge');
+  if (badge && total > 5) {
+    const s = start + 1, e = Math.min(start + pageSize, total);
+    badge.textContent = `${s}–${e} / 全 ${total} 件`;
+  }
+
+  renderKwPagination('kw-pagination-top', totalPages);
+  renderKwPagination('kw-pagination-bottom', totalPages);
+}
+
 function toggleErrorDetail(btn) {
   const detail = btn.nextElementSibling;
   const open = detail.style.display === 'block';
@@ -799,6 +948,25 @@ document.addEventListener('DOMContentLoaded', () => {
   if (container) {
     window._historyItems = Array.from(container.querySelectorAll('.timeline-item'));
     renderHistory();
+  }
+
+  // サイト一覧: primary行とsecondary行をペアにして管理
+  const sitesTbody = document.getElementById('sites-tbody');
+  if (sitesTbody && document.getElementById('sites-count-select')) {
+    const primaries = Array.from(sitesTbody.querySelectorAll('tr.row-primary'));
+    window._sitePairs = primaries.map(primary => {
+      const idx = primary.getAttribute('data-site-index');
+      const secondary = sitesTbody.querySelector(`tr.row-secondary[data-site-index="${idx}"]`);
+      return [primary, secondary].filter(Boolean);
+    });
+    renderSites();
+  }
+
+  // キーワード一覧
+  const kwTbody = document.getElementById('kw-tbody');
+  if (kwTbody && document.getElementById('kw-count-select')) {
+    window._kwRows = Array.from(kwTbody.querySelectorAll('tr[data-kw-index]'));
+    renderKeywords();
   }
 });
 
