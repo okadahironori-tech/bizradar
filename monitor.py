@@ -45,13 +45,16 @@ DEFAULT_CHECK_INTERVAL = 3600
 # ここより下は変更不要です
 # ============================================================
 
-HASH_FILE = "previous_hashes.json"
-MONITOR_LOG_FILE = "monitor_log.json"
-SITES_FILE = "sites.json"
-CONFIG_FILE = "config.json"
-CONTENT_STORE_FILE = "content_store.json"
-KEYWORDS_FILE = "keywords.json"
-ARTICLES_FILE = "articles.json"
+# DATA_DIR が設定されている場合はそのディレクトリを使用する（Render Persistent Disk 用）
+_DATA_DIR = os.environ.get("DATA_DIR", ".")
+
+HASH_FILE          = os.path.join(_DATA_DIR, "previous_hashes.json")
+MONITOR_LOG_FILE   = os.path.join(_DATA_DIR, "monitor_log.json")
+SITES_FILE         = os.path.join(_DATA_DIR, "sites.json")
+CONFIG_FILE        = os.path.join(_DATA_DIR, "config.json")
+CONTENT_STORE_FILE = os.path.join(_DATA_DIR, "content_store.json")
+KEYWORDS_FILE      = os.path.join(_DATA_DIR, "keywords.json")
+ARTICLES_FILE      = os.path.join(_DATA_DIR, "articles.json")
 
 
 def load_sites() -> list:

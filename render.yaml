@@ -5,7 +5,13 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn dashboard:app --bind 0.0.0.0:$PORT --workers 1 --threads 2
+    disk:
+      name: bizradar-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
+      - key: DATA_DIR
+        value: /data
       - key: SMTP_SERVER
         value: smtp.gmail.com
       - key: SMTP_PORT

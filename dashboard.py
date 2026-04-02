@@ -28,12 +28,31 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-MONITOR_LOG_FILE = "monitor_log.json"
-HASH_FILE = "previous_hashes.json"
-SITES_FILE = "sites.json"
-CONFIG_FILE = "config.json"
-KEYWORDS_FILE = "keywords.json"
-ARTICLES_FILE = "articles.json"
+# DATA_DIR が設定されている場合はそのディレクトリにデータを保存する（Render Persistent Disk 用）
+_DATA_DIR = os.environ.get("DATA_DIR", ".")
+
+MONITOR_LOG_FILE = os.path.join(_DATA_DIR, "monitor_log.json")
+HASH_FILE        = os.path.join(_DATA_DIR, "previous_hashes.json")
+SITES_FILE       = os.path.join(_DATA_DIR, "sites.json")
+CONFIG_FILE      = os.path.join(_DATA_DIR, "config.json")
+KEYWORDS_FILE    = os.path.join(_DATA_DIR, "keywords.json")
+ARTICLES_FILE    = os.path.join(_DATA_DIR, "articles.json")
+
+
+def _init_data_dir():
+    """DATA_DIR が指定されている場合、ディレクトリを作成し初期データファイルをコピーする"""
+    if _DATA_DIR == ".":
+        return
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    import shutil
+    for fname in ("sites.json", "keywords.json", "config.json"):
+        dest = os.path.join(_DATA_DIR, fname)
+        src = fname  # プロジェクトルートの git 管理ファイル
+        if not os.path.exists(dest) and os.path.exists(src):
+            shutil.copy2(src, dest)
+
+
+_init_data_dir()
 
 _check_running = set()      # 現在チェック中のURL
 _keyword_collecting = set() # 現在収集中のキーワード
