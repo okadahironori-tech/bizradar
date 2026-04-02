@@ -440,7 +440,7 @@
           <tr>
             <th>会社名</th>
             <th>ステータス</th>
-            <th style="text-align:right">操作</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody id="sites-tbody">
@@ -469,7 +469,7 @@
               {% endif %}
             </td>
             <td>
-              <div class="row-actions">
+              <div class="row-actions" style="justify-content:flex-start">
                 <form method="POST" action="/check_site">
                   <input type="hidden" name="url" value="{{ site.url }}">
                   <button type="submit" class="btn btn-check"
