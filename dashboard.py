@@ -303,66 +303,6 @@ def set_interval():
     return redirect(url_for("index"))
 
 
-@app.route("/generate_test_data", methods=["POST"])
-@login_required
-def generate_test_data():
-    import random
-    from datetime import timedelta
-
-    kw_list = ["山一ハガネ", "萩原電気ホールディングス", "中部経済新聞", "システムオーエヌイー"]
-    sources = ["日経ビジネス電子版", "東洋経済オンライン", "日本経済新聞", "朝日新聞デジタル", "Reuters Japan"]
-    titles = [
-        "{kw}、2026年度の設備投資計画を発表",
-        "{kw}が新製品ラインナップを公開",
-        "{kw}の第4四半期決算、市場予想を上回る",
-        "{kw}、新たな業務提携を締結",
-        "{kw}の代表取締役が交代へ",
-        "{kw}、東南アジア市場への本格参入を発表",
-        "{kw}が環境対応製品の販売を開始",
-        "{kw}、新工場の稼働を2027年に予定",
-        "{kw}の株価が年初来高値を更新",
-        "{kw}、DX推進に向け大規模投資",
-        "{kw}が人材採用を強化、新卒200名を募集",
-        "{kw}、カーボンニュートラル宣言を発表",
-        "{kw}が特許侵害訴訟で勝訴",
-        "{kw}、物流改革で配送コスト20%削減に成功",
-        "{kw}が新サービスのベータ版を公開",
-    ]
-
-    from datetime import datetime as dt
-    base = dt(2025, 10, 1)
-    span = int((dt(2026, 4, 2) - base).total_seconds())
-
-    articles = []
-    for i in range(100):
-        kw = random.choice(kw_list)
-        pub_dt = base + timedelta(seconds=random.randint(0, span))
-        articles.append({
-            "keyword": kw,
-            "title": random.choice(titles).format(kw=kw),
-            "url": f"https://news.example.com/article/{i+1:04d}",
-            "source": random.choice(sources),
-            "published": pub_dt.strftime("%Y-%m-%d %H:%M"),
-            "found_at": (pub_dt + timedelta(minutes=random.randint(1, 30))).strftime("%Y-%m-%d %H:%M:%S"),
-        })
-    articles.sort(key=lambda x: x["published"], reverse=True)
-
-    # キーワード登録（未登録のもののみ追加）
-    keywords = load_keywords_data()
-    existing = {k.get("keyword", "") if isinstance(k, dict) else k for k in keywords}
-    for kw in kw_list:
-        if kw not in existing:
-            keywords.append({"keyword": kw})
-    save_keywords_data(keywords)
-
-    # 記事保存
-    data = {"articles": articles, "seen_urls": {a["url"]: True for a in articles}}
-    with open(ARTICLES_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    flash("テストデータを100件生成しました", "success")
-    return redirect(url_for("index"))
-
 
 @app.route("/api/status")
 @login_required

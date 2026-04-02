@@ -547,14 +547,8 @@
     <div class="section-title">
       ニュース記事
       <span class="count" id="articles-count-badge">{{ articles | length }} 件</span>
-      <form method="POST" action="/generate_test_data" style="margin-left:auto;">
-        <button type="submit" class="btn-sort" style="font-size:0.75rem;"
-          onclick="return confirm('テストデータ100件を生成しますか？（既存の記事は上書きされます）')">
-          テストデータ生成
-        </button>
-      </form>
       {% if articles %}
-      <div class="history-controls" style="margin-left:0;">
+      <div class="history-controls">
         <button id="articles-sort-toggle" class="btn-sort" onclick="toggleArticleSort()">降順</button>
         <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
           <option value="10" selected>10件</option>
