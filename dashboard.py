@@ -9,7 +9,7 @@ import os
 import threading
 from datetime import datetime
 from functools import wraps
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session
+from flask import Flask, flash, render_template, jsonify, request, redirect, url_for, session
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -141,8 +141,6 @@ def index():
         })
 
     change_history = log.get("change_history", [])[:50]
-    flash_msg = request.args.get("msg")
-    flash_type = request.args.get("msg_type", "info")
     interval = config.get("check_interval_seconds", 3600)
 
     kw_entries = load_keywords_data()
@@ -161,8 +159,6 @@ def index():
         sites=sites,
         change_history=change_history,
         now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        flash_msg=flash_msg,
-        flash_type=flash_type,
         check_interval=interval,
         keywords=keywords,
         articles=articles,
@@ -178,19 +174,22 @@ def add_site():
     name = request.form.get("name", "").strip()
 
     if not url:
-        return redirect(url_for("index", msg="URLを入力してください", msg_type="error"))
+        flash("URLを入力してください", "error")
+        return redirect(url_for("index"))
 
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
     sites = load_sites()
     if any(s["url"] == url for s in sites):
-        return redirect(url_for("index", msg=f"すでに登録済みです: {url}", msg_type="error"))
+        flash(f"すでに登録済みです: {url}", "error")
+        return redirect(url_for("index"))
 
     sites.append({"url": url, "name": name})
     save_sites(sites)
     label = name if name else url
-    return redirect(url_for("index", msg=f"追加しました: {label}", msg_type="success"))
+    flash(f"追加しました: {label}", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/remove_site", methods=["POST"])
@@ -200,9 +199,11 @@ def remove_site():
     sites = load_sites()
     new_sites = [s for s in sites if s["url"] != url]
     if len(new_sites) == len(sites):
-        return redirect(url_for("index", msg="該当URLが見つかりません", msg_type="error"))
+        flash("該当URLが見つかりません", "error")
+        return redirect(url_for("index"))
     save_sites(new_sites)
-    return redirect(url_for("index", msg=f"削除しました: {url}", msg_type="success"))
+    flash(f"削除しました: {url}", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/check_site", methods=["POST"])
@@ -210,7 +211,8 @@ def remove_site():
 def check_site():
     url = request.form.get("url", "").strip()
     if url in _check_running:
-        return redirect(url_for("index", msg=f"チェック実行中です: {url}", msg_type="error"))
+        flash(f"チェック実行中です: {url}", "error")
+        return redirect(url_for("index"))
 
     sites = load_sites()
     site_name = next((s.get("name", "") for s in sites if s["url"] == url), "")
@@ -226,7 +228,8 @@ def check_site():
 
     threading.Thread(target=run, daemon=True).start()
     label = site_name if site_name else url
-    return redirect(url_for("index", msg=f"チェックを開始しました: {label}", msg_type="success"))
+    flash(f"チェックを開始しました: {label}", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/collect_keyword", methods=["POST"])
@@ -234,7 +237,8 @@ def check_site():
 def collect_keyword():
     keyword = request.form.get("keyword", "").strip()
     if keyword in _keyword_collecting:
-        return redirect(url_for("index", msg=f"収集中です: {keyword}", msg_type="error"))
+        flash(f"収集中です: {keyword}", "error")
+        return redirect(url_for("index"))
 
     import monitor as monitor_module
 
@@ -246,7 +250,8 @@ def collect_keyword():
             _keyword_collecting.discard(keyword)
 
     threading.Thread(target=run, daemon=True).start()
-    return redirect(url_for("index", msg=f"収集を開始しました: {keyword}", msg_type="success"))
+    flash(f"収集を開始しました: {keyword}", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/add_keyword", methods=["POST"])
@@ -254,14 +259,17 @@ def collect_keyword():
 def add_keyword():
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
-        return redirect(url_for("index", msg="キーワードを入力してください", msg_type="error"))
+        flash("キーワードを入力してください", "error")
+        return redirect(url_for("index"))
     keywords = load_keywords_data()
     existing = [k.get("keyword", "") if isinstance(k, dict) else k for k in keywords]
     if keyword in existing:
-        return redirect(url_for("index", msg=f"すでに登録済みです: {keyword}", msg_type="error"))
+        flash(f"すでに登録済みです: {keyword}", "error")
+        return redirect(url_for("index"))
     keywords.append({"keyword": keyword})
     save_keywords_data(keywords)
-    return redirect(url_for("index", msg=f"キーワードを追加しました: {keyword}", msg_type="success"))
+    flash(f"キーワードを追加しました: {keyword}", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/remove_keyword", methods=["POST"])
@@ -271,9 +279,11 @@ def remove_keyword():
     keywords = load_keywords_data()
     new_keywords = [k for k in keywords if (k.get("keyword", "") if isinstance(k, dict) else k) != keyword]
     if len(new_keywords) == len(keywords):
-        return redirect(url_for("index", msg="該当キーワードが見つかりません", msg_type="error"))
+        flash("該当キーワードが見つかりません", "error")
+        return redirect(url_for("index"))
     save_keywords_data(new_keywords)
-    return redirect(url_for("index", msg=f"キーワードを削除しました: {keyword}", msg_type="success"))
+    flash(f"キーワードを削除しました: {keyword}", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/set_interval", methods=["POST"])
@@ -282,13 +292,15 @@ def set_interval():
     try:
         seconds = int(request.form.get("seconds", 3600))
     except ValueError:
-        return redirect(url_for("index", msg="無効な値です", msg_type="error"))
+        flash("無効な値です", "error")
+        return redirect(url_for("index"))
 
     config = load_config()
     config["check_interval_seconds"] = seconds
     save_config(config)
     minutes = seconds // 60
-    return redirect(url_for("index", msg=f"チェック間隔を {minutes} 分に変更しました", msg_type="success"))
+    flash(f"チェック間隔を {minutes} 分に変更しました", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/api/status")

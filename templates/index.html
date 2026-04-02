@@ -326,9 +326,11 @@
 
 <main>
 
-  {% if flash_msg %}
-  <div class="flash flash-{{ flash_type }}">{{ flash_msg }}</div>
-  {% endif %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
 
   <!-- モニターサイト一覧 -->
   <section>
