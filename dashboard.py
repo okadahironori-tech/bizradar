@@ -365,6 +365,18 @@ def set_interval():
 
 
 
+@app.route("/terms")
+def terms():
+    back_url = url_for("index") if session.get("logged_in") else url_for("login")
+    return render_template("terms.html", back_url=back_url)
+
+
+@app.route("/privacy")
+def privacy():
+    back_url = url_for("index") if session.get("logged_in") else url_for("login")
+    return render_template("privacy.html", back_url=back_url)
+
+
 @app.route("/api/status")
 @login_required
 def api_status():
