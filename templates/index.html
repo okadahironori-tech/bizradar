@@ -165,6 +165,18 @@
     }
     .interval-options label:hover { border-color: #3949ab; }
 
+    /* パスワード変更 */
+    .settings-divider { border: none; border-top: 1px solid #e5e7eb; margin: 0; }
+    .pw-change-fields {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+    .pw-change-fields input {
+      padding: 7px 12px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 0.85rem; outline: none;
+      transition: border-color 0.15s; width: 200px;
+    }
+    .pw-change-fields input:focus { border-color: #3949ab; }
+
     /* 変更履歴 */
     .timeline { padding: 4px 0; }
     .timeline-item {
@@ -685,6 +697,16 @@
           {% endfor %}
         </div>
         <button type="submit" class="btn btn-save">保存</button>
+      </form>
+      <hr class="settings-divider">
+      <form class="settings-panel" method="POST" action="/change_password">
+        <label>パスワード変更</label>
+        <div class="pw-change-fields">
+          <input type="password" name="current_password" placeholder="現在のパスワード" required>
+          <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required>
+          <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required>
+        </div>
+        <button type="submit" class="btn btn-save">変更する</button>
       </form>
     </div>
   </section>

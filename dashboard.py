@@ -3,9 +3,11 @@
 monitor.py の監視データをブラウザで確認できるWebアプリ
 """
 
+import hashlib
 import hmac
 import json
 import os
+import secrets
 import threading
 from datetime import datetime
 from functools import wraps
@@ -75,6 +77,36 @@ def save_config(config: dict):
         json.dump(config, f, ensure_ascii=False, indent=2)
 
 
+def _hash_password(password: str, salt: str) -> str:
+    return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+
+
+def get_credentials() -> dict:
+    """認証情報を返す。config.jsonの設定がenv varより優先される。"""
+    config = load_config()
+    auth = config.get("auth", {})
+    if auth.get("password_hash") and auth.get("salt"):
+        return {
+            "username": auth.get("username", os.environ.get("DASHBOARD_USER", "admin")),
+            "password_hash": auth["password_hash"],
+            "salt": auth["salt"],
+            "use_hash": True,
+        }
+    return {
+        "username": os.environ.get("DASHBOARD_USER", "admin"),
+        "password": os.environ.get("DASHBOARD_PASSWORD", ""),
+        "use_hash": False,
+    }
+
+
+def verify_password(input_pass: str) -> bool:
+    creds = get_credentials()
+    if creds["use_hash"]:
+        input_hash = _hash_password(input_pass, creds["salt"])
+        return hmac.compare_digest(input_hash, creds["password_hash"])
+    return hmac.compare_digest(input_pass, creds.get("password", ""))
+
+
 def load_keywords_data() -> list:
     if os.path.exists(KEYWORDS_FILE):
         with open(KEYWORDS_FILE, "r", encoding="utf-8") as f:
@@ -98,12 +130,11 @@ def load_articles_store() -> dict:
 def login():
     error = None
     if request.method == "POST":
-        expected_user = os.environ.get("DASHBOARD_USER", "admin")
-        expected_pass = os.environ.get("DASHBOARD_PASSWORD", "")
+        creds = get_credentials()
         input_user = request.form.get("username", "")
         input_pass = request.form.get("password", "")
-        user_ok = hmac.compare_digest(input_user, expected_user)
-        pass_ok = hmac.compare_digest(input_pass, expected_pass)
+        user_ok = hmac.compare_digest(input_user, creds["username"])
+        pass_ok = verify_password(input_pass)
         if user_ok and pass_ok:
             session["logged_in"] = True
             next_url = request.form.get("next", "")
@@ -283,6 +314,36 @@ def remove_keyword():
         return redirect(url_for("index"))
     save_keywords_data(new_keywords)
     flash(f"キーワードを削除しました: {keyword}", "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/change_password", methods=["POST"])
+@login_required
+def change_password():
+    current = request.form.get("current_password", "")
+    new_pass = request.form.get("new_password", "")
+    confirm = request.form.get("confirm_password", "")
+
+    if new_pass != confirm:
+        flash("新しいパスワードが一致しません", "error")
+        return redirect(url_for("index"))
+    if len(new_pass) < 6:
+        flash("パスワードは6文字以上で入力してください", "error")
+        return redirect(url_for("index"))
+    if not verify_password(current):
+        flash("現在のパスワードが正しくありません", "error")
+        return redirect(url_for("index"))
+
+    salt = secrets.token_hex(16)
+    new_hash = _hash_password(new_pass, salt)
+    config = load_config()
+    config["auth"] = {
+        "username": get_credentials()["username"],
+        "password_hash": new_hash,
+        "salt": salt,
+    }
+    save_config(config)
+    flash("パスワードを変更しました", "success")
     return redirect(url_for("index"))
 
 
