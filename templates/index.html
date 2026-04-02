@@ -301,11 +301,82 @@
     .article-title:hover { color: #1a237e; text-decoration: underline; }
     .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
 
-    @media (max-width: 700px) {
-      header { padding: 16px; flex-direction: column; align-items: flex-start; gap: 4px; }
-      td, th { padding: 10px 10px; }
+    /* ── タブレット (〜 768px) ── */
+    @media (max-width: 768px) {
+      main { margin: 24px auto; }
+
+      /* セクションタイトルのコントロールを折り返す */
+      .section-title { flex-wrap: wrap; row-gap: 8px; }
+      .history-controls { margin-left: 0; width: 100%; }
+
+      /* テーブル横スクロール */
+      .card { overflow-x: auto; }
+
       .add-form { flex-direction: column; }
       .input-name, .input-url, .btn-add { width: 100%; }
+
+      .settings-panel { gap: 10px; }
+    }
+
+    /* ── スマホ (〜 480px) ── */
+    @media (max-width: 480px) {
+      /* ヘッダー */
+      header {
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      header > div:last-child { width: 100%; justify-content: space-between; }
+      header .updated-at { font-size: 0.72rem; }
+
+      /* レイアウト */
+      main { margin: 14px auto; padding: 0 10px; }
+      section + section { margin-top: 18px; }
+      .section-title { font-size: 0.92rem; }
+
+      /* テーブル */
+      td, th { padding: 8px 10px; font-size: 0.82rem; }
+      .site-name { font-size: 0.88rem; }
+      .url-link { font-size: 0.78rem; }
+
+      /* ボタン（タップターゲット確保） */
+      .btn { padding: 8px 12px; font-size: 0.8rem; }
+      .btn-add { padding: 10px 14px; font-size: 0.88rem; text-align: center; }
+      .btn-page { padding: 8px 14px; font-size: 0.8rem; }
+      .row-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+
+      /* フォーム */
+      .add-form { padding: 12px; gap: 8px; }
+      .input-name { width: 100%; }
+
+      /* 設定パネル */
+      .settings-panel {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px;
+      }
+      .interval-options { gap: 6px; }
+
+      /* タイムライン */
+      .timeline-item { padding: 11px 14px; gap: 10px; }
+      .timeline-meta { font-size: 0.72rem; }
+
+      /* 記事 */
+      .article-item { padding: 10px 14px; gap: 8px; }
+      .article-title { font-size: 0.86rem; }
+
+      /* ページネーション */
+      .pagination-bar { gap: 8px; padding: 8px 12px; }
+      .page-info { min-width: 60px; font-size: 0.75rem; }
+
+      /* キーワードフィルター */
+      .kw-filter-bar { padding: 10px 12px; gap: 6px; }
+      .kw-filter-btn { padding: 5px 12px; }
+
+      /* フラッシュメッセージ */
+      .flash { padding: 10px 14px; font-size: 0.84rem; }
     }
   </style>
 </head>
