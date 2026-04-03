@@ -663,16 +663,26 @@ def remove_running_task(task_type: str, key: str):
             )
 
 
-def get_all_running_tasks() -> dict:
+def get_running_task_statuses() -> dict:
+    """実行中・完了猶予期間内のタスクをステータス付きで返す。
+    Returns: {task_type: {key: "running" | "completed"}}
+    """
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT task_type, key FROM running_tasks "
+                "SELECT task_type, key, completed_at FROM running_tasks "
                 "WHERE started_at > NOW() - (INTERVAL '1 minute' * %s) "
                 "AND (completed_at IS NULL OR completed_at > NOW() - (INTERVAL '1 second' * %s))",
                 (_TASK_TIMEOUT_MINUTES, _COMPLETED_GRACE_SECONDS)
             )
             result: dict = {}
-            for task_type, key in cur.fetchall():
-                result.setdefault(task_type, set()).add(key)
+            for task_type, key, completed_at in cur.fetchall():
+                status = "completed" if completed_at is not None else "running"
+                result.setdefault(task_type, {})[key] = status
             return result
+
+
+def get_all_running_tasks() -> dict:
+    """後方互換用: 実行中・完了猶予期間内タスクのキーセットを返す。"""
+    statuses = get_running_task_statuses()
+    return {task_type: set(keys.keys()) for task_type, keys in statuses.items()}

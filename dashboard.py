@@ -110,22 +110,24 @@ def index():
     hashes    = db.load_hashes()
     config    = db.load_config()
     site_list = db.load_sites(user_id)
-    running   = db.get_all_running_tasks()
-    checking_urls  = running.get("site_check", set())
-    collecting_kws = running.get("keyword_collect", set())
+    running    = db.get_running_task_statuses()
+    site_statuses  = running.get("site_check", {})
+    collecting_kws = set(running.get("keyword_collect", {}).keys())
 
     sites = []
     for s in site_list:
         url = s["url"]
         check_info = log["last_checks"].get(url, {})
+        task_status = site_statuses.get(url)
         sites.append({
-            "url":        url,
-            "name":       s.get("name", ""),
-            "last_check": check_info.get("timestamp", "未チェック"),
-            "status":     check_info.get("status", "unknown"),
-            "error":      check_info.get("error", ""),
-            "hash":       hashes.get(url, "-"),
-            "checking":   url in checking_urls,
+            "url":             url,
+            "name":            s.get("name", ""),
+            "last_check":      check_info.get("timestamp", "未チェック"),
+            "status":          check_info.get("status", "unknown"),
+            "error":           check_info.get("error", ""),
+            "hash":            hashes.get(url, "-"),
+            "checking":        task_status == "running",
+            "check_completed": task_status == "completed",
         })
 
     change_history = log.get("change_history", [])[:50]
@@ -438,11 +440,14 @@ def privacy():
 @app.route("/api/checking_status")
 @login_required
 def api_checking_status():
-    """チェック中のURL・キーワード一覧を返す軽量エンドポイント"""
-    running = db.get_all_running_tasks()
+    """チェック中・完了（猶予期間内）のURL・キーワードをステータス付きで返す軽量エンドポイント。
+    site_statuses: {url: "running" | "completed"}
+    keyword_statuses: {keyword: "running" | "completed"}
+    """
+    statuses = db.get_running_task_statuses()
     return jsonify({
-        "checking_urls":      list(running.get("site_check", set())),
-        "checking_keywords":  list(running.get("keyword_collect", set())),
+        "site_statuses":    statuses.get("site_check", {}),
+        "keyword_statuses": statuses.get("keyword_collect", {}),
     })
 
 

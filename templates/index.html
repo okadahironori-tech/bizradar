@@ -109,8 +109,10 @@
       white-space: nowrap; transition: opacity 0.15s;
     }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-check   { background: #e8eaf6; color: #3949ab; }
+    .btn-check      { background: #e8eaf6; color: #3949ab; }
     .btn-check:hover:not(:disabled) { background: #c5cae9; }
+    .btn-check-ok   { background: #dcfce7; color: #166534; border-color: #86efac; }
+    .btn-check-ok:disabled { opacity: 0.85; cursor: default; }
     .btn-remove  { background: none; border: 1px solid #fca5a5; color: #ef4444; }
     .btn-remove:hover { background: #fef2f2; }
     .btn-add     { background: #3949ab; color: #fff; padding: 8px 18px; font-size: 0.88rem; }
@@ -590,11 +592,14 @@
               <div class="row-actions" style="justify-content:flex-start">
                 <form method="POST" action="/check_site">
                   <input type="hidden" name="url" value="{{ site.url }}">
-                  <button type="submit" class="btn btn-check"
+                  <button type="submit"
+                    class="btn {% if site.check_completed %}btn-check-ok{% else %}btn-check{% endif %}"
                     data-check-url="{{ site.url }}"
-                    {% if site.checking %}disabled{% endif %}
-                    onclick="this.disabled=true; this.textContent='チェック中...'">
-                    {% if site.checking %}チェック中...{% else %}今すぐチェック{% endif %}
+                    {% if site.checking or site.check_completed %}disabled{% endif %}
+                    onclick="this.disabled=true; this.classList.remove('btn-check-ok'); this.classList.add('btn-check'); this.textContent='チェック中...'">
+                    {% if site.checking %}チェック中...
+                    {% elif site.check_completed %}チェック完了 ✓
+                    {% else %}今すぐチェック{% endif %}
                   </button>
                 </form>
                 <button
@@ -1265,12 +1270,23 @@ function _allSiteCheckButtons() {
   return buttons;
 }
 
-function _applyCheckingUrls(checkingUrls) {
+function _applyCheckingStatuses(siteStatuses) {
   _allSiteCheckButtons().forEach(btn => {
-    const url        = btn.dataset.checkUrl;
-    const isChecking = checkingUrls.includes(url);
-    btn.disabled    = isChecking;
-    btn.textContent = isChecking ? 'チェック中...' : '今すぐチェック';
+    const status = siteStatuses[btn.dataset.checkUrl];
+    btn.classList.remove('btn-check', 'btn-check-ok');
+    if (status === 'running') {
+      btn.classList.add('btn-check');
+      btn.disabled    = true;
+      btn.textContent = 'チェック中...';
+    } else if (status === 'completed') {
+      btn.classList.add('btn-check-ok');
+      btn.disabled    = true;
+      btn.textContent = 'チェック完了 ✓';
+    } else {
+      btn.classList.add('btn-check');
+      btn.disabled    = false;
+      btn.textContent = '今すぐチェック';
+    }
   });
 }
 
@@ -1280,9 +1296,9 @@ async function _pollCheckingStatus() {
     const res = await fetch('/api/checking_status');
     if (!res.ok) return;
     const data = await res.json();
-    const checkingUrls = data.checking_urls || [];
-    _applyCheckingUrls(checkingUrls);
-    if (checkingUrls.length > 0) {
+    const siteStatuses = data.site_statuses || {};
+    _applyCheckingStatuses(siteStatuses);
+    if (Object.keys(siteStatuses).length > 0) {
       _checkingPollTimer = setTimeout(_pollCheckingStatus, 3000);
     }
   } catch (_) {
