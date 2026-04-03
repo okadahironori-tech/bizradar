@@ -539,6 +539,14 @@ def load_all_keywords_with_users() -> list:
 # Articles
 # ============================================================
 
+def load_article_seen_urls(user_id: int) -> set:
+    """ユーザーが既に登録済みの記事URL集合（重複検知用。件数制限なし）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT url FROM articles WHERE user_id = %s", (user_id,))
+            return {row[0] for row in cur.fetchall()}
+
+
 def load_articles_data(user_id=None) -> dict:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -548,38 +556,34 @@ def load_articles_data(user_id=None) -> dict:
                     "FROM articles WHERE user_id = %s ORDER BY id DESC LIMIT 1000",
                     (user_id,)
                 )
+                articles = [dict(row) for row in cur.fetchall()]
+                cur.execute("SELECT url FROM articles WHERE user_id = %s", (user_id,))
+                seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
                 cur.execute(
                     "SELECT keyword, title, url, source, published, found_at "
                     "FROM articles ORDER BY id DESC LIMIT 1000"
                 )
-            articles = [dict(row) for row in cur.fetchall()]
-    seen_urls = {a["url"]: True for a in articles}
+                articles = [dict(row) for row in cur.fetchall()]
+                cur.execute("SELECT url FROM articles")
+                seen_urls = {row["url"]: True for row in cur.fetchall()}
     return {"articles": articles, "seen_urls": seen_urls}
 
 
-def save_articles_data(data: dict, user_id=None):
-    articles = data.get("articles", [])
+def insert_articles(articles: list, user_id: int):
+    """新着記事のみDBに登録する（既存URLは ON CONFLICT で無視）"""
+    if not articles:
+        return
     with _conn() as conn:
         with conn.cursor() as cur:
             for article in articles:
-                if user_id is not None:
-                    cur.execute(
-                        "INSERT INTO articles (keyword, title, url, source, published, found_at, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (user_id, url) DO NOTHING",
-                        (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
-                         article.get("source", ""), article.get("published", ""),
-                         article.get("found_at", ""), user_id)
-                    )
-                else:
-                    # user_id なし（旧データ互換）: url 単体で重複チェック
-                    cur.execute(
-                        "INSERT INTO articles (keyword, title, url, source, published, found_at) "
-                        "VALUES (%s, %s, %s, %s, %s, %s) "
-                        "ON CONFLICT DO NOTHING",
-                        (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
-                         article.get("source", ""), article.get("published", ""), article.get("found_at", ""))
-                    )
+                cur.execute(
+                    "INSERT INTO articles (keyword, title, url, source, published, found_at, user_id) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (user_id, url) DO NOTHING",
+                    (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
+                     article.get("source", ""), article.get("published", ""),
+                     article.get("found_at", ""), user_id)
+                )
 
 
 # ============================================================

@@ -46,23 +46,52 @@ DEFAULT_CHECK_INTERVAL = 3600
 # ============================================================
 
 
+def _rss_entry_link(entry) -> str:
+    """feedparser の entry から記事URLを取り出す（Google News の形式差に対応）"""
+    url = (entry.get("link") or "").strip()
+    if url:
+        return url
+    for link in entry.get("links", []):
+        rel = (link.get("rel") or "").lower()
+        if rel in ("alternate", "self") and link.get("href"):
+            return str(link["href"]).strip()
+    return ""
+
+
 def fetch_news_articles(keyword: str) -> list:
-    """Google News RSSからキーワード関連記事を取得する（最新20件）"""
+    """Google News RSSからキーワード関連記事を取得する（最新20件）
+
+    urllib 経由の feedparser 直取得はサーバー環境でブロックされやすいため、
+    requests で本文を取得してからパースする。
+    """
     rss_url = f"https://news.google.com/rss/search?q={quote(keyword)}&hl=ja&gl=JP&ceid=JP:ja"
-    feed = feedparser.parse(
-        rss_url,
-        agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    )
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    }
+    try:
+        response = requests.get(rss_url, headers=headers, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise RuntimeError(f"RSSの取得に失敗しました: {e}") from e
+
+    feed = feedparser.parse(response.content)
+    if feed.bozo and getattr(feed, "bozo_exception", None):
+        print(f"  [警告] RSSの解析に問題があります: {feed.bozo_exception}")
+    if not feed.entries:
+        print(f"  [警告] RSSの記事が0件です (HTTP {response.status_code}, keyword={keyword!r})")
+
     articles = []
     for entry in feed.entries[:20]:
         title = entry.get("title", "").strip()
-        url   = entry.get("link", "")
+        url = _rss_entry_link(entry)
         source = ""
         if hasattr(entry, "source"):
             source = entry.source.get("title", "")
         if not source and " - " in title:
             title, source = title.rsplit(" - ", 1)
-            title  = title.strip()
+            title = title.strip()
             source = source.strip()
         published = ""
         if entry.get("published_parsed"):
@@ -118,8 +147,11 @@ def send_news_email(keyword: str, articles: list):
 def check_single_keyword(keyword: str, user_id=None):
     """単一キーワードのニュースをチェックしてDBを更新する"""
     print(f"[ニュースチェック] キーワード: {keyword} (user_id={user_id})")
-    data = db.load_articles_data(user_id)
-    seen_urls = set(data.get("seen_urls", {}).keys())
+    if user_id is None:
+        print("  [エラー] user_id が必要です")
+        return
+
+    seen_urls = db.load_article_seen_urls(user_id)
     try:
         articles = fetch_news_articles(keyword)
     except Exception as e:
@@ -134,17 +166,13 @@ def check_single_keyword(keyword: str, user_id=None):
             article["found_at"] = now_str
             new_articles.append(article)
             seen_urls.add(url)
-            data["articles"].insert(0, article)
 
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
         send_news_email(keyword, new_articles)
+        db.insert_articles(new_articles, user_id)
     else:
         print(f"  → 新着なし")
-
-    data["seen_urls"] = {url: True for url in seen_urls}
-    data["articles"]  = data["articles"][:1000]
-    db.save_articles_data(data, user_id)
 
 
 def check_all_keywords():
@@ -161,8 +189,7 @@ def check_all_keywords():
         user_keywords.setdefault(user_id, []).append(keyword)
 
     for user_id, keywords in user_keywords.items():
-        data = db.load_articles_data(user_id)
-        seen_urls = set(data.get("seen_urls", {}).keys())
+        seen_urls = db.load_article_seen_urls(user_id)
 
         for keyword in keywords:
             if not keyword:
@@ -182,17 +209,13 @@ def check_all_keywords():
                     article["found_at"] = now_str
                     new_articles.append(article)
                     seen_urls.add(url)
-                    data["articles"].insert(0, article)
 
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
                 send_news_email(keyword, new_articles)
+                db.insert_articles(new_articles, user_id)
             else:
                 print(f"  → 新着なし")
-
-        data["seen_urls"] = {url: True for url in seen_urls}
-        data["articles"]  = data["articles"][:1000]
-        db.save_articles_data(data, user_id)
 
     print(f"[ニュースチェック完了]")
 

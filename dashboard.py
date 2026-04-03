@@ -3,6 +3,7 @@
 monitor.py の監視データをブラウザで確認できるWebアプリ（マルチユーザー対応）
 """
 
+import logging
 import os
 import sys
 import threading
@@ -14,6 +15,8 @@ from dotenv import load_dotenv
 import db
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -238,6 +241,10 @@ def collect_keyword():
     def run():
         try:
             monitor_module.check_single_keyword(keyword, user_id)
+        except Exception:
+            logger.exception(
+                "キーワード収集に失敗しました keyword=%r user_id=%s", keyword, user_id
+            )
         finally:
             db.remove_running_task("keyword_collect", keyword)
 
