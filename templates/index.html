@@ -591,6 +591,7 @@
                 <form method="POST" action="/check_site">
                   <input type="hidden" name="url" value="{{ site.url }}">
                   <button type="submit" class="btn btn-check"
+                    data-check-url="{{ site.url }}"
                     {% if site.checking %}disabled{% endif %}
                     onclick="this.disabled=true; this.textContent='チェック中...'">
                     {% if site.checking %}チェック中...{% else %}今すぐチェック{% endif %}
@@ -1249,27 +1250,25 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 let _checkingPollTimer = null;
 
-function _allSiteCheckForms() {
-  const forms = [];
-  // DOM上に存在するフォーム
-  document.querySelectorAll('form[action="/check_site"]').forEach(f => forms.push(f));
+function _allSiteCheckButtons() {
+  const buttons = [];
+  // DOM上に存在するボタン
+  document.querySelectorAll('button[data-check-url]').forEach(b => buttons.push(b));
   // ページネーションで非表示中の行（_sitePairs 内の切り離されたノード）
   if (window._sitePairs) {
     window._sitePairs.forEach(([primary]) => {
-      primary.querySelectorAll('form[action="/check_site"]').forEach(f => {
-        if (!forms.includes(f)) forms.push(f);
+      primary.querySelectorAll('button[data-check-url]').forEach(b => {
+        if (!buttons.includes(b)) buttons.push(b);
       });
     });
   }
-  return forms;
+  return buttons;
 }
 
 function _applyCheckingUrls(checkingUrls) {
-  _allSiteCheckForms().forEach(form => {
-    const urlInput = form.querySelector('input[name="url"]');
-    const btn      = form.querySelector('button[type="submit"]');
-    if (!urlInput || !btn) return;
-    const isChecking = checkingUrls.includes(urlInput.value);
+  _allSiteCheckButtons().forEach(btn => {
+    const url        = btn.dataset.checkUrl;
+    const isChecking = checkingUrls.includes(url);
     btn.disabled    = isChecking;
     btn.textContent = isChecking ? 'チェック中...' : '今すぐチェック';
   });
