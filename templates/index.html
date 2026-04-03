@@ -323,6 +323,68 @@
     }
     .article-title:hover { color: #1a237e; text-decoration: underline; }
     .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
+    .article-item.article-read {
+      background: #f3f4f6;
+    }
+    .article-item.article-read .article-title {
+      color: #9ca3af;
+    }
+    .article-item.article-read .article-meta {
+      color: #cbd5e1;
+    }
+    .article-item.article-read .article-kw {
+      background: #e5e7eb;
+      color: #6b7280;
+    }
+    .article-read-mark {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #e8f5e9;
+      color: #2e7d32;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+    .btn-check-done {
+      flex-shrink: 0;
+      margin-top: 2px;
+      background: #f3f4f6;
+      color: #4b5563;
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-check-done:hover { background: #e5e7eb; border-color: #d1d5db; }
+    .notify-toggle-form { display: inline-flex; align-items: center; }
+    .btn-notify-toggle {
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #6b7280;
+    }
+    .btn-notify-toggle.on {
+      background: #e8f5e9;
+      border-color: #a5d6a7;
+      color: #2e7d32;
+    }
+    .btn-notify-toggle.off {
+      background: #f3f4f6;
+      border-color: #e5e7eb;
+      color: #9ca3af;
+    }
 
     /* ── タブレット (〜 768px) ── */
     @media (max-width: 768px) {
@@ -653,21 +715,31 @@
           <tr>
             <th>キーワード</th>
             <th style="text-align:right">収集記事数</th>
+            <th style="text-align:center">通知</th>
             <th style="text-align:right">操作</th>
           </tr>
         </thead>
         <tbody id="kw-tbody">
-          {% for kw in keywords %}
-          {% set is_collecting = kw in keyword_collecting %}
+          {% for kw in keyword_entries %}
+          {% set is_collecting = kw.keyword in keyword_collecting %}
           <tr data-kw-index="{{ loop.index0 }}">
-            <td style="font-weight:600">{{ kw }}</td>
+            <td style="font-weight:600">{{ kw.keyword }}</td>
             <td style="text-align:right; color:#6b7280; font-size:0.85rem">
-              {{ keyword_counts.get(kw, 0) }} 件
+              {{ keyword_counts.get(kw.keyword, 0) }} 件
+            </td>
+            <td style="text-align:center">
+              <form method="POST" action="/toggle_keyword_notify" class="notify-toggle-form">
+                <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
+                <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}">
+                  {% if kw.notify_enabled %}ON{% else %}OFF{% endif %}
+                </button>
+              </form>
             </td>
             <td>
               <div class="row-actions">
                 <form method="POST" action="/collect_keyword">
-                  <input type="hidden" name="keyword" value="{{ kw }}">
+                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
                   <button type="submit" class="btn btn-check"
                     {% if is_collecting %}disabled{% endif %}
                     onclick="this.disabled=true; this.textContent='収集中...'">
@@ -675,8 +747,8 @@
                   </button>
                 </form>
                 <form method="POST" action="/remove_keyword"
-                      onsubmit="return confirm('「{{ kw }}」を削除しますか？')">
-                  <input type="hidden" name="keyword" value="{{ kw }}">
+                      onsubmit="return confirm('「{{ kw.keyword }}」を削除しますか？')">
+                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
                   <button type="submit" class="btn btn-remove">削除</button>
                 </form>
               </div>
@@ -685,7 +757,7 @@
           {% endfor %}
           {% if not keywords %}
           <tr>
-            <td colspan="3">
+            <td colspan="4">
               <div class="empty-state">
                 キーワードが登録されていません
               </div>
@@ -726,14 +798,22 @@
       {% if articles %}
         <div class="kw-filter-bar">
           <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
-          {% for kw in keywords %}
-          <button class="kw-filter-btn" data-kw="{{ kw }}" onclick="filterArticlesByKw('{{ kw }}')">{{ kw }}</button>
+          {% for kw in keyword_entries %}
+          <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
           {% endfor %}
         </div>
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
           {% for article in articles %}
-          <div class="article-item" data-keyword="{{ article.keyword }}">
+          <div class="article-item {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}">
+            {% if article.is_read %}
+            <span class="article-read-mark" title="チェック済み">✓</span>
+            {% else %}
+            <form method="POST" action="/mark_article_read" class="article-read-actions">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-check-done">チェック済み</button>
+            </form>
+            {% endif %}
             <span class="article-kw">{{ article.keyword }}</span>
             <div class="article-body">
               <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">

@@ -177,8 +177,9 @@ def check_single_keyword(keyword: str, user_id=None):
 
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
-        send_news_email(keyword, new_articles)
         db.insert_articles(new_articles, user_id)
+        if db.is_keyword_notify_enabled(user_id, keyword):
+            send_news_email(keyword, new_articles)
     else:
         print(f"  → 新着なし")
 
@@ -191,15 +192,15 @@ def check_all_keywords():
 
     print(f"[ニュースチェック開始] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    # user_id ごとにキーワードをグループ化
+    # user_id ごとにキーワードをグループ化（notify_enabled 付き）
     user_keywords: dict = {}
-    for user_id, keyword in kw_with_users:
-        user_keywords.setdefault(user_id, []).append(keyword)
+    for user_id, keyword, notify_enabled in kw_with_users:
+        user_keywords.setdefault(user_id, []).append((keyword, notify_enabled))
 
     for user_id, keywords in user_keywords.items():
         seen_urls = db.load_article_seen_urls(user_id)
 
-        for keyword in keywords:
+        for keyword, notify_enabled in keywords:
             if not keyword:
                 continue
             print(f"  キーワード: {keyword} (user_id={user_id})")
@@ -220,8 +221,9 @@ def check_all_keywords():
 
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
-                send_news_email(keyword, new_articles)
                 db.insert_articles(new_articles, user_id)
+                if notify_enabled:
+                    send_news_email(keyword, new_articles)
             else:
                 print(f"  → 新着なし")
 

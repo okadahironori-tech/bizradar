@@ -193,6 +193,13 @@ def _run_migrations():
                 END $$;
             """)
 
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT FALSE;"
+            )
+            cur.execute(
+                "ALTER TABLE keywords ADD COLUMN IF NOT EXISTS notify_enabled BOOLEAN NOT NULL DEFAULT TRUE;"
+            )
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -479,39 +486,79 @@ def save_content_store(store: dict):
 # ============================================================
 
 def load_keywords(user_id=None) -> list:
-    """[{"keyword": "..."}, ...] 形式で返す"""
+    """[{"keyword": "...", "notify_enabled": bool}, ...] 形式で返す"""
     with _conn() as conn:
         with conn.cursor() as cur:
             if user_id is not None:
-                cur.execute("SELECT keyword FROM keywords WHERE user_id = %s ORDER BY id", (user_id,))
+                cur.execute(
+                    "SELECT keyword, COALESCE(notify_enabled, TRUE) FROM keywords "
+                    "WHERE user_id = %s ORDER BY id",
+                    (user_id,),
+                )
             else:
-                cur.execute("SELECT keyword FROM keywords ORDER BY id")
-            return [{"keyword": row[0]} for row in cur.fetchall()]
+                cur.execute(
+                    "SELECT keyword, COALESCE(notify_enabled, TRUE) FROM keywords ORDER BY id"
+                )
+            return [{"keyword": row[0], "notify_enabled": bool(row[1])} for row in cur.fetchall()]
 
 
 def save_keywords(keywords: list, user_id: int):
-    kw_list = [(k["keyword"] if isinstance(k, dict) else k) for k in keywords
-               if (k["keyword"] if isinstance(k, dict) else k)]
+    normalized = []
+    for k in keywords:
+        if isinstance(k, dict):
+            kw = k.get("keyword", "").strip()
+            if kw:
+                normalized.append((kw, k.get("notify_enabled", True)))
+        else:
+            s = str(k).strip()
+            if s:
+                normalized.append((s, True))
+    kw_list = [kw for kw, _ in normalized]
     with _conn() as conn:
         with conn.cursor() as cur:
             if kw_list:
                 cur.execute("DELETE FROM keywords WHERE user_id = %s AND keyword != ALL(%s)", (user_id, kw_list))
             else:
                 cur.execute("DELETE FROM keywords WHERE user_id = %s", (user_id,))
-            for kw in kw_list:
+            for kw, notify in normalized:
                 cur.execute(
-                    "INSERT INTO keywords (keyword, user_id) VALUES (%s, %s) "
+                    "INSERT INTO keywords (keyword, user_id, notify_enabled) VALUES (%s, %s, %s) "
                     "ON CONFLICT (user_id, keyword) DO NOTHING",
-                    (kw, user_id)
+                    (kw, user_id, notify)
                 )
 
 
-def load_all_keywords_with_users() -> list:
-    """バックグラウンド用: [(user_id, keyword), ...] 形式で全キーワードを返す"""
+def update_keyword_notify(user_id: int, keyword: str, notify_enabled: bool) -> bool:
+    """キーワードのメール通知ON/OFFを更新する"""
     with _conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT user_id, keyword FROM keywords ORDER BY id")
-            return [(row[0], row[1]) for row in cur.fetchall()]
+            cur.execute(
+                "UPDATE keywords SET notify_enabled = %s WHERE user_id = %s AND keyword = %s",
+                (notify_enabled, user_id, keyword),
+            )
+            return cur.rowcount > 0
+
+
+def is_keyword_notify_enabled(user_id: int, keyword: str) -> bool:
+    """キーワードの通知が有効か（行が無い場合は True）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(notify_enabled, TRUE) FROM keywords WHERE user_id = %s AND keyword = %s",
+                (user_id, keyword),
+            )
+            row = cur.fetchone()
+            return bool(row[0]) if row else True
+
+
+def load_all_keywords_with_users() -> list:
+    """バックグラウンド用: [(user_id, keyword, notify_enabled), ...]"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE) FROM keywords ORDER BY id"
+            )
+            return [(row[0], row[1], bool(row[2])) for row in cur.fetchall()]
 
 
 # ============================================================
@@ -531,7 +578,7 @@ def load_articles_data(user_id=None) -> dict:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
                 cur.execute(
-                    "SELECT keyword, title, url, source, published, found_at "
+                    "SELECT id, keyword, title, url, source, published, found_at, is_read "
                     "FROM articles WHERE user_id = %s ORDER BY id DESC LIMIT 1000",
                     (user_id,)
                 )
@@ -540,7 +587,7 @@ def load_articles_data(user_id=None) -> dict:
                 seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
                 cur.execute(
-                    "SELECT keyword, title, url, source, published, found_at "
+                    "SELECT id, keyword, title, url, source, published, found_at, is_read "
                     "FROM articles ORDER BY id DESC LIMIT 1000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
@@ -557,12 +604,23 @@ def insert_articles(articles: list, user_id: int):
         with conn.cursor() as cur:
             for article in articles:
                 cur.execute(
-                    "INSERT INTO articles (keyword, title, url, source, published, found_at, user_id) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (user_id, url) DO NOTHING",
+                    "INSERT INTO articles (keyword, title, url, source, published, found_at, user_id, is_read) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE) ON CONFLICT (user_id, url) DO NOTHING",
                     (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
                      article.get("source", ""), article.get("published", ""),
                      article.get("found_at", ""), user_id)
                 )
+
+
+def mark_article_read(user_id: int, article_id: int) -> bool:
+    """記事を既読にする"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE articles SET is_read = TRUE WHERE id = %s AND user_id = %s",
+                (article_id, user_id),
+            )
+            return cur.rowcount > 0
 
 
 # ============================================================

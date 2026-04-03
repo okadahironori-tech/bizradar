@@ -150,6 +150,7 @@ def index():
         now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         check_interval=interval,
         keywords=keywords,
+        keyword_entries=kw_entries,
         articles=articles,
         keyword_counts=keyword_counts,
         keyword_collecting=collecting,
@@ -294,7 +295,7 @@ def add_keyword():
     if keyword in existing:
         flash(f"すでに登録済みです: {keyword}", "error")
         return redirect(url_for("index"))
-    keywords.append({"keyword": keyword})
+    keywords.append({"keyword": keyword, "notify_enabled": True})
     db.save_keywords(keywords, user_id)
     flash(f"キーワードを追加しました: {keyword}", "success")
     return redirect(url_for("index"))
@@ -312,6 +313,45 @@ def remove_keyword():
         return redirect(url_for("index"))
     db.save_keywords(new_keywords, user_id)
     flash(f"キーワードを削除しました: {keyword}", "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/toggle_keyword_notify", methods=["POST"])
+@login_required
+def toggle_keyword_notify():
+    user_id = session["user_id"]
+    keyword = request.form.get("keyword", "").strip()
+    notify_enabled = request.form.get("notify_enabled") == "1"
+    if not keyword:
+        flash("キーワードが不正です", "error")
+        return redirect(url_for("index"))
+    if db.update_keyword_notify(user_id, keyword, notify_enabled):
+        flash(
+            ("メール通知をONにしました" if notify_enabled else "メール通知をOFFにしました")
+            + f": {keyword}",
+            "success",
+        )
+    else:
+        flash("該当キーワードが見つかりません", "error")
+    return redirect(url_for("index"))
+
+
+@app.route("/mark_article_read", methods=["POST"])
+@login_required
+def mark_article_read():
+    user_id = session["user_id"]
+    try:
+        article_id = int(request.form.get("article_id", "0"))
+    except ValueError:
+        flash("不正なリクエストです", "error")
+        return redirect(url_for("index"))
+    if article_id <= 0:
+        flash("不正なリクエストです", "error")
+        return redirect(url_for("index"))
+    if db.mark_article_read(user_id, article_id):
+        flash("チェック済みにしました", "success")
+    else:
+        flash("記事が見つかりません", "error")
     return redirect(url_for("index"))
 
 
