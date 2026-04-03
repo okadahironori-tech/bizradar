@@ -499,7 +499,7 @@
       <span class="count" id="sites-count-badge">{{ sites | length }} サイト</span>
       {% if sites | length > 5 %}
       <div class="history-controls">
-        <button id="sites-sort-toggle" class="btn-sort" onclick="toggleSitesSort()">降順</button>
+        <button id="sites-sort-toggle" class="btn-sort" onclick="toggleSitesSort()">新着順</button>
         <select id="sites-count-select" class="count-select" onchange="renderSites()">
           <option value="5" selected>5件</option>
           <option value="10">10件</option>
@@ -640,7 +640,7 @@
       <span class="count" id="history-count-badge">{{ change_history | length }} 件</span>
       {% if change_history %}
       <div class="history-controls">
-        <button id="sort-toggle" class="btn-sort" onclick="toggleSort()">降順</button>
+        <button id="sort-toggle" class="btn-sort" onclick="toggleSort()">新着順</button>
         <select id="count-select" class="count-select" onchange="applyHistoryFilter()">
           <option value="5">5件</option>
           <option value="10" selected>10件</option>
@@ -697,7 +697,7 @@
       <span class="count" id="kw-count-badge">{{ keywords | length }} 件</span>
       {% if keywords | length > 5 %}
       <div class="history-controls">
-        <button id="kw-sort-toggle" class="btn-sort" onclick="toggleKwSort()">降順</button>
+        <button id="kw-sort-toggle" class="btn-sort" onclick="toggleKwSort()">新着順</button>
         <select id="kw-count-select" class="count-select" onchange="renderKeywords()">
           <option value="5" selected>5件</option>
           <option value="10">10件</option>
@@ -784,7 +784,7 @@
       <span class="count" id="articles-count-badge">{{ articles | length }} 件</span>
       {% if articles %}
       <div class="history-controls">
-        <button id="articles-sort-toggle" class="btn-sort" onclick="toggleArticleSort()">降順</button>
+        <button id="articles-sort-toggle" class="btn-sort" onclick="toggleArticleSort()">新着順</button>
         <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
           <option value="10" selected>10件</option>
           <option value="20">20件</option>
@@ -889,7 +889,7 @@ function getSitePageSize() {
 
 function toggleSitesSort() {
   _siteOrder = _siteOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('sites-sort-toggle').textContent = _siteOrder === 'desc' ? '降順' : '昇順';
+  document.getElementById('sites-sort-toggle').textContent = _siteOrder === 'desc' ? '新着順' : '古い順';
   _sitePage = 1;
   renderSites();
 }
@@ -985,7 +985,7 @@ function getKwPageSize() {
 
 function toggleKwSort() {
   _kwOrder = _kwOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('kw-sort-toggle').textContent = _kwOrder === 'desc' ? '降順' : '昇順';
+  document.getElementById('kw-sort-toggle').textContent = _kwOrder === 'desc' ? '新着順' : '古い順';
   _kwPage = 1;
   renderKeywords();
 }
@@ -1053,7 +1053,7 @@ function getPageSize() {
 
 function toggleSort() {
   historyOrder = historyOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('sort-toggle').textContent = historyOrder === 'desc' ? '降順' : '昇順';
+  document.getElementById('sort-toggle').textContent = historyOrder === 'desc' ? '新着順' : '古い順';
   currentPage = 1;
   renderHistory();
 }
@@ -1155,7 +1155,7 @@ function filterArticlesByKw(keyword) {
 
 function toggleArticleSort() {
   _articleOrder = _articleOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('articles-sort-toggle').textContent = _articleOrder === 'desc' ? '降順' : '昇順';
+  document.getElementById('articles-sort-toggle').textContent = _articleOrder === 'desc' ? '新着順' : '古い順';
   _articlePage = 1;
   renderArticles();
 }
