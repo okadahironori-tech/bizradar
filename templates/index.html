@@ -367,6 +367,7 @@
     .btn-check-done:hover { background: #374151; border-color: #1f2937; }
     .btn-unread {
       flex-shrink: 0;
+      margin-left: auto;
       align-self: center;
       background: none;
       color: #6b7280;
@@ -823,10 +824,6 @@
           <div class="article-item {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}">
             {% if article.is_read %}
             <span class="article-read-mark" title="チェック済み">✓</span>
-            <form method="POST" action="/mark_article_unread" style="display:contents">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-unread">未読に戻す</button>
-            </form>
             {% endif %}
             <span class="article-kw">{{ article.keyword }}</span>
             <div class="article-body">
@@ -839,7 +836,12 @@
                 {% if article.published %}{{ article.published }}{% endif %}
               </div>
             </div>
-            {% if not article.is_read %}
+            {% if article.is_read %}
+            <form method="POST" action="/mark_article_unread">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-unread">未読に戻す</button>
+            </form>
+            {% else %}
             <form method="POST" action="/mark_article_read" class="article-read-actions">
               <input type="hidden" name="article_id" value="{{ article.id }}">
               <button type="submit" class="btn-check-done">チェック済み</button>
