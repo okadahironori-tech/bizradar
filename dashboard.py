@@ -333,7 +333,7 @@ def toggle_keyword_notify():
         )
     else:
         flash("該当キーワードが見つかりません", "error")
-    return redirect(url_for("index"))
+    return redirect(url_for("index", _anchor="keywords-section"))
 
 
 @app.route("/mark_article_read", methods=["POST"])
@@ -365,19 +365,19 @@ def change_password():
 
     if new_pass != confirm:
         flash("新しいパスワードが一致しません", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", _anchor="settings-section"))
     if len(new_pass) < 6:
         flash("パスワードは6文字以上で入力してください", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", _anchor="settings-section"))
 
     user = db.get_user_by_id(user_id)
     if not user or not db.verify_user_password(user, current):
         flash("現在のパスワードが正しくありません", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", _anchor="settings-section"))
 
     db.update_user_password(user_id, new_pass)
     flash("パスワードを変更しました", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("index", _anchor="settings-section"))
 
 
 @app.route("/set_interval", methods=["POST"])
@@ -393,7 +393,7 @@ def set_interval():
     config["check_interval_seconds"] = seconds
     db.save_config(config)
     flash(f"チェック間隔を {seconds // 60} 分に変更しました", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("index", _anchor="settings-section"))
 
 
 @app.route("/admin")
