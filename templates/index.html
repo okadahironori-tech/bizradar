@@ -365,6 +365,20 @@
       white-space: nowrap;
     }
     .btn-check-done:hover { background: #374151; border-color: #1f2937; }
+    .btn-unread {
+      flex-shrink: 0;
+      align-self: center;
+      background: none;
+      color: #6b7280;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      padding: 3px 9px;
+      font-size: 0.70rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-unread:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
     .notify-toggle-form { display: inline-flex; align-items: center; }
     .btn-notify-toggle {
       border-radius: 999px;
@@ -809,6 +823,10 @@
           <div class="article-item {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}">
             {% if article.is_read %}
             <span class="article-read-mark" title="チェック済み">✓</span>
+            <form method="POST" action="/mark_article_unread" style="display:contents">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-unread">未読に戻す</button>
+            </form>
             {% endif %}
             <span class="article-kw">{{ article.keyword }}</span>
             <div class="article-body">

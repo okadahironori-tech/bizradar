@@ -623,6 +623,17 @@ def mark_article_read(user_id: int, article_id: int) -> bool:
             return cur.rowcount > 0
 
 
+def mark_article_unread(user_id: int, article_id: int) -> bool:
+    """記事を未読に戻す"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE articles SET is_read = FALSE WHERE id = %s AND user_id = %s",
+                (article_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
 # ============================================================
 # Running Tasks
 # ============================================================

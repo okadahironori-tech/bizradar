@@ -355,6 +355,25 @@ def mark_article_read():
     return redirect(url_for("index", _anchor="articles-section"))
 
 
+@app.route("/mark_article_unread", methods=["POST"])
+@login_required
+def mark_article_unread():
+    user_id = session["user_id"]
+    try:
+        article_id = int(request.form.get("article_id", "0"))
+    except ValueError:
+        flash("不正なリクエストです", "error")
+        return redirect(url_for("index"))
+    if article_id <= 0:
+        flash("不正なリクエストです", "error")
+        return redirect(url_for("index"))
+    if db.mark_article_unread(user_id, article_id):
+        flash("未読に戻しました", "success")
+    else:
+        flash("記事が見つかりません", "error")
+    return redirect(url_for("index", _anchor="articles-section"))
+
+
 @app.route("/change_password", methods=["POST"])
 @login_required
 def change_password():
