@@ -435,6 +435,17 @@ def privacy():
     return render_template("privacy.html", back_url=back_url)
 
 
+@app.route("/api/checking_status")
+@login_required
+def api_checking_status():
+    """チェック中のURL・キーワード一覧を返す軽量エンドポイント"""
+    running = db.get_all_running_tasks()
+    return jsonify({
+        "checking_urls":      list(running.get("site_check", set())),
+        "checking_keywords":  list(running.get("keyword_collect", set())),
+    })
+
+
 @app.route("/api/status")
 @login_required
 def api_status():

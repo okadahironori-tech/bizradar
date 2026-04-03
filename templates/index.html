@@ -1243,6 +1243,60 @@ document.addEventListener('DOMContentLoaded', () => {
     renderArticles();
   }
 });
+
+// ============================================================
+// チェック中ステータス ポーリング
+// ============================================================
+let _checkingPollTimer = null;
+
+function _allSiteCheckForms() {
+  const forms = [];
+  // DOM上に存在するフォーム
+  document.querySelectorAll('form[action="/check_site"]').forEach(f => forms.push(f));
+  // ページネーションで非表示中の行（_sitePairs 内の切り離されたノード）
+  if (window._sitePairs) {
+    window._sitePairs.forEach(([primary]) => {
+      primary.querySelectorAll('form[action="/check_site"]').forEach(f => {
+        if (!forms.includes(f)) forms.push(f);
+      });
+    });
+  }
+  return forms;
+}
+
+function _applyCheckingUrls(checkingUrls) {
+  _allSiteCheckForms().forEach(form => {
+    const urlInput = form.querySelector('input[name="url"]');
+    const btn      = form.querySelector('button[type="submit"]');
+    if (!urlInput || !btn) return;
+    const isChecking = checkingUrls.includes(urlInput.value);
+    btn.disabled    = isChecking;
+    btn.textContent = isChecking ? 'チェック中...' : '今すぐチェック';
+  });
+}
+
+async function _pollCheckingStatus() {
+  _checkingPollTimer = null;
+  try {
+    const res = await fetch('/api/checking_status');
+    if (!res.ok) return;
+    const data = await res.json();
+    const checkingUrls = data.checking_urls || [];
+    _applyCheckingUrls(checkingUrls);
+    if (checkingUrls.length > 0) {
+      _checkingPollTimer = setTimeout(_pollCheckingStatus, 3000);
+    }
+  } catch (_) {
+    // ネットワークエラー時はポーリング停止
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // ページロード直後にサーバーから最新の状態を取得してボタンを更新する。
+  // サーバーサイドレンダリングで既に正しい状態が描画されているが、
+  // ページ表示後もチェックが継続中の場合にリアルタイム更新するためポーリングを開始する。
+  _pollCheckingStatus();
+});
 </script>
 
 <footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">

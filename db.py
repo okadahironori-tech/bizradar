@@ -638,7 +638,7 @@ def mark_article_unread(user_id: int, article_id: int) -> bool:
 # Running Tasks
 # ============================================================
 
-_TASK_TIMEOUT_MINUTES  = 15
+_TASK_TIMEOUT_MINUTES  = 10
 _COMPLETED_GRACE_SECONDS = 30
 
 
