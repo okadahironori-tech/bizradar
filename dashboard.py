@@ -352,7 +352,7 @@ def mark_article_read():
         flash("チェック済みにしました", "success")
     else:
         flash("記事が見つかりません", "error")
-    return redirect(url_for("index"))
+    return redirect(url_for("index", _anchor="articles-section"))
 
 
 @app.route("/change_password", methods=["POST"])
