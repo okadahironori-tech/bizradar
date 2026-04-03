@@ -45,6 +45,13 @@ DEFAULT_CHECK_INTERVAL = 3600
 # ここより下は変更不要です
 # ============================================================
 
+def _sanitize_text(value) -> str:
+    """DB/メール投入前に制御文字（NULなど）を除去して安全にする。"""
+    if value is None:
+        return ""
+    # PostgreSQL/psycopg2 は NUL (0x00) を含む文字列を拒否することがある
+    return str(value).replace("\x00", "").strip()
+
 
 def _rss_entry_link(entry) -> str:
     """feedparser の entry から記事URLを取り出す（Google News の形式差に対応）"""
@@ -84,21 +91,22 @@ def fetch_news_articles(keyword: str) -> list:
 
     articles = []
     for entry in feed.entries[:20]:
-        title = entry.get("title", "").strip()
-        url = _rss_entry_link(entry)
+        title = _sanitize_text(entry.get("title", ""))
+        url = _sanitize_text(_rss_entry_link(entry))
         source = ""
         if hasattr(entry, "source"):
-            source = entry.source.get("title", "")
+            source = _sanitize_text(entry.source.get("title", ""))
         if not source and " - " in title:
             title, source = title.rsplit(" - ", 1)
-            title = title.strip()
-            source = source.strip()
+            title = _sanitize_text(title)
+            source = _sanitize_text(source)
         published = ""
         if entry.get("published_parsed"):
             dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed))
             published = dt.strftime("%Y-%m-%d %H:%M")
         else:
             published = entry.get("published", "")
+        published = _sanitize_text(published)
         articles.append({
             "keyword":   keyword,
             "title":     title,
@@ -365,7 +373,7 @@ def check_single_site(url: str, site_name: str = ""):
 def check_all_sites():
     """全URLをチェックして変更があれば通知する"""
     print(f"\n[チェック開始] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    sites = db.load_sites()
+    sites = db.load_sites_for_monitor()
     for site in sites:
         check_single_site(site["url"], site.get("name", ""))
     print(f"[チェック完了]")
@@ -374,7 +382,7 @@ def check_all_sites():
 def main():
     print("=" * 50)
     print("ウェブサイト監視スクリプト 起動")
-    sites = db.load_sites()
+    sites = db.load_sites_for_monitor()
     print(f"監視対象: {[s['url'] for s in sites]}")
     config   = db.load_config()
     interval = config.get("check_interval_seconds", DEFAULT_CHECK_INTERVAL)

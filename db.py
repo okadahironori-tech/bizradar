@@ -294,6 +294,19 @@ def load_sites(user_id=None) -> list:
             return [dict(row) for row in cur.fetchall()]
 
 
+def load_sites_for_monitor() -> list:
+    """
+    monitor.py 用: user_id が設定済みのサイトだけ監視する。
+
+    以前の JSON 移行（sites.json）由来で `user_id` が NULL になっている行がある場合、
+    それらを監視対象から除外してダッシュボード登録分だけを監視できるようにする。
+    """
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT url, name FROM sites WHERE user_id IS NOT NULL ORDER BY id")
+            return [dict(row) for row in cur.fetchall()]
+
+
 def save_sites(sites: list, user_id: int):
     with _conn() as conn:
         with conn.cursor() as cur:
