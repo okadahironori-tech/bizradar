@@ -37,7 +37,7 @@ def _conn():
 
 
 def init_db():
-    """テーブル作成・マイグレーション・JSON移行"""
+    """テーブル作成・マイグレーション"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -105,7 +105,6 @@ def init_db():
                 );
             """)
     _run_migrations()
-    _migrate_from_json()
 
 
 def _run_migrations():
@@ -201,50 +200,6 @@ def _run_migrations():
                     "UPDATE users SET is_admin = TRUE WHERE email = %s",
                     (admin_email,)
                 )
-
-
-def _migrate_from_json():
-    """既存 JSON ファイルから移行（各テーブルが空のときのみ。user_id は NULL）"""
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM sites")
-            if cur.fetchone()[0] == 0 and os.path.exists("sites.json"):
-                with open("sites.json", encoding="utf-8") as f:
-                    data = json.load(f)
-                for site in data.get("sites", []):
-                    cur.execute(
-                        "INSERT INTO sites (url, name) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                        (site["url"], site.get("name", ""))
-                    )
-                print(f"[DB移行] sites: {len(data.get('sites', []))} 件")
-
-            cur.execute("SELECT COUNT(*) FROM keywords")
-            if cur.fetchone()[0] == 0 and os.path.exists("keywords.json"):
-                with open("keywords.json", encoding="utf-8") as f:
-                    data = json.load(f)
-                count = 0
-                for kw in data.get("keywords", []):
-                    keyword = kw.get("keyword", "") if isinstance(kw, dict) else kw
-                    if keyword:
-                        cur.execute(
-                            "INSERT INTO keywords (keyword) VALUES (%s) ON CONFLICT DO NOTHING",
-                            (keyword,)
-                        )
-                        count += 1
-                if count:
-                    print(f"[DB移行] keywords: {count} 件")
-
-            cur.execute("SELECT COUNT(*) FROM config")
-            if cur.fetchone()[0] == 0 and os.path.exists("config.json"):
-                with open("config.json", encoding="utf-8") as f:
-                    data = json.load(f)
-                for key, value in data.items():
-                    if key != "auth":  # auth は users テーブルへ移行済み
-                        cur.execute(
-                            "INSERT INTO config (key, value) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                            (key, json.dumps(value))
-                        )
-                print(f"[DB移行] config 完了")
 
 
 # ============================================================
