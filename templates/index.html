@@ -1270,23 +1270,36 @@ function _allSiteCheckButtons() {
   return buttons;
 }
 
+// ポーリングによって状態を変更したURLを追跡するセット
+const _pollerManagedUrls = new Set();
+
 function _applyCheckingStatuses(siteStatuses) {
   _allSiteCheckButtons().forEach(btn => {
-    const status = siteStatuses[btn.dataset.checkUrl];
-    btn.classList.remove('btn-check', 'btn-check-ok');
+    const url    = btn.dataset.checkUrl;
+    if (!url) return;
+    const status = siteStatuses[url];
+
     if (status === 'running') {
+      _pollerManagedUrls.add(url);
+      btn.classList.remove('btn-check-ok');
       btn.classList.add('btn-check');
       btn.disabled    = true;
       btn.textContent = 'チェック中...';
     } else if (status === 'completed') {
+      _pollerManagedUrls.add(url);
+      btn.classList.remove('btn-check');
       btn.classList.add('btn-check-ok');
       btn.disabled    = true;
       btn.textContent = 'チェック完了 ✓';
-    } else {
+    } else if (_pollerManagedUrls.has(url)) {
+      // このURLはポーリングで変更済みだが、今はアクティブでない → デフォルトに戻す
+      _pollerManagedUrls.delete(url);
+      btn.classList.remove('btn-check-ok');
       btn.classList.add('btn-check');
       btn.disabled    = false;
       btn.textContent = '今すぐチェック';
     }
+    // siteStatusesにもpollerManagedUrlsにもない → 一切変更しない
   });
 }
 
