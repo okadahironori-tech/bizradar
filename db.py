@@ -86,6 +86,12 @@ def init_db():
                     published   TEXT NOT NULL DEFAULT '',
                     found_at    TEXT NOT NULL DEFAULT ''
                 );
+                CREATE TABLE IF NOT EXISTS running_tasks (
+                    task_type   TEXT NOT NULL,
+                    key         TEXT NOT NULL,
+                    started_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (task_type, key)
+                );
             """)
     _migrate_from_json()
 
@@ -365,3 +371,48 @@ def save_articles_data(data: dict):
                         article.get("found_at", ""),
                     )
                 )
+
+
+# ============================================================
+# Running Tasks（チェック実行中フラグ）
+# ============================================================
+
+# この時間（分）を超えたレコードはサーバー再起動による取り残しとみなし無視する
+_TASK_TIMEOUT_MINUTES = 15
+
+
+def add_running_task(task_type: str, key: str):
+    """タスク開始を記録する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO running_tasks (task_type, key, started_at) "
+                "VALUES (%s, %s, NOW()) "
+                "ON CONFLICT (task_type, key) DO UPDATE SET started_at = NOW()",
+                (task_type, key)
+            )
+
+
+def remove_running_task(task_type: str, key: str):
+    """タスク完了を記録する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM running_tasks WHERE task_type = %s AND key = %s",
+                (task_type, key)
+            )
+
+
+def get_all_running_tasks() -> dict:
+    """実行中タスクを {task_type: {key, ...}} 形式で返す（タイムアウト済みは除外）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT task_type, key FROM running_tasks "
+                "WHERE started_at > NOW() - (INTERVAL '1 minute' * %s)",
+                (_TASK_TIMEOUT_MINUTES,)
+            )
+            result: dict = {}
+            for task_type, key in cur.fetchall():
+                result.setdefault(task_type, set()).add(key)
+            return result

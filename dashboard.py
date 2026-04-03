@@ -27,8 +27,7 @@ try:
 except Exception as _e:
     print(f"[エラー] データベース初期化失敗: {_e}", file=sys.stderr)
 
-_check_running = set()      # 現在チェック中のURL
-_keyword_collecting = set() # 現在収集中のキーワード
+# 実行中フラグは DB で管理（running_tasks テーブル）
 
 
 def login_required(f):
@@ -100,6 +99,9 @@ def index():
     hashes    = db.load_hashes()
     config    = db.load_config()
     site_list = db.load_sites()
+    running   = db.get_all_running_tasks()
+    checking_urls  = running.get("site_check", set())
+    collecting_kws = running.get("keyword_collect", set())
 
     sites = []
     for s in site_list:
@@ -112,7 +114,7 @@ def index():
             "status":     check_info.get("status", "unknown"),
             "error":      check_info.get("error", ""),
             "hash":       hashes.get(url, "-"),
-            "checking":   url in _check_running,
+            "checking":   url in checking_urls,
         })
 
     change_history = log.get("change_history", [])[:50]
@@ -120,7 +122,7 @@ def index():
 
     kw_entries = db.load_keywords()
     keywords   = [k["keyword"] for k in kw_entries]
-    collecting = set(_keyword_collecting)
+    collecting = collecting_kws
 
     articles_data = db.load_articles_data()
     all_articles  = articles_data.get("articles", [])
@@ -185,7 +187,7 @@ def remove_site():
 @login_required
 def check_site():
     url = request.form.get("url", "").strip()
-    if url in _check_running:
+    if url in db.get_all_running_tasks().get("site_check", set()):
         flash(f"チェック実行中です: {url}", "error")
         return redirect(url_for("index"))
 
@@ -194,13 +196,13 @@ def check_site():
 
     import monitor as monitor_module
 
-    _check_running.add(url)
+    db.add_running_task("site_check", url)
 
     def run():
         try:
             monitor_module.check_single_site(url, site_name)
         finally:
-            _check_running.discard(url)
+            db.remove_running_task("site_check", url)
 
     threading.Thread(target=run, daemon=True).start()
     flash(f"チェックを開始しました: {site_name if site_name else url}", "success")
@@ -211,19 +213,19 @@ def check_site():
 @login_required
 def collect_keyword():
     keyword = request.form.get("keyword", "").strip()
-    if keyword in _keyword_collecting:
+    if keyword in db.get_all_running_tasks().get("keyword_collect", set()):
         flash(f"収集中です: {keyword}", "error")
         return redirect(url_for("index"))
 
     import monitor as monitor_module
 
-    _keyword_collecting.add(keyword)
+    db.add_running_task("keyword_collect", keyword)
 
     def run():
         try:
             monitor_module.check_single_keyword(keyword)
         finally:
-            _keyword_collecting.discard(keyword)
+            db.remove_running_task("keyword_collect", keyword)
 
     threading.Thread(target=run, daemon=True).start()
     flash(f"収集を開始しました: {keyword}", "success")
