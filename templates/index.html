@@ -118,6 +118,16 @@
     .btn-save    { background: #1a1a2e; color: #fff; padding: 8px 16px; font-size: 0.85rem; }
     .btn-save:hover { background: #2d2d4e; }
 
+    .btn-edit    { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
+    .btn-edit:hover { background: #c5cae9; }
+    .btn-cancel  { background: none; border: 1px solid #d1d5db; color: #4a4a6a; }
+    .btn-cancel:hover { background: #f5f7fa; }
+
+    .site-name-edit-form {
+      display: none;
+      padding: 6px 0;
+    }
+
     /* 追加フォーム */
     .add-form {
       display: flex; gap: 10px;
@@ -450,7 +460,32 @@
           <!-- 1行目: 会社名・ステータス・ボタン -->
           <tr class="row-primary" data-site-index="{{ loop.index0 }}">
             <td>
-              <span class="site-name">{{ site.name if site.name else "—" }}</span>
+              <span class="site-name site-name-view" id="site-name-view-{{ loop.index0 }}">
+                {{ site.name if site.name else "—" }}
+              </span>
+              <form
+                id="site-name-edit-form-{{ loop.index0 }}"
+                class="site-name-edit-form"
+                method="POST"
+                action="/update_site_name"
+              >
+                <input type="hidden" name="url" value="{{ site.url }}">
+                <input
+                  class="input-name"
+                  type="text"
+                  name="name"
+                  value="{{ site.name }}"
+                  placeholder="会社名（任意）"
+                >
+                <button type="submit" class="btn btn-save">保存</button>
+                <button
+                  type="button"
+                  class="btn btn-cancel"
+                  onclick="cancelSiteNameEdit({{ loop.index0 }})"
+                >
+                  キャンセル
+                </button>
+              </form>
             </td>
             <td>
               {% if site.status == "ok" %}
@@ -480,6 +515,14 @@
                     {% if site.checking %}チェック中...{% else %}今すぐチェック{% endif %}
                   </button>
                 </form>
+                <button
+                  type="button"
+                  id="site-name-edit-btn-{{ loop.index0 }}"
+                  class="btn btn-edit site-name-edit-btn"
+                  onclick="openSiteNameEdit({{ loop.index0 }})"
+                >
+                  編集
+                </button>
                 <form method="POST" action="/remove_site"
                       onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
                   <input type="hidden" name="url" value="{{ site.url }}">
@@ -784,7 +827,43 @@ function renderSitesPagination(id, totalPages) {
     `<button class="btn-page" onclick="goSitePage(1)" ${_sitePage>=totalPages?'disabled':''}>次へ →</button>`;
 }
 
+function closeAllSiteNameEdits() {
+  document.querySelectorAll('.site-name-edit-form').forEach(f => { f.style.display = 'none'; });
+  document.querySelectorAll('.site-name-view').forEach(s => { s.style.display = 'inline'; });
+  document.querySelectorAll('.site-name-edit-btn').forEach(b => { b.style.display = 'inline-flex'; });
+}
+
+function openSiteNameEdit(siteIndex) {
+  closeAllSiteNameEdits();
+
+  const span = document.getElementById(`site-name-view-${siteIndex}`);
+  const form = document.getElementById(`site-name-edit-form-${siteIndex}`);
+  const btn = document.getElementById(`site-name-edit-btn-${siteIndex}`);
+
+  if (span) span.style.display = 'none';
+  if (form) form.style.display = 'flex';
+  if (btn) btn.style.display = 'none';
+
+  const input = form ? form.querySelector('input[name="name"]') : null;
+  if (input) {
+    input.focus();
+    input.select();
+  }
+}
+
+function cancelSiteNameEdit(siteIndex) {
+  const span = document.getElementById(`site-name-view-${siteIndex}`);
+  const form = document.getElementById(`site-name-edit-form-${siteIndex}`);
+  const btn = document.getElementById(`site-name-edit-btn-${siteIndex}`);
+
+  if (span) span.style.display = 'inline';
+  if (form) form.style.display = 'none';
+  if (btn) btn.style.display = 'inline-flex';
+}
+
 function renderSites() {
+  closeAllSiteNameEdits();
+
   const tbody = document.getElementById('sites-tbody');
   if (!tbody || !window._sitePairs) return;
 

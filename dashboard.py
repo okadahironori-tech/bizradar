@@ -198,6 +198,34 @@ def remove_site():
     return redirect(url_for("index"))
 
 
+@app.route("/update_site_name", methods=["POST"])
+@login_required
+def update_site_name():
+    user_id = session["user_id"]
+    url = request.form.get("url", "").strip()
+    name = request.form.get("name", "").strip()
+
+    # psycopg2 は NUL を含む文字列で失敗することがあるため除去して安全化
+    name = name.replace("\x00", "").strip()
+
+    if not url:
+        flash("URLが不正です", "error")
+        return redirect(url_for("index"))
+
+    # そのユーザーが登録しているURLか確認（URL固定の保証）
+    if not any(s["url"] == url for s in db.load_sites(user_id)):
+        flash("該当URLが見つかりません", "error")
+        return redirect(url_for("index"))
+
+    ok = db.update_site_name(user_id=user_id, url=url, name=name)
+    if not ok:
+        flash("会社名の更新に失敗しました", "error")
+        return redirect(url_for("index"))
+
+    flash(f"会社名を更新しました: {name if name else url}", "success")
+    return redirect(url_for("index"))
+
+
 @app.route("/check_site", methods=["POST"])
 @login_required
 def check_site():

@@ -323,6 +323,17 @@ def save_sites(sites: list, user_id: int):
                 )
 
 
+def update_site_name(user_id: int, url: str, name: str) -> bool:
+    """指定ユーザーの指定URLの会社名だけを更新する（URLは変更しない）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE sites SET name = %s WHERE user_id = %s AND url = %s",
+                (name, user_id, url)
+            )
+            return cur.rowcount > 0
+
+
 # ============================================================
 # Config （グローバル設定）
 # ============================================================
