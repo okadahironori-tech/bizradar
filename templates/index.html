@@ -352,10 +352,11 @@
     }
     .btn-check-done {
       flex-shrink: 0;
-      margin-top: 2px;
-      background: #f3f4f6;
-      color: #4b5563;
-      border: 1px solid #e5e7eb;
+      margin-left: auto;
+      align-self: center;
+      background: #4b5563;
+      color: #fff;
+      border: 1px solid #374151;
       border-radius: 7px;
       padding: 4px 10px;
       font-size: 0.72rem;
@@ -363,7 +364,7 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .btn-check-done:hover { background: #e5e7eb; border-color: #d1d5db; }
+    .btn-check-done:hover { background: #374151; border-color: #1f2937; }
     .notify-toggle-form { display: inline-flex; align-items: center; }
     .btn-notify-toggle {
       border-radius: 999px;
@@ -808,11 +809,6 @@
           <div class="article-item {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}">
             {% if article.is_read %}
             <span class="article-read-mark" title="チェック済み">✓</span>
-            {% else %}
-            <form method="POST" action="/mark_article_read" class="article-read-actions">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-check-done">チェック済み</button>
-            </form>
             {% endif %}
             <span class="article-kw">{{ article.keyword }}</span>
             <div class="article-body">
@@ -825,6 +821,12 @@
                 {% if article.published %}{{ article.published }}{% endif %}
               </div>
             </div>
+            {% if not article.is_read %}
+            <form method="POST" action="/mark_article_read" class="article-read-actions">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-check-done">チェック済み</button>
+            </form>
+            {% endif %}
           </div>
           {% endfor %}
         </div>
