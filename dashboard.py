@@ -118,16 +118,14 @@ def index():
     for s in site_list:
         url = s["url"]
         check_info = log["last_checks"].get(url, {})
-        task_status = site_statuses.get(url)
         sites.append({
-            "url":             url,
-            "name":            s.get("name", ""),
-            "last_check":      check_info.get("timestamp", "未チェック"),
-            "status":          check_info.get("status", "unknown"),
-            "error":           check_info.get("error", ""),
-            "hash":            hashes.get(url, "-"),
-            "checking":        task_status == "running",
-            "check_completed": task_status == "completed",
+            "url":        url,
+            "name":       s.get("name", ""),
+            "last_check": check_info.get("timestamp", "未チェック"),
+            "status":     check_info.get("status", "unknown"),
+            "error":      check_info.get("error", ""),
+            "hash":       hashes.get(url, "-"),
+            "checking":   site_statuses.get(url) == "running",
         })
 
     change_history = log.get("change_history", [])[:50]

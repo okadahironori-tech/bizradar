@@ -91,8 +91,10 @@
     .badge-error::before { background: #f44336; }
     .badge-new     { background: #e3f2fd; color: #1565c0; }
     .badge-new::before { background: #2196f3; }
-    .badge-unknown { background: #f5f5f5; color: #757575; }
+    .badge-unknown   { background: #f5f5f5; color: #757575; }
     .badge-unknown::before { background: #9e9e9e; }
+    .badge-checking  { background: #e8eaf6; color: #3949ab; }
+    .badge-checking::before { background: #3949ab; animation: pulse 1s infinite; }
 
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
@@ -111,8 +113,7 @@
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-check      { background: #e8eaf6; color: #3949ab; }
     .btn-check:hover:not(:disabled) { background: #c5cae9; }
-    .btn-check-ok   { background: #dcfce7; color: #166534; border-color: #86efac; }
-    .btn-check-ok:disabled { opacity: 0.85; cursor: default; }
+
     .btn-remove  { background: none; border: 1px solid #fca5a5; color: #ef4444; }
     .btn-remove:hover { background: #fef2f2; }
     .btn-add     { background: #3949ab; color: #fff; padding: 8px 18px; font-size: 0.88rem; }
@@ -571,7 +572,9 @@
               </form>
             </td>
             <td>
-              {% if site.status == "ok" %}
+              {% if site.checking %}
+                <span class="badge badge-checking">チェック中...</span>
+              {% elif site.status == "ok" %}
                 <span class="badge badge-ok">正常</span>
               {% elif site.status == "changed" %}
                 <span class="badge badge-changed">変更あり</span>
@@ -592,14 +595,10 @@
               <div class="row-actions" style="justify-content:flex-start">
                 <form method="POST" action="/check_site">
                   <input type="hidden" name="url" value="{{ site.url }}">
-                  <button type="submit"
-                    class="btn {% if site.check_completed %}btn-check-ok{% else %}btn-check{% endif %}"
-                    data-check-url="{{ site.url }}"
-                    {% if site.checking or site.check_completed %}disabled{% endif %}
-                    onclick="this.disabled=true; this.classList.remove('btn-check-ok'); this.classList.add('btn-check'); this.textContent='チェック中...'">
-                    {% if site.checking %}チェック中...
-                    {% elif site.check_completed %}チェック完了 ✓
-                    {% else %}今すぐチェック{% endif %}
+                  <button type="submit" class="btn btn-check"
+                    {% if site.checking %}disabled{% endif %}
+                    onclick="this.disabled=true">
+                    今すぐチェック
                   </button>
                 </form>
                 <button
@@ -1252,66 +1251,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ============================================================
 // チェック中ステータス ポーリング
+// running → 完了の遷移を検知したらページをリロードして最新ステータスを表示する。
+// ボタンは操作せず、ステータス列のサーバーサイド描画に委ねる。
 // ============================================================
 let _checkingPollTimer = null;
-
-function _allSiteCheckButtons() {
-  const buttons = [];
-  // DOM上に存在するボタン
-  document.querySelectorAll('button[data-check-url]').forEach(b => buttons.push(b));
-  // ページネーションで非表示中の行（_sitePairs 内の切り離されたノード）
-  if (window._sitePairs) {
-    window._sitePairs.forEach(([primary]) => {
-      primary.querySelectorAll('button[data-check-url]').forEach(b => {
-        if (!buttons.includes(b)) buttons.push(b);
-      });
-    });
-  }
-  return buttons;
-}
-
-// ポーリングによって状態を変更したURLを追跡するセット
-const _pollerManagedUrls = new Set();
-
-function _applyCheckingStatuses(siteStatuses) {
-  _allSiteCheckButtons().forEach(btn => {
-    const url    = btn.dataset.checkUrl;
-    if (!url) return;
-    const status = siteStatuses[url];
-
-    if (status === 'running') {
-      _pollerManagedUrls.add(url);
-      btn.classList.remove('btn-check-ok');
-      btn.classList.add('btn-check');
-      btn.disabled    = true;
-      btn.textContent = 'チェック中...';
-    } else if (status === 'completed') {
-      _pollerManagedUrls.add(url);
-      btn.classList.remove('btn-check');
-      btn.classList.add('btn-check-ok');
-      btn.disabled    = true;
-      btn.textContent = 'チェック完了 ✓';
-    } else if (_pollerManagedUrls.has(url)) {
-      // このURLはポーリングで変更済みだが、今はアクティブでない → デフォルトに戻す
-      _pollerManagedUrls.delete(url);
-      btn.classList.remove('btn-check-ok');
-      btn.classList.add('btn-check');
-      btn.disabled    = false;
-      btn.textContent = '今すぐチェック';
-    }
-    // siteStatusesにもpollerManagedUrlsにもない → 一切変更しない
-  });
-}
+let _wasRunning = false;
 
 async function _pollCheckingStatus() {
   _checkingPollTimer = null;
   try {
     const res = await fetch('/api/checking_status');
     if (!res.ok) return;
-    const data = await res.json();
+    const data        = await res.json();
     const siteStatuses = data.site_statuses || {};
-    _applyCheckingStatuses(siteStatuses);
-    if (Object.keys(siteStatuses).length > 0) {
+    const hasRunning  = Object.values(siteStatuses).some(s => s === 'running');
+
+    if (_wasRunning && !hasRunning) {
+      // running だったタスクが完了した → リロードして最新ステータスを描画
+      location.reload();
+      return;
+    }
+    _wasRunning = hasRunning;
+    if (hasRunning) {
       _checkingPollTimer = setTimeout(_pollCheckingStatus, 3000);
     }
   } catch (_) {
@@ -1320,10 +1281,11 @@ async function _pollCheckingStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // ページロード直後にサーバーから最新の状態を取得してボタンを更新する。
-  // サーバーサイドレンダリングで既に正しい状態が描画されているが、
-  // ページ表示後もチェックが継続中の場合にリアルタイム更新するためポーリングを開始する。
-  _pollCheckingStatus();
+  // 「チェック中...」バッジが表示されていればポーリング開始
+  if (document.querySelector('.badge-checking')) {
+    _wasRunning = true;
+    _checkingPollTimer = setTimeout(_pollCheckingStatus, 3000);
+  }
 });
 </script>
 
