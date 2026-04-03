@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BizRadar — ログイン</title>
+  <title>BizRadar — アカウント登録</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -95,32 +95,48 @@
       font-size: 0.85rem;
       margin-bottom: 18px;
     }
+
+    .login-link {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+    .login-link a {
+      color: #3949ab;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .login-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <div class="login-wrap">
     <div class="login-header">
       <h1>BizRadar</h1>
-      <p>ウェブサイト変更検知モニター</p>
+      <p>アカウント登録</p>
     </div>
     <div class="card">
       {% if error %}
       <div class="error">{{ error }}</div>
       {% endif %}
-      <form method="POST" action="/login">
-        <input type="hidden" name="next" value="{{ next }}">
+      <form method="POST" action="/register">
         <div class="form-group">
-          <label for="username">メールアドレス</label>
-          <input type="email" id="username" name="username" autocomplete="email" autofocus required>
+          <label for="email">メールアドレス</label>
+          <input type="email" id="email" name="email" autocomplete="email" autofocus required>
         </div>
         <div class="form-group">
-          <label for="password">パスワード</label>
-          <input type="password" id="password" name="password" autocomplete="current-password" required>
+          <label for="password">パスワード（6文字以上）</label>
+          <input type="password" id="password" name="password" autocomplete="new-password" required>
         </div>
-        <button type="submit" class="btn-login">ログイン</button>
+        <div class="form-group">
+          <label for="confirm_password">パスワード（確認）</label>
+          <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="btn-login">アカウントを作成</button>
       </form>
-      <p style="text-align:center; margin-top:18px; font-size:0.85rem; color:#6b7280;">
-        アカウントをお持ちでない方は <a href="/register" style="color:#3949ab; text-decoration:none; font-weight:600;">新規登録</a>
+      <p class="login-link" style="margin-top:18px;">
+        すでにアカウントをお持ちの方は <a href="/login">ログイン</a>
       </p>
     </div>
     <p style="text-align:center; margin-top:20px; font-size:0.78rem; color:#9ca3af;">

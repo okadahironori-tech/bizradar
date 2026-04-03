@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 管理者パネル</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+
+    main { max-width: 900px; margin: 32px auto; padding: 0 16px; }
+
+    .section-title {
+      font-size: 1rem; font-weight: 700; color: #4a4a6a;
+      margin-bottom: 12px;
+    }
+
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: #f5f7fa; text-align: left;
+      font-size: 0.75rem; font-weight: 700; color: #6b7280;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 12px 16px; border-bottom: 1px solid #e5e7eb;
+    }
+    td {
+      padding: 13px 16px; font-size: 0.87rem;
+      border-bottom: 1px solid #f0f2f5; vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbff; }
+
+    .badge-admin {
+      display: inline-block;
+      background: #fef3c7; color: #92400e;
+      font-size: 0.72rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 12px;
+      margin-left: 6px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #3949ab;
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .header-right {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .user-email { font-size: 0.82rem; color: #8892b0; }
+
+    .btn-logout {
+      background: none; border: 1px solid #3a3a5c; color: #8892b0;
+      border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer;
+    }
+    .btn-logout:hover { color: #fff; border-color: #8892b0; }
+
+    @media (max-width: 480px) {
+      header { padding: 12px 14px; flex-direction: column; align-items: flex-start; gap: 10px; }
+      main { padding: 0 10px; }
+      td, th { padding: 8px 10px; font-size: 0.82rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">管理者パネル</div>
+  </div>
+  <div class="header-right">
+    <span class="user-email">{{ user_email }}</span>
+    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <button type="submit" class="btn-logout">ログアウト</button>
+    </form>
+  </div>
+</header>
+
+<main>
+  <a class="back-link" href="/">← ダッシュボードに戻る</a>
+
+  <div class="section-title">ユーザー一覧 <span style="font-size:0.85rem; color:#9ca3af;">（{{ users | length }} 人）</span></div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>メールアドレス</th>
+          <th style="text-align:right">サイト数</th>
+          <th style="text-align:right">キーワード数</th>
+          <th style="text-align:right">記事数</th>
+          <th>登録日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>
+            {{ user.email }}
+            {% if user.is_admin %}<span class="badge-admin">管理者</span>{% endif %}
+          </td>
+          <td style="text-align:right; color:#6b7280;">{{ user.site_count }}</td>
+          <td style="text-align:right; color:#6b7280;">{{ user.keyword_count }}</td>
+          <td style="text-align:right; color:#6b7280;">{{ user.article_count }}</td>
+          <td style="color:#9ca3af; font-size:0.82rem;">
+            {% if user.created_at %}
+              {{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at.strftime is defined else user.created_at }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not users %}
+        <tr>
+          <td colspan="5" style="text-align:center; padding:40px; color:#9ca3af;">
+            ユーザーが登録されていません
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">
+  <a href="/terms" style="color:#9ca3af; text-decoration:none; margin:0 8px;">利用規約</a>
+  <span style="color:#d1d5db;">|</span>
+  <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 8px;">プライバシーポリシー</a>
+</footer>
+
+</body>
+</html>

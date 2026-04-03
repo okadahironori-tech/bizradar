@@ -399,6 +399,10 @@
   </div>
   <div style="display:flex; align-items:center; gap:16px;">
     <div class="updated-at">表示時刻: {{ now }}</div>
+    {% if is_admin %}
+    <a href="/admin" style="font-size:0.78rem; color:#8892b0; text-decoration:none; border:1px solid #3a3a5c; border-radius:7px; padding:5px 14px;">管理者パネル</a>
+    {% endif %}
+    <span style="font-size:0.78rem; color:#8892b0;">{{ user_email }}</span>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" style="background:none; border:1px solid #3a3a5c; color:#8892b0; border-radius:7px; padding:5px 14px; font-size:0.78rem; cursor:pointer;">ログアウト</button>
     </form>
@@ -711,24 +715,26 @@
     </div>
   </section>
 
-  <!-- モニター設定 -->
+  <!-- アカウント設定 -->
   <section>
     <div class="section-title">アカウント設定</div>
     <div class="card">
+      {% if is_admin %}
       <form class="settings-panel" method="POST" action="/set_interval">
-        <label>チェック間隔</label>
+        <label>チェック間隔（管理者）</label>
         <div class="interval-options">
-          {% for label, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
+          {% for lbl, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
           <label>
             <input type="radio" name="seconds" value="{{ val }}"
               {% if check_interval == val %}checked{% endif %}>
-            <span>{{ label }}</span>
+            <span>{{ lbl }}</span>
           </label>
           {% endfor %}
         </div>
         <button type="submit" class="btn btn-save">保存</button>
       </form>
       <hr class="settings-divider">
+      {% endif %}
       <form class="settings-panel" method="POST" action="/change_password">
         <label>パスワード変更</label>
         <div class="pw-change-fields">

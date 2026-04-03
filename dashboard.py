@@ -1,12 +1,9 @@
 """
 監視ダッシュボード
-monitor.py の監視データをブラウザで確認できるWebアプリ
+monitor.py の監視データをブラウザで確認できるWebアプリ（マルチユーザー対応）
 """
 
-import hashlib
-import hmac
 import os
-import secrets
 import sys
 import threading
 from datetime import datetime
@@ -21,69 +18,79 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 
-# DB 初期化（テーブル作成 + JSON ファイルからの移行）
+# DB 初期化（テーブル作成 + マイグレーション）
 try:
     db.init_db()
 except Exception as _e:
     print(f"[エラー] データベース初期化失敗: {_e}", file=sys.stderr)
 
-# 実行中フラグは DB で管理（running_tasks テーブル）
-
 
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get("logged_in"):
+        if not session.get("user_id"):
             return redirect(url_for("login", next=request.path))
         return f(*args, **kwargs)
     return decorated
 
 
-def _hash_password(password: str, salt: str) -> str:
-    return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
-
-
-def get_credentials() -> dict:
-    """認証情報を返す。DB の config が env var より優先される。"""
-    config = db.load_config()
-    auth = config.get("auth", {})
-    if isinstance(auth, dict) and auth.get("password_hash") and auth.get("salt"):
-        return {
-            "username":      auth.get("username", os.environ.get("DASHBOARD_USER", "admin")),
-            "password_hash": auth["password_hash"],
-            "salt":          auth["salt"],
-            "use_hash":      True,
-        }
-    return {
-        "username": os.environ.get("DASHBOARD_USER", "admin"),
-        "password": os.environ.get("DASHBOARD_PASSWORD", ""),
-        "use_hash": False,
-    }
-
-
-def verify_password(input_pass: str) -> bool:
-    creds = get_credentials()
-    if creds["use_hash"]:
-        input_hash = _hash_password(input_pass, creds["salt"])
-        return hmac.compare_digest(input_hash, creds["password_hash"])
-    return hmac.compare_digest(input_pass, creds.get("password", ""))
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("user_id"):
+            return redirect(url_for("login", next=request.path))
+        if not session.get("is_admin"):
+            flash("管理者のみアクセスできます", "error")
+            return redirect(url_for("index"))
+        return f(*args, **kwargs)
+    return decorated
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
     if request.method == "POST":
-        creds = get_credentials()
-        input_user = request.form.get("username", "")
-        input_pass = request.form.get("password", "")
-        user_ok = hmac.compare_digest(input_user, creds["username"])
-        pass_ok = verify_password(input_pass)
-        if user_ok and pass_ok:
-            session["logged_in"] = True
+        email = request.form.get("username", "").strip().lower()
+        password = request.form.get("password", "")
+        user = db.get_user_by_email(email)
+        if user and db.verify_user_password(user, password):
+            session["user_id"] = user["id"]
+            session["email"] = user["email"]
+            session["is_admin"] = user["is_admin"]
             next_url = request.form.get("next", "")
             return redirect(next_url if next_url.startswith("/") else url_for("index"))
-        error = "IDまたはパスワードが正しくありません"
+        error = "メールアドレスまたはパスワードが正しくありません"
     return render_template("login.html", error=error, next=request.args.get("next", ""))
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    error = None
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+
+        if not email or "@" not in email:
+            error = "有効なメールアドレスを入力してください"
+        elif len(password) < 6:
+            error = "パスワードは6文字以上で入力してください"
+        elif password != confirm:
+            error = "パスワードが一致しません"
+        elif db.get_user_by_email(email):
+            error = "このメールアドレスはすでに登録されています"
+        else:
+            try:
+                user_id = db.create_user(email, password)
+                user = db.get_user_by_id(user_id)
+                session["user_id"] = user["id"]
+                session["email"] = user["email"]
+                session["is_admin"] = user["is_admin"]
+                flash("アカウントを作成しました", "success")
+                return redirect(url_for("index"))
+            except Exception as e:
+                error = f"登録に失敗しました: {e}"
+    return render_template("register.html", error=error)
 
 
 @app.route("/logout", methods=["POST"])
@@ -95,10 +102,11 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    log       = db.load_monitor_log()
+    user_id   = session["user_id"]
+    log       = db.load_monitor_log(user_id)
     hashes    = db.load_hashes()
     config    = db.load_config()
-    site_list = db.load_sites()
+    site_list = db.load_sites(user_id)
     running   = db.get_all_running_tasks()
     checking_urls  = running.get("site_check", set())
     collecting_kws = running.get("keyword_collect", set())
@@ -120,11 +128,11 @@ def index():
     change_history = log.get("change_history", [])[:50]
     interval = config.get("check_interval_seconds", 3600)
 
-    kw_entries = db.load_keywords()
+    kw_entries = db.load_keywords(user_id)
     keywords   = [k["keyword"] for k in kw_entries]
     collecting = collecting_kws
 
-    articles_data = db.load_articles_data()
+    articles_data = db.load_articles_data(user_id)
     all_articles  = articles_data.get("articles", [])
     articles      = all_articles[:300]
     keyword_counts = {}
@@ -142,12 +150,15 @@ def index():
         articles=articles,
         keyword_counts=keyword_counts,
         keyword_collecting=collecting,
+        user_email=session.get("email", ""),
+        is_admin=session.get("is_admin", False),
     )
 
 
 @app.route("/add_site", methods=["POST"])
 @login_required
 def add_site():
+    user_id = session["user_id"]
     url  = request.form.get("url", "").strip()
     name = request.form.get("name", "").strip()
 
@@ -158,13 +169,13 @@ def add_site():
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
-    sites = db.load_sites()
+    sites = db.load_sites(user_id)
     if any(s["url"] == url for s in sites):
         flash(f"すでに登録済みです: {url}", "error")
         return redirect(url_for("index"))
 
     sites.append({"url": url, "name": name})
-    db.save_sites(sites)
+    db.save_sites(sites, user_id)
     flash(f"追加しました: {name if name else url}", "success")
     return redirect(url_for("index"))
 
@@ -172,13 +183,14 @@ def add_site():
 @app.route("/remove_site", methods=["POST"])
 @login_required
 def remove_site():
+    user_id = session["user_id"]
     url = request.form.get("url", "").strip()
-    sites = db.load_sites()
+    sites = db.load_sites(user_id)
     new_sites = [s for s in sites if s["url"] != url]
     if len(new_sites) == len(sites):
         flash("該当URLが見つかりません", "error")
         return redirect(url_for("index"))
-    db.save_sites(new_sites)
+    db.save_sites(new_sites, user_id)
     flash(f"削除しました: {url}", "success")
     return redirect(url_for("index"))
 
@@ -191,7 +203,8 @@ def check_site():
         flash(f"チェック実行中です: {url}", "error")
         return redirect(url_for("index"))
 
-    sites = db.load_sites()
+    user_id = session["user_id"]
+    sites = db.load_sites(user_id)
     site_name = next((s.get("name", "") for s in sites if s["url"] == url), "")
 
     import monitor as monitor_module
@@ -217,13 +230,14 @@ def collect_keyword():
         flash(f"収集中です: {keyword}", "error")
         return redirect(url_for("index"))
 
+    user_id = session["user_id"]
     import monitor as monitor_module
 
     db.add_running_task("keyword_collect", keyword)
 
     def run():
         try:
-            monitor_module.check_single_keyword(keyword)
+            monitor_module.check_single_keyword(keyword, user_id)
         finally:
             db.remove_running_task("keyword_collect", keyword)
 
@@ -235,17 +249,18 @@ def collect_keyword():
 @app.route("/add_keyword", methods=["POST"])
 @login_required
 def add_keyword():
+    user_id = session["user_id"]
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
         flash("キーワードを入力してください", "error")
         return redirect(url_for("index"))
-    keywords = db.load_keywords()
+    keywords = db.load_keywords(user_id)
     existing = [k["keyword"] for k in keywords]
     if keyword in existing:
         flash(f"すでに登録済みです: {keyword}", "error")
         return redirect(url_for("index"))
     keywords.append({"keyword": keyword})
-    db.save_keywords(keywords)
+    db.save_keywords(keywords, user_id)
     flash(f"キーワードを追加しました: {keyword}", "success")
     return redirect(url_for("index"))
 
@@ -253,13 +268,14 @@ def add_keyword():
 @app.route("/remove_keyword", methods=["POST"])
 @login_required
 def remove_keyword():
+    user_id = session["user_id"]
     keyword = request.form.get("keyword", "").strip()
-    keywords = db.load_keywords()
+    keywords = db.load_keywords(user_id)
     new_keywords = [k for k in keywords if k["keyword"] != keyword]
     if len(new_keywords) == len(keywords):
         flash("該当キーワードが見つかりません", "error")
         return redirect(url_for("index"))
-    db.save_keywords(new_keywords)
+    db.save_keywords(new_keywords, user_id)
     flash(f"キーワードを削除しました: {keyword}", "success")
     return redirect(url_for("index"))
 
@@ -267,6 +283,7 @@ def remove_keyword():
 @app.route("/change_password", methods=["POST"])
 @login_required
 def change_password():
+    user_id  = session["user_id"]
     current  = request.form.get("current_password", "")
     new_pass = request.form.get("new_password", "")
     confirm  = request.form.get("confirm_password", "")
@@ -277,25 +294,19 @@ def change_password():
     if len(new_pass) < 6:
         flash("パスワードは6文字以上で入力してください", "error")
         return redirect(url_for("index"))
-    if not verify_password(current):
+
+    user = db.get_user_by_id(user_id)
+    if not user or not db.verify_user_password(user, current):
         flash("現在のパスワードが正しくありません", "error")
         return redirect(url_for("index"))
 
-    salt     = secrets.token_hex(16)
-    new_hash = _hash_password(new_pass, salt)
-    config   = db.load_config()
-    config["auth"] = {
-        "username":      get_credentials()["username"],
-        "password_hash": new_hash,
-        "salt":          salt,
-    }
-    db.save_config(config)
+    db.update_user_password(user_id, new_pass)
     flash("パスワードを変更しました", "success")
     return redirect(url_for("index"))
 
 
 @app.route("/set_interval", methods=["POST"])
-@login_required
+@admin_required
 def set_interval():
     try:
         seconds = int(request.form.get("seconds", 3600))
@@ -310,23 +321,32 @@ def set_interval():
     return redirect(url_for("index"))
 
 
+@app.route("/admin")
+@admin_required
+def admin():
+    users = db.get_all_users()
+    return render_template("admin.html", users=users,
+                           user_email=session.get("email", ""))
+
+
 @app.route("/terms")
 def terms():
-    back_url = url_for("index") if session.get("logged_in") else url_for("login")
+    back_url = url_for("index") if session.get("user_id") else url_for("login")
     return render_template("terms.html", back_url=back_url)
 
 
 @app.route("/privacy")
 def privacy():
-    back_url = url_for("index") if session.get("logged_in") else url_for("login")
+    back_url = url_for("index") if session.get("user_id") else url_for("login")
     return render_template("privacy.html", back_url=back_url)
 
 
 @app.route("/api/status")
 @login_required
 def api_status():
-    log   = db.load_monitor_log()
-    sites = db.load_sites()
+    user_id = session["user_id"]
+    log   = db.load_monitor_log(user_id)
+    sites = db.load_sites(user_id)
 
     site_data = []
     for s in sites:

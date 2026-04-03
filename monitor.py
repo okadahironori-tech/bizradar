@@ -115,10 +115,10 @@ def send_news_email(keyword: str, articles: list):
         print(f"[エラー] ニュースメール送信に失敗しました: {e}")
 
 
-def check_single_keyword(keyword: str):
+def check_single_keyword(keyword: str, user_id=None):
     """単一キーワードのニュースをチェックしてDBを更新する"""
-    print(f"[ニュースチェック] キーワード: {keyword}")
-    data = db.load_articles_data()
+    print(f"[ニュースチェック] キーワード: {keyword} (user_id={user_id})")
+    data = db.load_articles_data(user_id)
     seen_urls = set(data.get("seen_urls", {}).keys())
     try:
         articles = fetch_news_articles(keyword)
@@ -144,49 +144,56 @@ def check_single_keyword(keyword: str):
 
     data["seen_urls"] = {url: True for url in seen_urls}
     data["articles"]  = data["articles"][:1000]
-    db.save_articles_data(data)
+    db.save_articles_data(data, user_id)
 
 
 def check_all_keywords():
-    """全キーワードのニュースをチェックして新着があれば通知する"""
-    kw_entries = db.load_keywords()
-    if not kw_entries:
+    """全キーワードのニュースをチェックして新着があれば通知する（ユーザーごとに分離）"""
+    kw_with_users = db.load_all_keywords_with_users()
+    if not kw_with_users:
         return
 
     print(f"[ニュースチェック開始] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    data = db.load_articles_data()
-    seen_urls = set(data.get("seen_urls", {}).keys())
 
-    for kw_entry in kw_entries:
-        keyword = kw_entry["keyword"]
-        if not keyword:
-            continue
-        print(f"  キーワード: {keyword}")
-        try:
-            articles = fetch_news_articles(keyword)
-        except Exception as e:
-            print(f"  [エラー] 取得失敗: {e}")
-            continue
+    # user_id ごとにキーワードをグループ化
+    user_keywords: dict = {}
+    for user_id, keyword in kw_with_users:
+        user_keywords.setdefault(user_id, []).append(keyword)
 
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        new_articles = []
-        for article in articles:
-            url = article["url"]
-            if url and url not in seen_urls:
-                article["found_at"] = now_str
-                new_articles.append(article)
-                seen_urls.add(url)
-                data["articles"].insert(0, article)
+    for user_id, keywords in user_keywords.items():
+        data = db.load_articles_data(user_id)
+        seen_urls = set(data.get("seen_urls", {}).keys())
 
-        if new_articles:
-            print(f"  → {len(new_articles)} 件の新着記事")
-            send_news_email(keyword, new_articles)
-        else:
-            print(f"  → 新着なし")
+        for keyword in keywords:
+            if not keyword:
+                continue
+            print(f"  キーワード: {keyword} (user_id={user_id})")
+            try:
+                articles = fetch_news_articles(keyword)
+            except Exception as e:
+                print(f"  [エラー] 取得失敗: {e}")
+                continue
 
-    data["seen_urls"] = {url: True for url in seen_urls}
-    data["articles"]  = data["articles"][:1000]
-    db.save_articles_data(data)
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            new_articles = []
+            for article in articles:
+                url = article["url"]
+                if url and url not in seen_urls:
+                    article["found_at"] = now_str
+                    new_articles.append(article)
+                    seen_urls.add(url)
+                    data["articles"].insert(0, article)
+
+            if new_articles:
+                print(f"  → {len(new_articles)} 件の新着記事")
+                send_news_email(keyword, new_articles)
+            else:
+                print(f"  → 新着なし")
+
+        data["seen_urls"] = {url: True for url in seen_urls}
+        data["articles"]  = data["articles"][:1000]
+        db.save_articles_data(data, user_id)
+
     print(f"[ニュースチェック完了]")
 
 
