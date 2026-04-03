@@ -194,8 +194,9 @@ def check_site():
 
     import monitor as monitor_module
 
+    _check_running.add(url)
+
     def run():
-        _check_running.add(url)
         try:
             monitor_module.check_single_site(url, site_name)
         finally:
@@ -216,8 +217,9 @@ def collect_keyword():
 
     import monitor as monitor_module
 
+    _keyword_collecting.add(keyword)
+
     def run():
-        _keyword_collecting.add(keyword)
         try:
             monitor_module.check_single_keyword(keyword)
         finally:
