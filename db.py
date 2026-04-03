@@ -87,11 +87,18 @@ def init_db():
                     found_at    TEXT NOT NULL DEFAULT ''
                 );
                 CREATE TABLE IF NOT EXISTS running_tasks (
-                    task_type   TEXT NOT NULL,
-                    key         TEXT NOT NULL,
-                    started_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    task_type    TEXT NOT NULL,
+                    key          TEXT NOT NULL,
+                    started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    completed_at TIMESTAMPTZ,
                     PRIMARY KEY (task_type, key)
                 );
+            """)
+        # 既存テーブルに completed_at カラムがない場合は追加
+        with conn.cursor() as cur:
+            cur.execute("""
+                ALTER TABLE running_tasks
+                ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
             """)
     _migrate_from_json()
 
@@ -382,35 +389,50 @@ _TASK_TIMEOUT_MINUTES = 15
 
 
 def add_running_task(task_type: str, key: str):
-    """タスク開始を記録する"""
+    """タスク開始を記録する（古いレコードも同時にクリーンアップ）"""
     with _conn() as conn:
         with conn.cursor() as cur:
+            # 1時間以上前の古いレコードを削除
             cur.execute(
-                "INSERT INTO running_tasks (task_type, key, started_at) "
-                "VALUES (%s, %s, NOW()) "
-                "ON CONFLICT (task_type, key) DO UPDATE SET started_at = NOW()",
+                "DELETE FROM running_tasks WHERE started_at < NOW() - INTERVAL '1 hour'"
+            )
+            cur.execute(
+                "INSERT INTO running_tasks (task_type, key, started_at, completed_at) "
+                "VALUES (%s, %s, NOW(), NULL) "
+                "ON CONFLICT (task_type, key) DO UPDATE SET started_at = NOW(), completed_at = NULL",
                 (task_type, key)
             )
 
 
 def remove_running_task(task_type: str, key: str):
-    """タスク完了を記録する"""
+    """タスク完了を記録する（削除ではなく completed_at を設定）"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM running_tasks WHERE task_type = %s AND key = %s",
+                "UPDATE running_tasks SET completed_at = NOW() "
+                "WHERE task_type = %s AND key = %s",
                 (task_type, key)
             )
 
 
+# 完了後もこの秒数はボタンを「実行中」表示する（高速完了時の競合状態対策）
+_COMPLETED_GRACE_SECONDS = 30
+
+
 def get_all_running_tasks() -> dict:
-    """実行中タスクを {task_type: {key, ...}} 形式で返す（タイムアウト済みは除外）"""
+    """実行中タスクを {task_type: {key, ...}} 形式で返す。
+    ・completed_at が NULL → まだ実行中
+    ・completed_at が設定済みでも _COMPLETED_GRACE_SECONDS 以内 → 表示維持
+    ・started_at が _TASK_TIMEOUT_MINUTES 以上前 → 取り残しとみなし除外
+    """
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT task_type, key FROM running_tasks "
-                "WHERE started_at > NOW() - (INTERVAL '1 minute' * %s)",
-                (_TASK_TIMEOUT_MINUTES,)
+                "WHERE started_at > NOW() - (INTERVAL '1 minute' * %s) "
+                "AND (completed_at IS NULL "
+                "     OR completed_at > NOW() - (INTERVAL '1 second' * %s))",
+                (_TASK_TIMEOUT_MINUTES, _COMPLETED_GRACE_SECONDS)
             )
             result: dict = {}
             for task_type, key in cur.fetchall():
