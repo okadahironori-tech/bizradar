@@ -118,6 +118,115 @@ def fetch_news_articles(keyword: str) -> list:
     return articles
 
 
+def send_digest_email(user_email: str, articles_by_keyword: dict):
+    """ダイジェストメールを送信する。
+    articles_by_keyword: {keyword: [article, ...], ...}
+    """
+    import html as _html
+    total = sum(len(v) for v in articles_by_keyword.values())
+    if total == 0:
+        return
+    from datetime import datetime as _dt
+    now = _dt.now().strftime("%Y年%m月%d日 %H:%M")
+    subject = f"【BizRadar ダイジェスト】本日の新着記事 {total} 件"
+
+    sections_html = ""
+    for keyword, arts in articles_by_keyword.items():
+        if not arts:
+            continue
+        kw_esc = _html.escape(keyword)
+        rows = ""
+        for a in arts:
+            title_esc = _html.escape(a.get("title", ""))
+            url_esc   = _html.escape(a.get("url", ""))
+            source    = _html.escape(a.get("source", ""))
+            published = _html.escape(a.get("published", ""))
+            meta_parts = []
+            if source:
+                meta_parts.append(f"出典: {source}")
+            if published:
+                meta_parts.append(f"日時: {published}")
+            meta_html = "　".join(meta_parts)
+            rows += (
+                f'<tr>'
+                f'<td style="padding:8px 4px;vertical-align:top">'
+                f'<div style="font-weight:600">{title_esc}</div>'
+                f'<div style="font-size:0.82em;color:#6b7280;margin-top:2px">{meta_html}</div>'
+                f'<div style="margin-top:4px">'
+                f'<a href="{url_esc}" style="color:#2563eb;text-decoration:none">記事を読む →</a>'
+                f'</div>'
+                f'</td>'
+                f'</tr>'
+            )
+        sections_html += (
+            f'<div style="margin-bottom:24px">'
+            f'<div style="background:#e3f2fd;color:#1565c0;font-weight:700;'
+            f'font-size:0.85em;padding:4px 10px;border-radius:6px;'
+            f'display:inline-block;margin-bottom:8px">{kw_esc}</div>'
+            f'<table style="width:100%;border-collapse:collapse">{rows}</table>'
+            f'</div>'
+        )
+
+    html_body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<h2 style="font-size:1.1em;margin-bottom:4px">BizRadar ダイジェスト</h2>
+<p style="color:#6b7280;font-size:0.85em;margin-top:0">集計日時: {now} ／ 新着記事 {total} 件</p>
+<hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
+{sections_html}
+<hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px">
+<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
+
+    msg = MIMEMultipart()
+    msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
+    msg["To"]      = user_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        with smtplib.SMTP(EMAIL_SETTINGS["smtp_server"], EMAIL_SETTINGS["smtp_port"]) as server:
+            server.starttls()
+            server.login(EMAIL_SETTINGS["sender_email"], EMAIL_SETTINGS["sender_password"])
+            server.send_message(msg)
+        print(f"[通知] ダイジェストメールを送信しました → {user_email}")
+    except smtplib.SMTPException as e:
+        print(f"[エラー] ダイジェストメール送信に失敗しました: {e}")
+
+
+def send_digest_for_user(user_id: int):
+    """ユーザーの未通知記事をダイジェストメールで送信する"""
+    unnotified = db.load_unnotified_articles(user_id)
+    if not unnotified:
+        print(f"[ダイジェスト] user_id={user_id} 未通知記事なし")
+        return
+
+    # キーワードごとにグループ化（notify_enabled=True のみ）
+    articles_by_keyword: dict = {}
+    seen_titles: set = set()
+    for a in unnotified:
+        if not a.get("notify_enabled", True):
+            continue
+        kw = a.get("keyword", "")
+        title = a.get("title", "")
+        key = f"{kw}::{title}"
+        if key in seen_titles:
+            continue
+        seen_titles.add(key)
+        articles_by_keyword.setdefault(kw, []).append(a)
+
+    # ユーザーのメールアドレスを取得
+    user = db.get_user_by_id(user_id)
+    if not user:
+        return
+    user_email = user.get("email", "") or EMAIL_SETTINGS["recipient_email"]
+
+    if articles_by_keyword:
+        send_digest_email(user_email, articles_by_keyword)
+
+    # 送信有無にかかわらず全未通知を通知済みにする（再送防止）
+    db.mark_all_unnotified_notified(user_id)
+    print(f"[ダイジェスト] user_id={user_id} 通知済みにマーク完了")
+
+
 def send_news_email(keyword: str, articles: list):
     """新着ニュース記事をメールで通知する（HTMLメール）"""
     import html as _html
@@ -220,7 +329,12 @@ def check_single_keyword(keyword: str, user_id=None):
         notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
         print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
         if notify_ok:
-            send_news_email(keyword, new_articles)
+            timing = db.get_user_notify_timing(user_id)
+            if timing == "immediate":
+                send_news_email(keyword, new_articles)
+                db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+            else:
+                print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
         else:
             print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
     else:
@@ -275,7 +389,12 @@ def check_all_keywords():
                 notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
                 print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
                 if notify_ok:
-                    send_news_email(keyword, new_articles)
+                    timing = db.get_user_notify_timing(user_id)
+                    if timing == "immediate":
+                        send_news_email(keyword, new_articles)
+                        db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+                    else:
+                        print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
                 else:
                     print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
             else:

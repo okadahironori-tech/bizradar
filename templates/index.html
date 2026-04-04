@@ -899,6 +899,20 @@
       </form>
       <hr class="settings-divider">
       {% endif %}
+      <form class="settings-panel" method="POST" action="/set_notify_timing">
+        <label>ニュース通知タイミング</label>
+        <div class="interval-options">
+          {% for lbl, val in [("即時通知", "immediate"), ("毎朝8時にまとめて通知", "digest_08"), ("毎日18時にまとめて通知", "digest_18")] %}
+          <label>
+            <input type="radio" name="notify_timing" value="{{ val }}"
+              {% if notify_timing == val %}checked{% endif %}>
+            <span>{{ lbl }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-save">保存</button>
+      </form>
+      <hr class="settings-divider">
       <form class="settings-panel" method="POST" action="/change_password">
         <label>パスワード変更</label>
         <div class="pw-change-fields">

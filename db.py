@@ -257,6 +257,16 @@ def _run_migrations():
                   );
             """)
 
+            # users: 通知タイミング設定
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "notify_timing TEXT NOT NULL DEFAULT 'immediate';"
+            )
+            # articles: ダイジェスト送信済みフラグ
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS notified_at TIMESTAMPTZ;"
+            )
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -786,6 +796,83 @@ def get_running_task_statuses() -> dict:
                 status = "completed" if completed_at is not None else "running"
                 result.setdefault(task_type, {})[key] = status
             return result
+
+
+def get_user_notify_timing(user_id: int) -> str:
+    """ユーザーの通知タイミング設定を返す (immediate / digest_08 / digest_18)"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(notify_timing, 'immediate') FROM users WHERE id = %s",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            return row[0] if row else "immediate"
+
+
+def set_user_notify_timing(user_id: int, timing: str) -> bool:
+    """ユーザーの通知タイミング設定を更新する"""
+    if timing not in ("immediate", "digest_08", "digest_18"):
+        return False
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET notify_timing = %s WHERE id = %s",
+                (timing, user_id),
+            )
+            return cur.rowcount > 0
+
+
+def get_users_by_notify_timing(timing: str) -> list:
+    """指定タイミングのユーザー ID 一覧を返す"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM users WHERE notify_timing = %s",
+                (timing,),
+            )
+            return [row[0] for row in cur.fetchall()]
+
+
+def load_unnotified_articles(user_id: int) -> list:
+    """未通知（notified_at IS NULL）の記事を返す（keyword, is_notify_enabled 付き）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, "
+                "       COALESCE(k.notify_enabled, TRUE) AS notify_enabled "
+                "FROM articles a "
+                "LEFT JOIN keywords k "
+                "  ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "WHERE a.user_id = %s AND a.notified_at IS NULL "
+                "ORDER BY a.published DESC, a.id DESC",
+                (user_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def mark_articles_notified_by_urls(user_id: int, urls: list):
+    """指定URLの記事を通知済みにする（即時通知後）"""
+    if not urls:
+        return
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE articles SET notified_at = NOW() "
+                "WHERE user_id = %s AND url = ANY(%s) AND notified_at IS NULL",
+                (user_id, urls),
+            )
+
+
+def mark_all_unnotified_notified(user_id: int):
+    """全未通知記事を通知済みにする（ダイジェスト送信後）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE articles SET notified_at = NOW() "
+                "WHERE user_id = %s AND notified_at IS NULL",
+                (user_id,),
+            )
 
 
 def get_all_running_tasks() -> dict:

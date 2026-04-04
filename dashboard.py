@@ -42,6 +42,41 @@ for _attempt in range(1, _INIT_MAX_RETRIES + 1):
             sys.exit(1)
 
 
+def _start_digest_scheduler():
+    """毎分チェックして JST 8:00/18:00 にダイジェストを送信するバックグラウンドスレッド"""
+    from datetime import timezone, timedelta
+    jst = timezone(timedelta(hours=9))
+
+    def _run():
+        sent_today: dict = {}  # {(user_id, timing): date} — 当日分の送信記録
+        while True:
+            try:
+                now = datetime.now(jst)
+                today = now.date()
+                hour  = now.hour
+                for timing, target_hour in [("digest_08", 8), ("digest_18", 18)]:
+                    if hour == target_hour:
+                        users = db.get_users_by_notify_timing(timing)
+                        for uid in users:
+                            key = (uid, timing)
+                            if sent_today.get(key) != today:
+                                try:
+                                    import monitor as _m
+                                    _m.send_digest_for_user(uid)
+                                    sent_today[key] = today
+                                except Exception as e:
+                                    logger.error("ダイジェスト送信エラー user_id=%s: %s", uid, e)
+            except Exception as e:
+                logger.error("ダイジェストスケジューラエラー: %s", e)
+            time.sleep(60)
+
+    t = threading.Thread(target=_run, daemon=True, name="digest-scheduler")
+    t.start()
+
+
+_start_digest_scheduler()
+
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -170,6 +205,7 @@ def index():
         keyword_collecting=collecting,
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
+        notify_timing=db.get_user_notify_timing(user_id),
     )
 
 
@@ -383,6 +419,19 @@ def mark_article_unread():
     else:
         flash("記事が見つかりません", "error")
     return redirect(url_for("index", _anchor="articles-section"))
+
+
+@app.route("/set_notify_timing", methods=["POST"])
+@login_required
+def set_notify_timing():
+    user_id = session["user_id"]
+    timing  = request.form.get("notify_timing", "immediate")
+    labels  = {"immediate": "即時通知", "digest_08": "毎朝8時ダイジェスト", "digest_18": "毎日18時ダイジェスト"}
+    if db.set_user_notify_timing(user_id, timing):
+        flash(f"通知タイミングを「{labels.get(timing, timing)}」に変更しました", "success")
+    else:
+        flash("通知タイミングの更新に失敗しました", "error")
+    return redirect(url_for("index", _anchor="settings-section"))
 
 
 @app.route("/change_password", methods=["POST"])
