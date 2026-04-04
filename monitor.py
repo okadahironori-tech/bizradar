@@ -118,30 +118,54 @@ def fetch_news_articles(keyword: str) -> list:
 
 
 def send_news_email(keyword: str, articles: list):
-    """新着ニュース記事をメールで通知する"""
+    """新着ニュース記事をメールで通知する（HTMLメール）"""
+    import html as _html
     now = datetime.now().strftime("%Y年%m月%d日 %H:%M")
     subject = f"【ニュース新着通知】「{keyword}」の新着記事 {len(articles)} 件"
-    lines = [
-        f"「{keyword}」に関する新着記事が {len(articles)} 件見つかりました。",
-        "",
-        f"検出日時: {now}",
-        "",
-    ]
+
+    rows_html = ""
     for i, a in enumerate(articles[:10], 1):
-        lines.append(f"{i}. {a['title']}")
-        if a.get("source"):
-            lines.append(f"   出典: {a['source']}")
-        if a.get("published"):
-            lines.append(f"   日時: {a['published']}")
-        lines.append(f"   {a['url']}")
-        lines.append("")
-    lines += ["---", "このメールはBizRadarにより自動送信されました。"]
+        title_esc = _html.escape(a.get("title", ""))
+        url_esc   = _html.escape(a.get("url", ""))
+        source    = _html.escape(a.get("source", ""))
+        published = _html.escape(a.get("published", ""))
+        meta_parts = []
+        if source:
+            meta_parts.append(f"出典: {source}")
+        if published:
+            meta_parts.append(f"日時: {published}")
+        meta_html = "　".join(meta_parts)
+        rows_html += (
+            f'<tr>'
+            f'<td style="padding:8px 4px;vertical-align:top;color:#6b7280;font-size:0.85em">{i}</td>'
+            f'<td style="padding:8px 4px">'
+            f'<div style="font-weight:600">{title_esc}</div>'
+            f'<div style="font-size:0.85em;color:#6b7280;margin-top:2px">{meta_html}</div>'
+            f'<div style="margin-top:4px">'
+            f'<a href="{url_esc}" style="color:#2563eb;text-decoration:none">記事を読む →</a>'
+            f'</div>'
+            f'</td>'
+            f'</tr>'
+        )
+
+    html_body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<h2 style="font-size:1.1em;margin-bottom:4px">
+  「{_html.escape(keyword)}」の新着記事 {len(articles)} 件
+</h2>
+<p style="color:#6b7280;font-size:0.85em;margin-top:0">検出日時: {now}</p>
+<table style="width:100%;border-collapse:collapse">
+{rows_html}
+</table>
+<hr style="margin-top:24px;border:none;border-top:1px solid #e5e7eb">
+<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
 
     msg = MIMEMultipart()
     msg["From"]    = EMAIL_SETTINGS["sender_email"]
     msg["To"]      = EMAIL_SETTINGS["recipient_email"]
     msg["Subject"] = subject
-    msg.attach(MIMEText("\n".join(lines), "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
     try:
         with smtplib.SMTP(EMAIL_SETTINGS["smtp_server"], EMAIL_SETTINGS["smtp_port"]) as server:
             server.starttls()
@@ -159,7 +183,8 @@ def check_single_keyword(keyword: str, user_id=None):
         print("  [エラー] user_id が必要です")
         return
 
-    seen_urls = db.load_article_seen_urls(user_id)
+    seen_urls   = db.load_article_seen_urls(user_id)
+    seen_titles = db.load_article_seen_titles(user_id)
     try:
         articles = fetch_news_articles(keyword)
     except Exception as e:
@@ -169,11 +194,13 @@ def check_single_keyword(keyword: str, user_id=None):
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_articles = []
     for article in articles:
-        url = article["url"]
-        if url and url not in seen_urls:
+        url        = article["url"]
+        title_key  = f"{keyword}::{article.get('title', '')}"
+        if url and url not in seen_urls and title_key not in seen_titles:
             article["found_at"] = now_str
             new_articles.append(article)
             seen_urls.add(url)
+            seen_titles.add(title_key)
 
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
@@ -198,9 +225,10 @@ def check_all_keywords():
         user_keywords.setdefault(user_id, []).append((keyword, notify_enabled))
 
     for user_id, keywords in user_keywords.items():
-        seen_urls = db.load_article_seen_urls(user_id)
+        seen_urls   = db.load_article_seen_urls(user_id)
+        seen_titles = db.load_article_seen_titles(user_id)
 
-        for keyword, notify_enabled in keywords:
+        for keyword, _notify_enabled_cached in keywords:
             if not keyword:
                 continue
             print(f"  キーワード: {keyword} (user_id={user_id})")
@@ -213,16 +241,19 @@ def check_all_keywords():
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             new_articles = []
             for article in articles:
-                url = article["url"]
-                if url and url not in seen_urls:
+                url       = article["url"]
+                title_key = f"{keyword}::{article.get('title', '')}"
+                if url and url not in seen_urls and title_key not in seen_titles:
                     article["found_at"] = now_str
                     new_articles.append(article)
                     seen_urls.add(url)
+                    seen_titles.add(title_key)
 
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
                 db.insert_articles(new_articles, user_id)
-                if notify_enabled:
+                # 通知設定はDBから直接確認する（キャッシュ値に頼らない）
+                if db.is_keyword_notify_enabled(user_id, keyword):
                     send_news_email(keyword, new_articles)
             else:
                 print(f"  → 新着なし")

@@ -200,6 +200,31 @@ def _run_migrations():
                 "ALTER TABLE keywords ADD COLUMN IF NOT EXISTS notify_enabled BOOLEAN NOT NULL DEFAULT TRUE;"
             )
 
+            # articles: 同一(user_id, keyword, title)の重複行を削除（id最大=最新を残す）
+            cur.execute("""
+                DELETE FROM articles
+                WHERE id NOT IN (
+                    SELECT MAX(id)
+                    FROM articles
+                    GROUP BY user_id, keyword, title
+                );
+            """)
+
+            # articles: (user_id, keyword, title) UNIQUE制約追加
+            cur.execute("""
+                DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints
+                        WHERE table_name = 'articles'
+                          AND constraint_name = 'articles_user_kw_title_unique'
+                    ) THEN
+                        ALTER TABLE articles
+                            ADD CONSTRAINT articles_user_kw_title_unique
+                            UNIQUE (user_id, keyword, title);
+                    END IF;
+                END $$;
+            """)
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -573,6 +598,16 @@ def load_article_seen_urls(user_id: int) -> set:
             return {row[0] for row in cur.fetchall()}
 
 
+def load_article_seen_titles(user_id: int) -> set:
+    """ユーザーが既に登録済みの (keyword, title) 集合（タイトル重複検知用）。
+    返り値: {"keyword::title", ...} 形式の set
+    """
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT keyword, title FROM articles WHERE user_id = %s", (user_id,))
+            return {f"{row[0]}::{row[1]}" for row in cur.fetchall()}
+
+
 def load_articles_data(user_id=None) -> dict:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -597,7 +632,7 @@ def load_articles_data(user_id=None) -> dict:
 
 
 def insert_articles(articles: list, user_id: int):
-    """新着記事のみDBに登録する（既存URLは ON CONFLICT で無視）"""
+    """新着記事のみDBに登録する（URL・タイトル重複は ON CONFLICT で無視）"""
     if not articles:
         return
     with _conn() as conn:
@@ -605,7 +640,7 @@ def insert_articles(articles: list, user_id: int):
             for article in articles:
                 cur.execute(
                     "INSERT INTO articles (keyword, title, url, source, published, found_at, user_id, is_read) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE) ON CONFLICT (user_id, url) DO NOTHING",
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE) ON CONFLICT DO NOTHING",
                     (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
                      article.get("source", ""), article.get("published", ""),
                      article.get("found_at", ""), user_id)
