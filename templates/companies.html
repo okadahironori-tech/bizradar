@@ -28,6 +28,8 @@
     .nav-link.active { color: #fff; border-color: #6366f1; background: #3949ab; }
     .nav-email { font-size: 0.78rem; color: #8892b0; white-space: nowrap; }
     .nav-btn { background: none; border: 1px solid #3a3a5c; color: #8892b0; border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+    .nav-text-sp { display: none; }
+    .nav-text-pc { display: inline; }
     main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
 
     /* Flash */
@@ -125,6 +127,8 @@
       .header-nav { gap: 6px; }
       .nav-link, .nav-btn { font-size: 0.72rem; padding: 4px 10px; }
       .nav-email { display: none; }
+      .nav-text-sp { display: inline; }
+      .nav-text-pc { display: none; }
 
       /* 企業カード: statsを2行目に折り返す */
       .company-card { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
@@ -141,7 +145,7 @@
     <div class="subtitle">ウェブサイト変更検知モニター</div>
   </div>
   <div class="header-nav">
-    <a href="/" class="nav-link">ダッシュボード</a>
+    <a href="/" class="nav-link"><span class="nav-text-pc">ダッシュボード</span><span class="nav-text-sp">ホーム</span></a>
     <a href="/companies" class="nav-link active">企業</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
