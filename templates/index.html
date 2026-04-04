@@ -505,11 +505,13 @@
 
 <main>
 
+  <div id="global-flash-messages">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, message in messages %}
     <div class="flash flash-{{ category }}">{{ message }}</div>
     {% endfor %}
   {% endwith %}
+  </div>
 
   <!-- モニターサイト一覧 -->
   <section>
@@ -1295,6 +1297,22 @@ document.addEventListener('DOMContentLoaded', () => {
     _wasRunning = true;
   }
   _pollCheckingStatus();
+
+  // URLハッシュに応じてフラッシュメッセージをセクション内に移動
+  const flashContainer = document.getElementById('global-flash-messages');
+  if (flashContainer && flashContainer.querySelector('.flash')) {
+    const sectionMap = {
+      '#keywords-section': document.getElementById('keywords-section'),
+    };
+    const target = sectionMap[window.location.hash];
+    if (target) {
+      const card = target.querySelector('.card');
+      if (card) {
+        flashContainer.style.cssText = 'margin:0 0 12px';
+        card.insertBefore(flashContainer, card.firstChild);
+      }
+    }
+  }
 });
 </script>
 
