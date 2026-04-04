@@ -225,6 +225,20 @@ def _run_migrations():
                 END $$;
             """)
 
+            # user_id=NULL の孤立キーワード・記事を整理
+            # まず user_id=1 に重複しないキーワードを移行し、残りを削除
+            cur.execute("""
+                UPDATE keywords SET user_id = 1
+                WHERE user_id IS NULL
+                  AND EXISTS (SELECT 1 FROM users WHERE id = 1)
+                  AND keyword NOT IN (
+                      SELECT keyword FROM keywords WHERE user_id = 1
+                  );
+            """)
+            cur.execute("DELETE FROM keywords WHERE user_id IS NULL;")
+            # user_id=NULL の記事も削除（孤立データ）
+            cur.execute("DELETE FROM articles WHERE user_id IS NULL;")
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -589,11 +603,14 @@ def is_keyword_notify_enabled(user_id: int, keyword: str) -> bool:
 
 
 def load_all_keywords_with_users() -> list:
-    """バックグラウンド用: [(user_id, keyword, notify_enabled), ...]"""
+    """バックグラウンド用: [(user_id, keyword, notify_enabled), ...]
+    user_id が NULL の孤立キーワードは除外する。
+    """
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE) FROM keywords ORDER BY id"
+                "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE) FROM keywords "
+                "WHERE user_id IS NOT NULL ORDER BY id"
             )
             return [(row[0], row[1], bool(row[2])) for row in cur.fetchall()]
 

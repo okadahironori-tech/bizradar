@@ -229,6 +229,9 @@ def check_all_keywords():
         user_keywords.setdefault(user_id, []).append((keyword, notify_enabled))
 
     for user_id, keywords in user_keywords.items():
+        if user_id is None:
+            print(f"  [スキップ] user_id=None のキーワードは処理しません")
+            continue
         seen_urls   = db.load_article_seen_urls(user_id)
         seen_titles = db.load_article_seen_titles(user_id)
 
