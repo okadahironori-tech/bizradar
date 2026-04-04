@@ -452,47 +452,6 @@
     </div>
   </section>
 
-  <!-- 変更検知履歴（最新5件） -->
-  <section>
-    <div class="section-title">
-      変更検知履歴
-      <span class="count">{{ change_history | length }} 件</span>
-    </div>
-    <div class="card">
-      {% if change_history %}
-        <div class="timeline">
-          {% for event in change_history[:5] %}
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div class="timeline-content">
-              <div class="timeline-meta">
-                {{ event.timestamp }}
-                {% if event.name %}&nbsp;·&nbsp;<span class="timeline-name">{{ event.name }}</span>{% endif %}
-              </div>
-              <div class="timeline-url">
-                <a href="{{ event.url }}" target="_blank" rel="noopener"
-                   style="color:#3949ab;text-decoration:none;">{{ event.url }}</a>
-              </div>
-              {% if event.diff %}
-                <button class="diff-toggle" onclick="toggleDiff(this)">
-                  差分を表示（{{ event.diff | length }} 件）
-                </button>
-                <div class="diff-block">
-                  {% for d in event.diff if d.type == "added" %}
-                  <div class="diff-line diff-added">{{ d.text }}</div>
-                  {% endfor %}
-                </div>
-              {% endif %}
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="empty-state">変更は検知されていません</div>
-      {% endif %}
-    </div>
-  </section>
-
   <!-- ニュース記事（最新5件、アラート除く） -->
   {% if keywords %}
   {% set normal_articles = articles | rejectattr("is_alert") | list %}
@@ -539,6 +498,47 @@
     </div>
   </section>
   {% endif %}
+
+  <!-- 変更検知履歴（最新5件） -->
+  <section>
+    <div class="section-title">
+      変更検知履歴
+      <span class="count">{{ change_history | length }} 件</span>
+    </div>
+    <div class="card">
+      {% if change_history %}
+        <div class="timeline">
+          {% for event in change_history[:5] %}
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-meta">
+                {{ event.timestamp }}
+                {% if event.name %}&nbsp;·&nbsp;<span class="timeline-name">{{ event.name }}</span>{% endif %}
+              </div>
+              <div class="timeline-url">
+                <a href="{{ event.url }}" target="_blank" rel="noopener"
+                   style="color:#3949ab;text-decoration:none;">{{ event.url }}</a>
+              </div>
+              {% if event.diff %}
+                <button class="diff-toggle" onclick="toggleDiff(this)">
+                  差分を表示（{{ event.diff | length }} 件）
+                </button>
+                <div class="diff-block">
+                  {% for d in event.diff if d.type == "added" %}
+                  <div class="diff-line diff-added">{{ d.text }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">変更は検知されていません</div>
+      {% endif %}
+    </div>
+  </section>
 
   <!-- モニターサイト（最新5件、ステータスのみ） -->
   <section>
