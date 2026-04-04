@@ -1093,7 +1093,7 @@ function toggleDiff(btn) {
 }
 
 let historyOrder = 'desc';
-let currentPage = 1;
+let currentPage = _getPageParam('history_page');
 
 function getPageSize() {
   return parseInt(document.getElementById('count-select').value);
@@ -1103,11 +1103,13 @@ function toggleSort() {
   historyOrder = historyOrder === 'desc' ? 'asc' : 'desc';
   document.getElementById('sort-toggle').textContent = historyOrder === 'desc' ? '新着順' : '古い順';
   currentPage = 1;
+  _setPageParam('history_page', 1);
   renderHistory();
 }
 
 function applyHistoryFilter() {
   currentPage = 1;
+  _setPageParam('history_page', 1);
   renderHistory();
 }
 
@@ -1115,6 +1117,7 @@ function goPage(delta) {
   const total = window._historyItems.length;
   const totalPages = Math.ceil(total / getPageSize());
   currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+  _setPageParam('history_page', currentPage);
   renderHistory();
 }
 
@@ -1189,12 +1192,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 let _articleItems = [];
 let _articleOrder = 'desc';
-let _articlePage = 1;
+let _articlePage = _getPageParam('article_page');
 let _articleFilter = 'all';
 
 function filterArticlesByKw(keyword) {
   _articleFilter = keyword;
   _articlePage = 1;
+  _setPageParam('article_page', 1);
   document.querySelectorAll('.kw-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.kw === keyword);
   });
@@ -1205,11 +1209,13 @@ function toggleArticleSort() {
   _articleOrder = _articleOrder === 'desc' ? 'asc' : 'desc';
   document.getElementById('articles-sort-toggle').textContent = _articleOrder === 'desc' ? '新着順' : '古い順';
   _articlePage = 1;
+  _setPageParam('article_page', 1);
   renderArticles();
 }
 
 function changeArticlePageSize() {
   _articlePage = 1;
+  _setPageParam('article_page', 1);
   renderArticles();
 }
 
@@ -1218,6 +1224,7 @@ function goArticlePage(delta) {
   const pageSize = parseInt(document.getElementById('articles-count-select').value);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   _articlePage = Math.max(1, Math.min(totalPages, _articlePage + delta));
+  _setPageParam('article_page', _articlePage);
   renderArticles();
 }
 
