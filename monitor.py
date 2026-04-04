@@ -205,8 +205,12 @@ def check_single_keyword(keyword: str, user_id=None):
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
         db.insert_articles(new_articles, user_id)
-        if db.is_keyword_notify_enabled(user_id, keyword):
+        notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
+        print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
+        if notify_ok:
             send_news_email(keyword, new_articles)
+        else:
+            print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
     else:
         print(f"  → 新着なし")
 
@@ -253,8 +257,12 @@ def check_all_keywords():
                 print(f"  → {len(new_articles)} 件の新着記事")
                 db.insert_articles(new_articles, user_id)
                 # 通知設定はDBから直接確認する（キャッシュ値に頼らない）
-                if db.is_keyword_notify_enabled(user_id, keyword):
+                notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
+                print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
+                if notify_ok:
                     send_news_email(keyword, new_articles)
+                else:
+                    print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
             else:
                 print(f"  → 新着なし")
 

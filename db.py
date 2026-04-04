@@ -561,7 +561,13 @@ def update_keyword_notify(user_id: int, keyword: str, notify_enabled: bool) -> b
                 "UPDATE keywords SET notify_enabled = %s WHERE user_id = %s AND keyword = %s",
                 (notify_enabled, user_id, keyword),
             )
-            return cur.rowcount > 0
+            updated = cur.rowcount > 0
+            print(
+                f"[DB] update_keyword_notify keyword={keyword!r} user_id={user_id} "
+                f"notify_enabled={notify_enabled} rowcount={cur.rowcount}",
+                flush=True,
+            )
+            return updated
 
 
 def is_keyword_notify_enabled(user_id: int, keyword: str) -> bool:
@@ -573,7 +579,13 @@ def is_keyword_notify_enabled(user_id: int, keyword: str) -> bool:
                 (user_id, keyword),
             )
             row = cur.fetchone()
-            return bool(row[0]) if row else True
+            result = bool(row[0]) if row else True
+            print(
+                f"[DB] is_keyword_notify_enabled keyword={keyword!r} user_id={user_id} "
+                f"row={row} → {result}",
+                flush=True,
+            )
+            return result
 
 
 def load_all_keywords_with_users() -> list:
