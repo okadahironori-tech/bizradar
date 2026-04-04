@@ -103,8 +103,53 @@
     .badge-unknown::before { background: #9e9e9e; }
     .badge-checking  { background: #e8eaf6; color: #3949ab; }
     .badge-checking::before { background: #3949ab; animation: pulse 1s infinite; }
+    /* タイムアウト専用: オレンジ */
+    .badge-error-warn { background: #fff3e0; color: #c05000; }
+    .badge-error-warn::before { background: #f97316; }
 
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* サマリーカード */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .summary-card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 16px 20px;
+    }
+    .summary-card-val {
+      font-size: 2rem; font-weight: 700; color: #1a1a2e; line-height: 1;
+    }
+    .summary-card-label {
+      font-size: 0.72rem; color: #9ca3af; font-weight: 500; margin-top: 5px;
+    }
+    .summary-card.card-unread  .summary-card-val { color: #3949ab; }
+    .summary-card.card-alert   .summary-card-val { color: #dc2626; }
+    .summary-card.card-error   .summary-card-val { color: #d97706; }
+
+    /* 重要アラート固定セクション */
+    .alert-pinned-section {
+      border-bottom: 2px solid #fecaca;
+      background: #fff8f8;
+    }
+    .alert-pinned-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 9px 16px 7px;
+      font-size: 0.8rem; font-weight: 700; color: #dc2626;
+      border-bottom: 1px solid #fecaca;
+    }
+    .alert-pinned-header::before {
+      content: "⚠"; font-size: 0.85rem;
+    }
+    .alert-pinned-more {
+      padding: 7px 16px;
+      font-size: 0.75rem; color: #9ca3af;
+      border-top: 1px solid #fecaca;
+    }
 
     .hash {
       font-family: "SF Mono", "Fira Code", monospace;
@@ -439,6 +484,7 @@
     /* ── タブレット (〜 768px) ── */
     @media (max-width: 768px) {
       main { margin: 24px auto; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
 
       /* セクションタイトルのコントロールを折り返す */
       .section-title { flex-wrap: wrap; row-gap: 8px; }
@@ -545,6 +591,26 @@
   {% endwith %}
   </div>
 
+  <!-- サマリーカード -->
+  <div class="summary-grid">
+    <div class="summary-card card-unread">
+      <div class="summary-card-val">{{ summary_unread }}</div>
+      <div class="summary-card-label">未読記事</div>
+    </div>
+    <div class="summary-card card-alert">
+      <div class="summary-card-val">{{ summary_alert }}</div>
+      <div class="summary-card-label">重要アラート</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-val">{{ summary_today_companies }}</div>
+      <div class="summary-card-label">本日の更新企業数</div>
+    </div>
+    <div class="summary-card card-error">
+      <div class="summary-card-val">{{ summary_error_sites }}</div>
+      <div class="summary-card-label">取得エラーサイト</div>
+    </div>
+  </div>
+
   <!-- モニターサイト -->
   <section>
     <div class="section-title">
@@ -614,7 +680,7 @@
               {% elif site.status == "changed" %}
                 <span class="badge badge-changed">変更あり</span>
               {% elif site.status == "error" %}
-                <span class="badge badge-error">取得エラー</span>
+                <span class="badge {{ site.error_cls }}">{{ site.error_label }}</span>
                 {% if site.error %}
                 <br>
                 <button class="error-detail-toggle" onclick="toggleErrorDetail(this)">エラーの理由を確認する</button>
@@ -852,6 +918,44 @@
     </div>
     <div class="card">
       {% if articles %}
+        {# 重要アラート固定セクション（上位5件、JSとは独立した静的表示） #}
+        {% set alert_articles_pinned = articles | selectattr("is_alert") | list %}
+        {% if alert_articles_pinned %}
+        <div class="alert-pinned-section">
+          <div class="alert-pinned-header">重要アラート &nbsp;{{ alert_articles_pinned | length }} 件</div>
+          {% for article in alert_articles_pinned[:5] %}
+          <div class="article-item article-alert" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
+            {% if article.is_read %}
+            <span class="article-read-mark" title="チェック済み">✓</span>
+            {% endif %}
+            <span class="article-alert-badge">重要</span>
+            <span class="article-kw">{{ article.keyword }}</span>
+            <div class="article-body">
+              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
+              <div class="article-meta">
+                {% if article.source %}{{ article.source }}{% endif %}
+                {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
+                {% if article.published %}{{ article.published }}{% endif %}
+              </div>
+            </div>
+            {% if article.is_read %}
+            <form method="POST" action="/mark_article_unread">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-unread">未読に戻す</button>
+            </form>
+            {% else %}
+            <form method="POST" action="/mark_article_read" class="article-read-actions">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-check-done">チェック済み</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% if alert_articles_pinned | length > 5 %}
+          <div class="alert-pinned-more">他 {{ alert_articles_pinned | length - 5 }} 件は下の通常一覧で確認できます</div>
+          {% endif %}
+        </div>
+        {% endif %}
         <div class="kw-filter-bar">
           <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
           {% for kw in keyword_entries %}

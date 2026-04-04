@@ -1002,6 +1002,39 @@ def invalidate_reset_token(token: str):
 # Companies
 # ============================================================
 
+def count_active_companies_today(user_id: int) -> int:
+    """当日 00:00 以降に活動のあった企業数。
+    company_id が明示的に設定されたサイト・キーワードのみ対象（過大計上しない）。
+    """
+    from datetime import date
+    today_str = date.today().strftime("%Y-%m-%d")
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT COUNT(DISTINCT company_id) FROM (
+                    SELECT s.company_id
+                    FROM sites s
+                    JOIN change_history ch ON ch.url = s.url
+                    WHERE s.user_id = %s
+                      AND s.company_id IS NOT NULL
+                      AND ch.timestamp >= %s
+                    UNION
+                    SELECT k.company_id
+                    FROM keywords k
+                    JOIN articles a
+                      ON a.user_id = k.user_id AND a.keyword = k.keyword
+                    WHERE k.user_id = %s
+                      AND k.company_id IS NOT NULL
+                      AND a.found_at >= %s
+                ) sub
+                """,
+                (user_id, today_str, user_id, today_str),
+            )
+            row = cur.fetchone()
+            return row[0] if row else 0
+
+
 def load_companies(user_id: int) -> list:
     """企業一覧をサマリー情報付きで返す。
     各企業に以下の集計値を付与:

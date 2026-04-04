@@ -10,6 +10,26 @@ import threading
 import time
 from datetime import datetime
 from functools import wraps
+
+
+def _classify_site_error(error: str) -> tuple:
+    """site.error テキストからエラーラベルと CSS クラスを返す。
+    Returns (label, css_class)
+    """
+    if not error:
+        return ("取得エラー", "badge-error")
+    e = error.lower()
+    if "timeout" in e or "timed out" in e or "time out" in e:
+        return ("タイムアウト", "badge-error-warn")
+    if "ssl" in e or "certificate" in e:
+        return ("SSL エラー", "badge-error")
+    if "403" in e or "forbidden" in e or ("access" in e and "denied" in e):
+        return ("アクセス拒否", "badge-error")
+    if "404" in e or "not found" in e:
+        return ("ページ不明", "badge-error")
+    if "connectionerror" in e or "connection" in e or "network" in e or "failed to connect" in e:
+        return ("取得失敗", "badge-error")
+    return ("不明エラー", "badge-error")
 from flask import Flask, flash, render_template, jsonify, request, redirect, url_for, session, send_from_directory
 from dotenv import load_dotenv
 
@@ -167,14 +187,19 @@ def index():
     for s in site_list:
         url = s["url"]
         check_info = log["last_checks"].get(url, {})
+        error_text = check_info.get("error", "")
+        status     = check_info.get("status", "unknown")
+        error_label, error_cls = _classify_site_error(error_text) if status == "error" else ("", "")
         sites.append({
-            "url":        url,
-            "name":       s.get("name", ""),
-            "last_check": check_info.get("timestamp", "未チェック"),
-            "status":     check_info.get("status", "unknown"),
-            "error":      check_info.get("error", ""),
-            "hash":       hashes.get(url, "-"),
-            "checking":   site_statuses.get(url) == "running",
+            "url":         url,
+            "name":        s.get("name", ""),
+            "last_check":  check_info.get("timestamp", "未チェック"),
+            "status":      status,
+            "error":       error_text,
+            "error_label": error_label,
+            "error_cls":   error_cls,
+            "hash":        hashes.get(url, "-"),
+            "checking":    site_statuses.get(url) == "running",
         })
 
     change_history = log.get("change_history", [])[:50]
@@ -200,6 +225,12 @@ def index():
         title_lower = a.get("title", "").lower()
         a["is_alert"] = any(kw in title_lower for kw in alert_kws_set)
 
+    # ---- サマリー集計 ----
+    unread_count     = sum(1 for a in articles if not a.get("is_read"))
+    alert_count      = sum(1 for a in articles if a.get("is_alert"))
+    error_site_count = sum(1 for s in sites if s["status"] == "error")
+    today_companies  = db.count_active_companies_today(user_id)
+
     return render_template(
         "index.html",
         sites=sites,
@@ -215,6 +246,10 @@ def index():
         is_admin=session.get("is_admin", False),
         notify_timing=db.get_user_notify_timing(user_id),
         alert_kw_entries=alert_kw_entries,
+        summary_unread=unread_count,
+        summary_alert=alert_count,
+        summary_error_sites=error_site_count,
+        summary_today_companies=today_companies,
     )
 
 
