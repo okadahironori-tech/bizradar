@@ -1281,11 +1281,11 @@ async function _pollCheckingStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 「チェック中...」バッジが表示されていればポーリング開始
+  // バッジの有無に関わらず起動時に一度確認し、runningなら継続ポーリング
   if (document.querySelector('.badge-checking')) {
     _wasRunning = true;
-    _checkingPollTimer = setTimeout(_pollCheckingStatus, 3000);
   }
+  _pollCheckingStatus();
 });
 </script>
 
