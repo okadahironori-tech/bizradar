@@ -298,6 +298,26 @@
     </div>
   </section>
 
+  <!-- 変更検知履歴 -->
+  <section>
+    <div class="card">
+      <div class="section-title">
+        変更検知履歴
+        <span class="count-badge">最新 {{ history | length }} 件</span>
+      </div>
+      {% if history %}
+        {% for h in history %}
+        <div class="history-item">
+          <div><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
+          <div class="history-ts">{{ h.timestamp }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-msg">変更検知履歴がありません</div>
+      {% endif %}
+    </div>
+  </section>
+
   <!-- キーワード -->
   <section>
     <div class="card">
@@ -378,26 +398,6 @@
         {% endfor %}
       {% else %}
       <div class="empty-msg">記事がまだありません。キーワードを紐づけてニュースを収集してください。</div>
-      {% endif %}
-    </div>
-  </section>
-
-  <!-- 変更検知履歴 -->
-  <section>
-    <div class="card">
-      <div class="section-title">
-        変更検知履歴
-        <span class="count-badge">最新 {{ history | length }} 件</span>
-      </div>
-      {% if history %}
-        {% for h in history %}
-        <div class="history-item">
-          <div><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
-          <div class="history-ts">{{ h.timestamp }}</div>
-        </div>
-        {% endfor %}
-      {% else %}
-      <div class="empty-msg">変更検知履歴がありません</div>
       {% endif %}
     </div>
   </section>
