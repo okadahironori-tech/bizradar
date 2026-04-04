@@ -302,12 +302,11 @@
       {% endif %}
 
       <!-- 新規サイト登録フォーム -->
-      <div class="form-section-divider">新規登録して紐づける</div>
+      <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_site">
-        <span class="new-form-label">新規追加</span>
         <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
         <input type="url" name="url" placeholder="https://example.com/news" maxlength="500" required>
-        <button type="submit" class="btn btn-primary">登録して紐づける</button>
+        <button type="submit" class="btn btn-primary">登録する</button>
       </form>
 
       {# 未紐づきサイトのみドロップダウンに表示 #}
@@ -381,11 +380,10 @@
       {% endif %}
 
       <!-- 新規キーワード登録フォーム -->
-      <div class="form-section-divider">新規登録して紐づける</div>
+      <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
-        <span class="new-form-label">新規追加</span>
         <input type="text" name="keyword" placeholder="キーワードを入力" maxlength="200" required>
-        <button type="submit" class="btn btn-primary">登録して紐づける</button>
+        <button type="submit" class="btn btn-primary">登録する</button>
       </form>
 
       {% set unlinked_kws = all_keywords | selectattr("company_id", "none") | list %}
