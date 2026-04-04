@@ -826,7 +826,7 @@
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
           {% for article in articles %}
-          <div class="article-item {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}">
+          <div class="article-item {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
             {% if article.is_read %}
             <span class="article-read-mark" title="チェック済み">✓</span>
             {% endif %}
@@ -1204,7 +1204,14 @@ function _getFilteredArticles() {
   let items = _articleFilter === 'all'
     ? [..._articleItems]
     : _articleItems.filter(item => item.dataset.keyword === _articleFilter);
-  return _articleOrder === 'desc' ? items : items.reverse();
+  items.sort((a, b) => {
+    const pa = a.dataset.published || '';
+    const pb = b.dataset.published || '';
+    if (pa < pb) return _articleOrder === 'desc' ? 1 : -1;
+    if (pa > pb) return _articleOrder === 'desc' ? -1 : 1;
+    return 0;
+  });
+  return items;
 }
 
 function _renderArticlePaginationBar(id, cur, total) {
