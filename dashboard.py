@@ -303,16 +303,16 @@ def add_keyword():
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
         flash("キーワードを入力してください", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", _anchor="keywords-section"))
     keywords = db.load_keywords(user_id)
     existing = [k["keyword"] for k in keywords]
     if keyword in existing:
         flash(f"すでに登録済みです: {keyword}", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", _anchor="keywords-section"))
     keywords.append({"keyword": keyword, "notify_enabled": True})
     db.save_keywords(keywords, user_id)
     flash(f"キーワードを追加しました: {keyword}", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("index", _anchor="keywords-section"))
 
 
 @app.route("/remove_keyword", methods=["POST"])
