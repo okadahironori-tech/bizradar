@@ -907,10 +907,24 @@
 
 <script>
 // ============================================================
+// URL クエリパラメータ ユーティリティ
+// ============================================================
+function _getPageParam(name) {
+  const v = new URLSearchParams(window.location.search).get(name);
+  const n = parseInt(v, 10);
+  return (!isNaN(n) && n >= 1) ? n : 1;
+}
+function _setPageParam(name, value) {
+  const params = new URLSearchParams(window.location.search);
+  params.set(name, value);
+  history.replaceState(null, '', '?' + params.toString() + window.location.hash);
+}
+
+// ============================================================
 // モニターサイト一覧
 // ============================================================
 let _siteOrder = 'desc';
-let _sitePage = 1;
+let _sitePage = _getPageParam('site_page');
 
 function getSitePageSize() {
   const sel = document.getElementById('sites-count-select');
@@ -921,6 +935,7 @@ function toggleSitesSort() {
   _siteOrder = _siteOrder === 'desc' ? 'asc' : 'desc';
   document.getElementById('sites-sort-toggle').textContent = _siteOrder === 'desc' ? '新着順' : '古い順';
   _sitePage = 1;
+  _setPageParam('site_page', 1);
   renderSites();
 }
 
@@ -928,6 +943,7 @@ function goSitePage(delta) {
   const pairs = window._sitePairs || [];
   const totalPages = Math.ceil(pairs.length / getSitePageSize());
   _sitePage = Math.max(1, Math.min(totalPages, _sitePage + delta));
+  _setPageParam('site_page', _sitePage);
   renderSites();
 }
 
@@ -1006,7 +1022,7 @@ function renderSites() {
 // キーワード管理
 // ============================================================
 let _kwOrder = 'desc';
-let _kwPage = 1;
+let _kwPage = _getPageParam('kw_page');
 
 function getKwPageSize() {
   const sel = document.getElementById('kw-count-select');
@@ -1017,6 +1033,7 @@ function toggleKwSort() {
   _kwOrder = _kwOrder === 'desc' ? 'asc' : 'desc';
   document.getElementById('kw-sort-toggle').textContent = _kwOrder === 'desc' ? '新着順' : '古い順';
   _kwPage = 1;
+  _setPageParam('kw_page', 1);
   renderKeywords();
 }
 
@@ -1024,6 +1041,7 @@ function goKwPage(delta) {
   const rows = window._kwRows || [];
   const totalPages = Math.ceil(rows.length / getKwPageSize());
   _kwPage = Math.max(1, Math.min(totalPages, _kwPage + delta));
+  _setPageParam('kw_page', _kwPage);
   renderKeywords();
 }
 
