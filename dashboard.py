@@ -486,7 +486,8 @@ def _send_reset_email(to_email: str, reset_url: str):
 </body></html>"""
 
     msg = MIMEMultipart()
-    msg["From"]    = sender_email
+    from email.utils import formataddr as _formataddr
+    msg["From"]    = _formataddr(("BizRadar", sender_email))
     msg["To"]      = to_email
     msg["Subject"] = "【BizRadar】パスワードリセットのご案内"
     msg.attach(MIMEText(html_body, "html", "utf-8"))

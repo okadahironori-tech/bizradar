@@ -10,6 +10,7 @@ import time
 import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 from datetime import datetime
 
 import time as time_module
@@ -173,7 +174,7 @@ def send_news_email(keyword: str, articles: list):
 </body></html>"""
 
     msg = MIMEMultipart()
-    msg["From"]    = EMAIL_SETTINGS["sender_email"]
+    msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
     msg["To"]      = EMAIL_SETTINGS["recipient_email"]
     msg["Subject"] = subject
     msg.attach(MIMEText(html_body, "html", "utf-8"))
@@ -367,7 +368,7 @@ def send_email(url: str, site_name: str = ""):
 このメールはウェブサイト監視スクリプトにより自動送信されました。
 """
     msg = MIMEMultipart()
-    msg["From"]    = EMAIL_SETTINGS["sender_email"]
+    msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
     msg["To"]      = EMAIL_SETTINGS["recipient_email"]
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain", "utf-8"))
