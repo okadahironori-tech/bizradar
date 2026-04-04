@@ -120,6 +120,17 @@ def fetch_news_articles(keyword: str) -> list:
 def send_news_email(keyword: str, articles: list):
     """新着ニュース記事をメールで通知する（HTMLメール）"""
     import html as _html
+    # タイトルで重複排除（同一タイトルは最初の1件のみ送信）
+    seen_titles: set = set()
+    unique_articles = []
+    for a in articles:
+        t = a.get("title", "")
+        if t not in seen_titles:
+            seen_titles.add(t)
+            unique_articles.append(a)
+    articles = unique_articles
+    if not articles:
+        return
     now = datetime.now().strftime("%Y年%m月%d日 %H:%M")
     subject = f"【ニュース新着通知】「{keyword}」の新着記事 {len(articles)} 件"
 
