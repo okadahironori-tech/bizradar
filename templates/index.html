@@ -680,10 +680,7 @@
       <form class="add-form" method="POST" action="/add_site"
             onsubmit="return confirm('「' + this.url.value + '」を追加しますか？')">
         <input class="input-name" type="text" name="name" placeholder="会社名（任意）">
-        <div style="display:flex;flex-direction:column;gap:0;flex:1;">
-          <input class="input-url" type="url" name="url" placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required style="width:100%;">
-          <p style="font-size:0.78rem;color:#9ca3af;margin:3px 0 0 0;">トップページではなく、ニュースやお知らせページのURLを登録することをおすすめします</p>
-        </div>
+        <input class="input-url" type="url" name="url" placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required>
         <button type="submit" class="btn btn-add">+ モニターサイトを追加</button>
       </form>
     </div>
