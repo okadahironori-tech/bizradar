@@ -760,13 +760,24 @@ def companies():
     for c in company_list:
         summary = db.get_company_summary(user_id, c["id"], alert_kws)
         c.update(summary)
-    # アラートありを上位、次に最終更新新しい順
-    company_list.sort(key=lambda c: (-(c["alert_count"] > 0), c["latest_article"] or "" ), reverse=False)
-    company_list.sort(key=lambda c: c["alert_count"] > 0, reverse=True)
     return render_template("companies.html",
                            companies=company_list,
                            user_email=session.get("email", ""),
                            is_admin=session.get("is_admin", False))
+
+
+@app.route("/companies/reorder", methods=["POST"])
+@login_required
+def reorder_companies():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True)
+    if not data or "ids" not in data:
+        return {"ok": False, "error": "invalid"}, 400
+    ids = data["ids"]
+    if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+        return {"ok": False, "error": "invalid ids"}, 400
+    db.update_companies_order(user_id, ids)
+    return {"ok": True}
 
 
 @app.route("/companies/add", methods=["POST"])

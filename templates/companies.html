@@ -84,6 +84,13 @@
       text-align: center; color: #9ca3af; font-size: 0.88rem;
       padding: 40px 0;
     }
+    .drag-handle {
+      cursor: grab; color: #d1d5db; font-size: 1.1rem;
+      padding: 0 4px; flex-shrink: 0; user-select: none;
+      display: flex; align-items: center;
+    }
+    .drag-handle:active { cursor: grabbing; }
+    .sortable-ghost { opacity: 0.4; }
 
     /* 追加フォーム */
     .add-card {
@@ -155,7 +162,8 @@
   {% if companies %}
   <div class="company-grid">
     {% for c in companies %}
-    <a href="/companies/{{ c.id }}" class="company-card {% if c.alert_count > 0 %}has-alert{% endif %}">
+    <a href="/companies/{{ c.id }}" class="company-card {% if c.alert_count > 0 %}has-alert{% endif %}" data-id="{{ c.id }}">
+      <div class="drag-handle" title="ドラッグして並び替え">⠿</div>
       <div class="company-avatar">{{ c.name[0] }}</div>
       <div class="company-main">
         <div class="company-name">
@@ -222,5 +230,28 @@
     </form>
   </div>
 </main>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function () {
+  var grid = document.querySelector('.company-grid');
+  if (!grid) return;
+
+  Sortable.create(grid, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: function () {
+      var ids = Array.from(grid.querySelectorAll('.company-card[data-id]'))
+                     .map(function (el) { return parseInt(el.dataset.id, 10); });
+      fetch('/companies/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+      });
+    }
+  });
+})();
+</script>
 </body>
 </html>

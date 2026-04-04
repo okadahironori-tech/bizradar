@@ -294,6 +294,16 @@ def _run_migrations():
                 "company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
             )
 
+            # companies: 並び順カラム追加
+            cur.execute(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "sort_order INTEGER NOT NULL DEFAULT 0;"
+            )
+            # 既存レコードの sort_order を id 値で初期化（0 のままのものだけ）
+            cur.execute(
+                "UPDATE companies SET sort_order = id WHERE sort_order = 0;"
+            )
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -1047,15 +1057,12 @@ def count_active_companies_today(user_id: int) -> int:
 
 
 def load_companies(user_id: int) -> list:
-    """企業一覧をサマリー情報付きで返す。
-    各企業に以下の集計値を付与:
-      site_count, keyword_count, unread_count, alert_count, last_updated
-    """
+    """企業一覧をユーザー設定の並び順で返す。"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at "
-                "FROM companies WHERE user_id = %s ORDER BY updated_at DESC",
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order "
+                "FROM companies WHERE user_id = %s ORDER BY sort_order ASC, id ASC",
                 (user_id,),
             )
             companies = [dict(row) for row in cur.fetchall()]
@@ -1077,15 +1084,31 @@ def get_company(user_id: int, company_id: int) -> dict | None:
 
 def create_company(user_id: int, name: str, name_kana: str = "",
                    website_url: str = "", memo: str = "") -> int:
-    """企業を追加して id を返す"""
+    """企業を追加して id を返す。sort_order は既存の最大値+1 にする。"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO companies (user_id, name, name_kana, website_url, memo) "
-                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
-                (user_id, name, name_kana, website_url, memo),
+                "SELECT COALESCE(MAX(sort_order), 0) FROM companies WHERE user_id = %s",
+                (user_id,),
+            )
+            next_order = cur.fetchone()[0] + 1
+            cur.execute(
+                "INSERT INTO companies (user_id, name, name_kana, website_url, memo, sort_order) "
+                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+                (user_id, name, name_kana, website_url, memo, next_order),
             )
             return cur.fetchone()[0]
+
+
+def update_companies_order(user_id: int, ids: list) -> None:
+    """企業の sort_order を ids リストの順番で更新する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            for order, company_id in enumerate(ids):
+                cur.execute(
+                    "UPDATE companies SET sort_order = %s WHERE id = %s AND user_id = %s",
+                    (order, company_id, user_id),
+                )
 
 
 def update_company(user_id: int, company_id: int, name: str, name_kana: str = "",
