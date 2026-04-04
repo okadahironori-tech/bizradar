@@ -1003,11 +1003,22 @@ def invalidate_reset_token(token: str):
 # ============================================================
 
 def count_active_companies_today(user_id: int) -> int:
-    """当日 00:00 以降に活動のあった企業数。
+    """当日 JST 0:00 以降に活動のあった企業数。
     company_id が明示的に設定されたサイト・キーワードのみ対象（過大計上しない）。
+
+    タイムスタンプは monitor.py が datetime.now()（UTC）で保存した TEXT 文字列。
+    日本時間（JST = UTC+9）の今日 0:00 を UTC に換算した文字列と比較することで、
+    Render サーバーが UTC であっても JST 基準の「当日」を正確に判定する。
+    例: JST 2026-04-04 00:00 → UTC 2026-04-03 15:00:00 → today_utc_str = "2026-04-03 15:00:00"
     """
-    from datetime import date
-    today_str = date.today().strftime("%Y-%m-%d")
+    from datetime import datetime, timezone, timedelta
+    jst = timezone(timedelta(hours=9))
+    now_jst = datetime.now(jst)
+    # JST 今日 0:00 を UTC 換算
+    jst_midnight = now_jst.replace(hour=0, minute=0, second=0, microsecond=0)
+    utc_midnight = jst_midnight.astimezone(timezone.utc)
+    today_utc_str = utc_midnight.strftime("%Y-%m-%d %H:%M:%S")
+
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -1029,7 +1040,7 @@ def count_active_companies_today(user_id: int) -> int:
                       AND a.found_at >= %s
                 ) sub
                 """,
-                (user_id, today_str, user_id, today_str),
+                (user_id, today_utc_str, user_id, today_utc_str),
             )
             row = cur.fetchone()
             return row[0] if row else 0
