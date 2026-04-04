@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from datetime import datetime
 from functools import wraps
 from flask import Flask, flash, render_template, jsonify, request, redirect, url_for, session
@@ -22,10 +23,23 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 
 # DB 初期化（テーブル作成 + マイグレーション）
-try:
-    db.init_db()
-except Exception as _e:
-    print(f"[エラー] データベース初期化失敗: {_e}", file=sys.stderr)
+# Render 新インスタンス起動直後の一時的な接続失敗に備えてリトライする。
+# 全リトライ失敗時はプロセスを終了し、Render に再起動させる。
+_INIT_MAX_RETRIES = 5
+_INIT_RETRY_DELAY = 3  # 秒
+
+for _attempt in range(1, _INIT_MAX_RETRIES + 1):
+    try:
+        db.init_db()
+        print(f"[INFO] データベース初期化完了 (試行 {_attempt}/{_INIT_MAX_RETRIES})", file=sys.stderr)
+        break
+    except Exception as _e:
+        print(f"[エラー] DB初期化失敗 (試行 {_attempt}/{_INIT_MAX_RETRIES}): {_e}", file=sys.stderr)
+        if _attempt < _INIT_MAX_RETRIES:
+            time.sleep(_INIT_RETRY_DELAY)
+        else:
+            print("[FATAL] データベース初期化に失敗しました。プロセスを終了します。", file=sys.stderr)
+            sys.exit(1)
 
 
 def login_required(f):
