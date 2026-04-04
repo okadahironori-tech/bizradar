@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BizRadar</title>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <!-- iOS Safari ホーム画面追加 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BizRadar">
+  <link rel="apple-touch-icon" href="/static/icons/icon.svg">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1338,6 +1346,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+}
 </script>
 
 <footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">

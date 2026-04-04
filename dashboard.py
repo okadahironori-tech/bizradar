@@ -10,7 +10,7 @@ import threading
 import time
 from datetime import datetime
 from functools import wraps
-from flask import Flask, flash, render_template, jsonify, request, redirect, url_for, session
+from flask import Flask, flash, render_template, jsonify, request, redirect, url_for, session, send_from_directory
 from dotenv import load_dotenv
 
 import db
@@ -444,6 +444,29 @@ def terms():
 def privacy():
     back_url = url_for("index") if session.get("user_id") else url_for("login")
     return render_template("privacy.html", back_url=back_url)
+
+
+# ============================================================
+# PWA
+# ============================================================
+
+@app.route("/manifest.json")
+def pwa_manifest():
+    return send_from_directory("static", "manifest.json",
+                               mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def pwa_sw():
+    response = send_from_directory("static", "sw.js",
+                                   mimetype="application/javascript")
+    response.headers["Service-Worker-Allowed"] = "/"
+    return response
+
+
+@app.route("/offline")
+def pwa_offline():
+    return render_template("offline.html")
 
 
 # ============================================================
