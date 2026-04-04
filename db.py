@@ -239,6 +239,18 @@ def _run_migrations():
             # user_id=NULL の記事も削除（孤立データ）
             cur.execute("DELETE FROM articles WHERE user_id IS NULL;")
 
+            # キーワード一覧に存在しないキーワードの記事を削除
+            # （キーワード削除時に記事も消えるが、過去データの残骸をクリーンアップ）
+            cur.execute("""
+                DELETE FROM articles a
+                WHERE a.user_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM keywords k
+                      WHERE k.user_id = a.user_id
+                        AND k.keyword = a.keyword
+                  );
+            """)
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
