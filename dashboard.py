@@ -324,10 +324,10 @@ def remove_keyword():
     new_keywords = [k for k in keywords if k["keyword"] != keyword]
     if len(new_keywords) == len(keywords):
         flash("該当キーワードが見つかりません", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", _anchor="keywords-section"))
     db.save_keywords(new_keywords, user_id)
     flash(f"キーワードを削除しました: {keyword}", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("index", _anchor="keywords-section"))
 
 
 @app.route("/toggle_keyword_notify", methods=["POST"])
