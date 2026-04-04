@@ -103,17 +103,6 @@
 
     .site-name { font-weight: 700; color: #1a1a2e; font-size: 0.95rem; }
     .url-link { color: #3949ab; text-decoration: none; word-break: break-all; font-size: 0.82rem; }
-
-    /* 2行構成の行スタイル */
-    tr.row-primary td { border-bottom: none; padding-bottom: 4px; }
-    tr.row-secondary td {
-      border-bottom: 1px solid #e5e7eb; padding-top: 3px;
-      font-size: 0.8rem; color: #6b7280; background: #fafbff;
-    }
-    tr.row-primary:first-of-type td { padding-top: 14px; }
-    .row-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .row-meta-sep { color: #d1d5db; }
-    .row-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
     .url-link:hover { text-decoration: underline; }
 
     /* ステータスバッジ */
@@ -138,7 +127,6 @@
     .badge-unknown::before { background: #9e9e9e; }
     .badge-checking  { background: #e8eaf6; color: #3949ab; }
     .badge-checking::before { background: #3949ab; animation: pulse 1s infinite; }
-    /* タイムアウト専用: オレンジ */
     .badge-error-warn { background: #fff3e0; color: #c05000; }
     .badge-error-warn::before { background: #f97316; }
 
@@ -166,78 +154,6 @@
     .summary-card.card-alert   .summary-card-val { color: #dc2626; }
     .summary-card.card-error   .summary-card-val { color: #d97706; }
 
-    /* 重要アラート固定セクション */
-    .alert-pinned-section {
-      border-bottom: 2px solid #fecaca;
-      background: #fff8f8;
-    }
-    .alert-pinned-header {
-      display: flex; align-items: center; gap: 6px;
-      padding: 9px 16px 7px;
-      font-size: 0.8rem; font-weight: 700; color: #dc2626;
-      border-bottom: 1px solid #fecaca;
-    }
-    .alert-pinned-header::before {
-      content: "⚠"; font-size: 0.85rem;
-    }
-    .alert-pinned-more {
-      padding: 7px 16px;
-      font-size: 0.75rem; color: #9ca3af;
-      border-top: 1px solid #fecaca;
-    }
-
-    .hash {
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.73rem; color: #9ca3af;
-      background: #f5f7fa; padding: 2px 6px; border-radius: 4px;
-    }
-
-    /* ボタン共通 */
-    .btn {
-      border: none; border-radius: 7px; padding: 5px 12px;
-      font-size: 0.78rem; font-weight: 600; cursor: pointer;
-      white-space: nowrap; transition: opacity 0.15s;
-    }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-check      { background: #e8eaf6; color: #3949ab; }
-    .btn-check:hover:not(:disabled) { background: #c5cae9; }
-
-    .btn-remove  { background: none; border: 1px solid #fca5a5; color: #ef4444; }
-    .btn-remove:hover { background: #fef2f2; }
-    .btn-add     { background: #3949ab; color: #fff; padding: 8px 18px; font-size: 0.88rem; }
-    .btn-add:hover { background: #303f9f; }
-    .btn-save    { background: #1a1a2e; color: #fff; padding: 8px 16px; font-size: 0.85rem; }
-    .btn-save:hover { background: #2d2d4e; }
-
-    .btn-edit    { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
-    .btn-edit:hover { background: #c5cae9; }
-    .btn-cancel  { background: none; border: 1px solid #d1d5db; color: #4a4a6a; }
-    .btn-cancel:hover { background: #f5f7fa; }
-
-    .site-name-edit-form {
-      display: none;
-      padding: 6px 0;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    /* 追加フォーム */
-    .add-form {
-      display: flex; gap: 10px;
-      padding: 14px 16px;
-      border-top: 1px solid #e5e7eb;
-      background: #f9fafb; align-items: center; flex-wrap: wrap;
-    }
-    .add-form input {
-      padding: 8px 12px; border: 1px solid #d1d5db;
-      border-radius: 8px; font-size: 0.88rem; outline: none;
-      transition: border-color 0.15s;
-    }
-    .add-form input:focus { border-color: #3949ab; }
-    .input-name { width: 160px; }
-    .input-url  { flex: 1; min-width: 220px; }
-
     /* フラッシュメッセージ */
     .flash {
       padding: 12px 20px; border-radius: 8px;
@@ -246,48 +162,38 @@
     .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
     .flash-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
 
-    /* 設定パネル */
-    .settings-panel {
-      display: flex; align-items: center; gap: 16px;
-      padding: 16px 20px; flex-wrap: wrap;
+    /* 重要アラートセクション */
+    .alert-section-card {
+      background: #fff8f8;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+      border: 1.5px solid #fecaca;
     }
-    .settings-panel label { font-size: 0.88rem; font-weight: 600; color: #4a4a6a; }
-    .interval-options { display: flex; gap: 8px; flex-wrap: wrap; }
-    .interval-options label {
-      display: flex; align-items: center; gap: 6px;
-      padding: 6px 14px; border: 1.5px solid #d1d5db;
-      border-radius: 8px; cursor: pointer;
-      font-size: 0.85rem; font-weight: 500; color: #374151;
-      transition: all 0.15s;
-    }
-    .interval-options input[type="radio"] { display: none; }
-    .interval-options input[type="radio"]:checked + span {
-      /* handled via label styling below */
-    }
-    .interval-options label:has(input:checked) {
-      border-color: #3949ab; background: #e8eaf6; color: #3949ab;
-    }
-    .interval-options label:hover { border-color: #3949ab; }
 
-    /* パスワード変更 */
-    .settings-divider { border: none; border-top: 1px solid #e5e7eb; margin: 0; }
-    .alert-kw-tag {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: #fef2f2; color: #dc2626;
-      border: 1.5px solid #fca5a5; border-radius: 20px;
-      padding: 3px 12px; font-size: 0.78rem; font-weight: 600;
-      cursor: pointer; transition: all 0.15s;
+    /* すべて見るバー */
+    .view-all-bar {
+      display: flex; align-items: center; justify-content: flex-end;
+      padding: 10px 16px; border-top: 1px solid #f0f2f5;
     }
-    .alert-kw-tag:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
-    .pw-change-fields {
-      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    .view-all-link {
+      font-size: 0.8rem; color: #3949ab; text-decoration: none; font-weight: 600;
     }
-    .pw-change-fields input {
-      padding: 7px 12px; border: 1px solid #d1d5db;
-      border-radius: 8px; font-size: 0.85rem; outline: none;
-      transition: border-color 0.15s; width: 200px;
+    .view-all-link:hover { text-decoration: underline; }
+
+    /* 本日の更新企業カード */
+    .today-companies-card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 20px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
     }
-    .pw-change-fields input:focus { border-color: #3949ab; }
+    .today-companies-num {
+      font-size: 2rem; font-weight: 700; color: #1a1a2e; line-height: 1;
+    }
+    .today-companies-label {
+      font-size: 0.72rem; color: #9ca3af; font-weight: 500; margin-top: 5px;
+    }
 
     /* 変更履歴 */
     .timeline { padding: 4px 0; }
@@ -331,80 +237,6 @@
     }
     .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
 
-    /* 変更履歴コントロール */
-    .history-controls {
-      margin-left: auto; display: flex; gap: 8px; align-items: center;
-    }
-    .btn-sort {
-      background: #e8eaf6; color: #3949ab;
-      border: 1.5px solid #c5cae9; border-radius: 7px;
-      padding: 4px 12px; font-size: 0.78rem; font-weight: 600;
-      cursor: pointer; transition: background 0.15s;
-    }
-    .btn-sort:hover { background: #c5cae9; }
-    .count-select {
-      border: 1.5px solid #d1d5db; border-radius: 7px;
-      padding: 4px 8px; font-size: 0.78rem; color: #374151;
-      background: #fff; cursor: pointer; outline: none;
-    }
-    .count-select:focus { border-color: #3949ab; }
-
-    /* エラー詳細 */
-    .error-detail-toggle {
-      display: inline-block; margin-top: 5px;
-      font-size: 0.75rem; color: #b71c1c;
-      cursor: pointer; text-decoration: underline;
-      background: none; border: none; padding: 0;
-    }
-    .error-detail-toggle:hover { color: #7f0000; }
-    .error-detail {
-      display: none; margin-top: 5px;
-      font-size: 0.78rem; color: #b71c1c;
-      background: #fce4ec; border-radius: 5px;
-      padding: 5px 10px;
-    }
-
-    /* ページネーション */
-    .pagination-bar {
-      display: flex; align-items: center; justify-content: center;
-      gap: 12px; padding: 10px 20px;
-      border-bottom: 1px solid #f0f2f5;
-    }
-    .pagination-bar.bottom {
-      border-bottom: none; border-top: 1px solid #f0f2f5;
-    }
-    .btn-page {
-      border: 1.5px solid #d1d5db; border-radius: 7px;
-      padding: 5px 16px; font-size: 0.82rem; font-weight: 600;
-      background: #fff; color: #374151; cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn-page:hover:not(:disabled) {
-      border-color: #3949ab; color: #3949ab; background: #e8eaf6;
-    }
-    .btn-page:disabled { opacity: 0.38; cursor: not-allowed; }
-    .page-info {
-      font-size: 0.82rem; color: #6b7280;
-      min-width: 90px; text-align: center;
-    }
-
-    /* キーワードフィルターバー */
-    .kw-filter-bar {
-      display: flex; gap: 8px; padding: 12px 16px;
-      border-bottom: 1px solid #f0f2f5; flex-wrap: wrap;
-    }
-    .kw-filter-btn {
-      border: 1.5px solid #d1d5db; border-radius: 20px;
-      padding: 4px 14px; font-size: 0.78rem; font-weight: 600;
-      background: #fff; color: #6b7280; cursor: pointer;
-      transition: all 0.15s;
-    }
-    .kw-filter-btn:hover { border-color: #3949ab; color: #3949ab; }
-    .kw-filter-btn.active { background: #3949ab; color: #fff; border-color: #3949ab; }
-    .kw-filter-btn.unread-toggle { border-color: #059669; color: #059669; }
-    .kw-filter-btn.unread-toggle:hover { border-color: #059669; color: #059669; background: #ecfdf5; }
-    .kw-filter-btn.unread-toggle.active { background: #059669; color: #fff; border-color: #059669; }
-
     /* 記事アイテム */
     .article-item {
       display: flex; align-items: flex-start; gap: 12px;
@@ -425,19 +257,10 @@
     }
     .article-title:hover { color: #1a237e; text-decoration: underline; }
     .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
-    .article-item.article-read {
-      background: #f3f4f6;
-    }
-    .article-item.article-read .article-title {
-      color: #9ca3af;
-    }
-    .article-item.article-read .article-meta {
-      color: #cbd5e1;
-    }
-    .article-item.article-read .article-kw {
-      background: #e5e7eb;
-      color: #6b7280;
-    }
+    .article-item.article-read { background: #f3f4f6; }
+    .article-item.article-read .article-title { color: #9ca3af; }
+    .article-item.article-read .article-meta { color: #cbd5e1; }
+    .article-item.article-read .article-kw { background: #e5e7eb; color: #6b7280; }
     .article-item.article-alert {
       background: #fff8f8;
       border-left: 3px solid #dc2626;
@@ -452,141 +275,59 @@
     }
     .article-read-mark {
       flex-shrink: 0;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: #e8f5e9;
-      color: #2e7d32;
-      font-size: 0.85rem;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #e8f5e9; color: #2e7d32;
+      font-size: 0.85rem; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
       margin-top: 2px;
     }
     .btn-check-done {
-      flex-shrink: 0;
-      margin-left: auto;
-      align-self: center;
-      background: #4b5563;
-      color: #fff;
-      border: 1px solid #374151;
-      border-radius: 7px;
-      padding: 4px 10px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
+      flex-shrink: 0; margin-left: auto; align-self: center;
+      background: #4b5563; color: #fff;
+      border: 1px solid #374151; border-radius: 7px;
+      padding: 4px 10px; font-size: 0.72rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
     }
     .btn-check-done:hover { background: #374151; border-color: #1f2937; }
     .btn-unread {
-      flex-shrink: 0;
-      margin-left: auto;
-      align-self: center;
-      background: none;
-      color: #6b7280;
-      border: 1px solid #d1d5db;
-      border-radius: 7px;
-      padding: 3px 9px;
-      font-size: 0.70rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
+      flex-shrink: 0; margin-left: auto; align-self: center;
+      background: none; color: #6b7280;
+      border: 1px solid #d1d5db; border-radius: 7px;
+      padding: 3px 9px; font-size: 0.70rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
     }
     .btn-unread:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
-    .notify-toggle-form { display: inline-flex; align-items: center; }
-    .btn-notify-toggle {
-      border-radius: 999px;
-      padding: 4px 12px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      cursor: pointer;
-      border: 1px solid #d1d5db;
-      background: #fff;
-      color: #6b7280;
-    }
-    .btn-notify-toggle.on {
-      background: #e8f5e9;
-      border-color: #a5d6a7;
-      color: #2e7d32;
-    }
-    .btn-notify-toggle.off {
-      background: #f3f4f6;
-      border-color: #e5e7eb;
-      color: #9ca3af;
-    }
 
     /* ── タブレット (〜 768px) ── */
     @media (max-width: 768px) {
       main { margin: 24px auto; }
       .summary-grid { grid-template-columns: repeat(2, 1fr); }
-
-      /* セクションタイトルのコントロールを折り返す */
       .section-title { flex-wrap: wrap; row-gap: 8px; }
-      .history-controls { margin-left: 0; width: 100%; }
-
-      /* テーブル横スクロール */
       .card { overflow-x: auto; }
-
-      .add-form { flex-direction: column; }
-      .input-name, .input-url, .btn-add { width: 100%; }
-
-      .settings-panel { gap: 10px; }
     }
 
     /* ── スマホ (〜 480px) ── */
     @media (max-width: 480px) {
-      /* ヘッダー */
       header { padding: 12px 14px; }
       .header-nav { display: none; }
       .hamburger-btn { display: block; }
 
-      /* レイアウト */
       main { margin: 14px auto; padding: 0 10px; }
       section + section { margin-top: 18px; }
       .section-title { font-size: 0.92rem; }
 
-      /* テーブル */
       td, th { padding: 8px 10px; font-size: 0.82rem; }
       .site-name { font-size: 0.88rem; }
       .url-link { font-size: 0.78rem; }
 
-      /* ボタン（タップターゲット確保） */
-      .btn { padding: 8px 12px; font-size: 0.8rem; }
-      .btn-add { padding: 10px 14px; font-size: 0.88rem; text-align: center; }
-      .btn-page { padding: 8px 14px; font-size: 0.8rem; }
-      .row-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+      .today-companies-card { padding: 16px; }
 
-      /* フォーム */
-      .add-form { padding: 12px; gap: 8px; }
-      .input-name { width: 100%; }
-
-      /* 設定パネル */
-      .settings-panel {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 14px;
-      }
-      .interval-options { gap: 6px; }
-
-      /* タイムライン */
       .timeline-item { padding: 11px 14px; gap: 10px; }
       .timeline-meta { font-size: 0.72rem; }
 
-      /* 記事 */
       .article-item { padding: 10px 14px; gap: 8px; }
       .article-title { font-size: 0.86rem; }
 
-      /* ページネーション */
-      .pagination-bar { gap: 8px; padding: 8px 12px; }
-      .page-info { min-width: 60px; font-size: 0.75rem; }
-
-      /* キーワードフィルター */
-      .kw-filter-bar { padding: 10px 12px; gap: 6px; }
-      .kw-filter-btn { padding: 5px 12px; }
-
-      /* フラッシュメッセージ */
       .flash { padding: 10px 14px; font-size: 0.84rem; }
     }
   </style>
@@ -601,6 +342,7 @@
   <div class="header-nav">
     <div class="updated-at">表示時刻: {{ now }}</div>
     <a href="/companies" class="nav-link">企業</a>
+    <a href="/news" class="nav-link">ニュース</a>
     <a href="/settings" class="nav-link">設定</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
@@ -615,6 +357,7 @@
   <div class="hamburger-menu" id="hamburger-menu">
     <a href="/" class="active">ダッシュボード</a>
     <a href="/companies">企業一覧</a>
+    <a href="/news">ニュース</a>
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
@@ -653,165 +396,72 @@
     </div>
   </div>
 
-  <!-- モニターサイト -->
+  <!-- 重要アラート -->
+  {% set alert_articles = articles | selectattr("is_alert") | list %}
+  {% if alert_articles %}
   <section>
     <div class="section-title">
-      モニターサイト
-      <span class="count" id="sites-count-badge">{{ sites | length }} サイト</span>
-      {% if sites | length > 5 %}
-      <div class="history-controls">
-        <button id="sites-sort-toggle" class="btn-sort" onclick="toggleSitesSort()">新着順</button>
-        <select id="sites-count-select" class="count-select" onchange="renderSites()">
-          <option value="5" selected>5件</option>
-          <option value="10">10件</option>
-          <option value="20">20件</option>
-        </select>
-      </div>
-      {% endif %}
-      <a href="/settings" style="margin-left:auto; font-size:0.78rem; color:#3949ab; text-decoration:none; font-weight:600;">+ 追加・管理 →</a>
+      重要アラート
+      <span class="count">{{ alert_articles | length }} 件</span>
     </div>
-    <div class="card">
-      {% if sites | length > 5 %}
-      <div class="pagination-bar" id="sites-pagination-top"></div>
-      {% endif %}
-      <table>
-        <thead>
-          <tr>
-            <th>会社名</th>
-            <th>ステータス</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody id="sites-tbody">
-          {% for site in sites %}
-          <!-- 1行目: 会社名・ステータス・ボタン -->
-          <tr class="row-primary" data-site-index="{{ loop.index0 }}">
-            <td>
-              <span class="site-name site-name-view" id="site-name-view-{{ loop.index0 }}">
-                {{ site.name if site.name else "—" }}
-              </span>
-              <form
-                id="site-name-edit-form-{{ loop.index0 }}"
-                class="site-name-edit-form"
-                method="POST"
-                action="/update_site_name"
-              >
-                <input type="hidden" name="url" value="{{ site.url }}">
-                <input
-                  class="input-name"
-                  type="text"
-                  name="name"
-                  value="{{ site.name }}"
-                  placeholder="会社名（任意）"
-                >
-                <button type="submit" class="btn btn-save">保存</button>
-                <button
-                  type="button"
-                  class="btn btn-cancel"
-                  onclick="cancelSiteNameEdit({{ loop.index0 }})"
-                >
-                  キャンセル
-                </button>
-              </form>
-            </td>
-            <td>
-              {% if site.checking %}
-                <span class="badge badge-checking">チェック中...</span>
-              {% elif site.status == "ok" %}
-                <span class="badge badge-ok">正常</span>
-              {% elif site.status == "changed" %}
-                <span class="badge badge-changed">変更あり</span>
-              {% elif site.status == "error" %}
-                <span class="badge {{ site.error_cls }}">{{ site.error_label }}</span>
-                {% if site.error %}
-                <br>
-                <button class="error-detail-toggle" onclick="toggleErrorDetail(this)">エラーの理由を確認する</button>
-                <div class="error-detail">{{ site.error }}</div>
-                {% endif %}
-              {% elif site.status == "new" %}
-                <span class="badge badge-new">初回記録</span>
-              {% else %}
-                <span class="badge badge-unknown">未チェック</span>
-              {% endif %}
-            </td>
-            <td>
-              <div class="row-actions" style="justify-content:flex-start">
-                <form method="POST" action="/check_site">
-                  <input type="hidden" name="url" value="{{ site.url }}">
-                  <button type="submit" class="btn btn-check"
-                    {% if site.checking %}disabled{% endif %}
-                    onclick="this.disabled=true">
-                    今すぐチェック
-                  </button>
-                </form>
-                <button
-                  type="button"
-                  id="site-name-edit-btn-{{ loop.index0 }}"
-                  class="btn btn-edit site-name-edit-btn"
-                  onclick="openSiteNameEdit({{ loop.index0 }})"
-                >
-                  編集
-                </button>
-                <form method="POST" action="/remove_site"
-                      onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
-                  <input type="hidden" name="url" value="{{ site.url }}">
-                  <button type="submit" class="btn btn-remove">削除</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          <!-- 2行目: URL・最終チェック日時 -->
-          <tr class="row-secondary" data-site-index="{{ loop.index0 }}">
-            <td>
-              <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
-            </td>
-            <td>
-              最終チェック: {{ site.last_check }}
-            </td>
-            <td></td>
-          </tr>
-          {% endfor %}
-          {% if not sites %}
-          <tr>
-            <td colspan="3">
-              <div class="empty-state">
-                モニターサイトが登録されていません
-              </div>
-            </td>
-          </tr>
-          {% endif %}
-        </tbody>
-      </table>
-      {% if sites | length > 5 %}
-      <div class="pagination-bar bottom" id="sites-pagination-bottom"></div>
-      {% endif %}
+    <div class="alert-section-card">
+      {% for article in alert_articles[:3] %}
+      <div class="article-item article-alert">
+        {% if article.is_read %}
+        <span class="article-read-mark" title="チェック済み">✓</span>
+        {% endif %}
+        <span class="article-alert-badge">重要</span>
+        <span class="article-kw">{{ article.keyword }}</span>
+        <div class="article-body">
+          <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
+          <div class="article-meta">
+            {% if article.source %}{{ article.source }}{% endif %}
+            {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
+            {% if article.published %}{{ article.published }}{% endif %}
+          </div>
+        </div>
+        {% if article.is_read %}
+        <form method="POST" action="/mark_article_unread">
+          <input type="hidden" name="article_id" value="{{ article.id }}">
+          <button type="submit" class="btn-unread">未読に戻す</button>
+        </form>
+        {% else %}
+        <form method="POST" action="/mark_article_read">
+          <input type="hidden" name="article_id" value="{{ article.id }}">
+          <button type="submit" class="btn-check-done">チェック済み</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <div class="view-all-bar">
+        <a href="/news" class="view-all-link">すべてのニュースを見る →</a>
+      </div>
+    </div>
+  </section>
+  {% endif %}
 
+  <!-- 本日の更新企業 -->
+  <section>
+    <div class="section-title">本日の更新企業</div>
+    <div class="today-companies-card">
+      <div>
+        <div class="today-companies-num">{{ summary_today_companies }}</div>
+        <div class="today-companies-label">企業が本日活動</div>
+      </div>
+      <a href="/companies" class="view-all-link">企業一覧を見る →</a>
     </div>
   </section>
 
-  <!-- 変更検知履歴 -->
+  <!-- 変更検知履歴（最新5件） -->
   <section>
     <div class="section-title">
       変更検知履歴
-      <span class="count" id="history-count-badge">{{ change_history | length }} 件</span>
-      {% if change_history %}
-      <div class="history-controls">
-        <button id="sort-toggle" class="btn-sort" onclick="toggleSort()">新着順</button>
-        <select id="count-select" class="count-select" onchange="applyHistoryFilter()">
-          <option value="5">5件</option>
-          <option value="10" selected>10件</option>
-          <option value="20">20件</option>
-          <option value="30">30件</option>
-          <option value="50">50件</option>
-        </select>
-      </div>
-      {% endif %}
+      <span class="count">{{ change_history | length }} 件</span>
     </div>
     <div class="card">
       {% if change_history %}
-        <div class="pagination-bar" id="pagination-top"></div>
-        <div class="timeline" id="timeline-container">
-          {% for event in change_history %}
+        <div class="timeline">
+          {% for event in change_history[:5] %}
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div class="timeline-content">
@@ -837,311 +487,117 @@
           </div>
           {% endfor %}
         </div>
-        <div class="pagination-bar bottom" id="pagination-bottom"></div>
       {% else %}
-        <div class="empty-state">
-          変更は検知されていません
-        </div>
+        <div class="empty-state">変更は検知されていません</div>
       {% endif %}
     </div>
   </section>
 
-  <!-- ニュース記事（キーワードが1件以上ある場合のみ表示） -->
+  <!-- ニュース記事（最新5件、アラート除く） -->
   {% if keywords %}
-  <section id="articles-section">
+  {% set normal_articles = articles | rejectattr("is_alert") | list %}
+  <section>
     <div class="section-title">
       ニュース記事
-      <span class="count" id="articles-count-badge">{{ articles | length }} 件</span>
-      {% if articles %}
-      <div class="history-controls">
-        <button id="articles-sort-toggle" class="btn-sort" onclick="toggleArticleSort()">新着順</button>
-        <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
-          <option value="10" selected>10件</option>
-          <option value="20">20件</option>
-          <option value="30">30件</option>
-          <option value="50">50件</option>
-        </select>
-      </div>
-      {% endif %}
+      <span class="count">{{ normal_articles | length }} 件</span>
     </div>
     <div class="card">
-      {% if articles %}
-        {# 重要アラート固定セクション（上位5件、JSとは独立した静的表示） #}
-        {% set alert_articles_pinned = articles | selectattr("is_alert") | list %}
-        {% if alert_articles_pinned %}
-        <div class="alert-pinned-section">
-          <div class="alert-pinned-header">重要アラート &nbsp;{{ alert_articles_pinned | length }} 件</div>
-          {% for article in alert_articles_pinned[:5] %}
-          <div class="article-item article-alert" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
-            {% if article.is_read %}
-            <span class="article-read-mark" title="チェック済み">✓</span>
-            {% endif %}
-            <span class="article-alert-badge">重要</span>
-            <span class="article-kw">{{ article.keyword }}</span>
-            <div class="article-body">
-              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
-              <div class="article-meta">
-                {% if article.source %}{{ article.source }}{% endif %}
-                {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
-                {% if article.published %}{{ article.published }}{% endif %}
-              </div>
-            </div>
-            {% if article.is_read %}
-            <form method="POST" action="/mark_article_unread">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-unread">未読に戻す</button>
-            </form>
-            {% else %}
-            <form method="POST" action="/mark_article_read" class="article-read-actions">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-check-done">チェック済み</button>
-            </form>
-            {% endif %}
-          </div>
-          {% endfor %}
-          {% if alert_articles_pinned | length > 5 %}
-          <div class="alert-pinned-more">他 {{ alert_articles_pinned | length - 5 }} 件は下の通常一覧で確認できます</div>
+      {% if normal_articles %}
+        {% for article in normal_articles[:5] %}
+        <div class="article-item {% if article.is_read %}article-read{% endif %}">
+          {% if article.is_read %}
+          <span class="article-read-mark" title="チェック済み">✓</span>
           {% endif %}
-        </div>
-        {% endif %}
-        <div class="kw-filter-bar">
-          <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
-          {% for kw in keyword_entries %}
-          <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
-          {% endfor %}
-          <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
-        </div>
-        <div class="pagination-bar" id="articles-pagination-top"></div>
-        <div id="articles-container">
-          {% for article in articles %}
-          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
-            {% if article.is_read %}
-            <span class="article-read-mark" title="チェック済み">✓</span>
-            {% endif %}
-            {% if article.is_alert %}
-            <span class="article-alert-badge">重要</span>
-            {% endif %}
-            <span class="article-kw">{{ article.keyword }}</span>
-            <div class="article-body">
-              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">
-                {{ article.title }}
-              </a>
-              <div class="article-meta">
-                {% if article.source %}{{ article.source }}{% endif %}
-                {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
-                {% if article.published %}{{ article.published }}{% endif %}
-              </div>
+          <span class="article-kw">{{ article.keyword }}</span>
+          <div class="article-body">
+            <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
+            <div class="article-meta">
+              {% if article.source %}{{ article.source }}{% endif %}
+              {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
+              {% if article.published %}{{ article.published }}{% endif %}
             </div>
-            {% if article.is_read %}
-            <form method="POST" action="/mark_article_unread">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-unread">未読に戻す</button>
-            </form>
-            {% else %}
-            <form method="POST" action="/mark_article_read" class="article-read-actions">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-check-done">チェック済み</button>
-            </form>
-            {% endif %}
           </div>
-          {% endfor %}
-        </div>
-        <div class="pagination-bar bottom" id="articles-pagination-bottom"></div>
-      {% else %}
-        <div class="empty-state">
-          {% if keywords %}
-            記事がまだ収集されていません。次のチェック時に自動収集されます。
+          {% if article.is_read %}
+          <form method="POST" action="/mark_article_unread">
+            <input type="hidden" name="article_id" value="{{ article.id }}">
+            <button type="submit" class="btn-unread">未読に戻す</button>
+          </form>
           {% else %}
-            キーワードを登録すると自動でニュース記事が収集されます。
+          <form method="POST" action="/mark_article_read">
+            <input type="hidden" name="article_id" value="{{ article.id }}">
+            <button type="submit" class="btn-check-done">チェック済み</button>
+          </form>
           {% endif %}
         </div>
+        {% endfor %}
+        <div class="view-all-bar">
+          <a href="/news" class="view-all-link">すべてのニュースを見る →</a>
+        </div>
+      {% else %}
+        <div class="empty-state">記事がまだ収集されていません。次のチェック時に自動収集されます。</div>
       {% endif %}
     </div>
   </section>
   {% endif %}
 
+  <!-- モニターサイト（最新5件、ステータスのみ） -->
+  <section>
+    <div class="section-title">
+      モニターサイト
+      <span class="count">{{ sites | length }} サイト</span>
+      <a href="/settings" style="margin-left:auto; font-size:0.78rem; color:#3949ab; text-decoration:none; font-weight:600;">管理する →</a>
+    </div>
+    <div class="card">
+      {% if sites %}
+      <table>
+        <thead>
+          <tr>
+            <th>会社名 / URL</th>
+            <th>ステータス</th>
+            <th>最終チェック</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for site in sites[:5] %}
+          <tr>
+            <td>
+              <div class="site-name">{{ site.name if site.name else "—" }}</div>
+              <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
+            </td>
+            <td>
+              {% if site.checking %}
+                <span class="badge badge-checking">チェック中...</span>
+              {% elif site.status == "ok" %}
+                <span class="badge badge-ok">正常</span>
+              {% elif site.status == "changed" %}
+                <span class="badge badge-changed">変更あり</span>
+              {% elif site.status == "error" %}
+                <span class="badge {{ site.error_cls }}">{{ site.error_label }}</span>
+              {% elif site.status == "new" %}
+                <span class="badge badge-new">初回記録</span>
+              {% else %}
+                <span class="badge badge-unknown">未チェック</span>
+              {% endif %}
+            </td>
+            <td style="font-size:0.82rem; color:#6b7280;">{{ site.last_check }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if sites | length > 5 %}
+      <div class="view-all-bar">
+        <a href="/settings" class="view-all-link">すべて管理する（{{ sites | length }} サイト） →</a>
+      </div>
+      {% endif %}
+      {% else %}
+        <div class="empty-state">モニターサイトが登録されていません</div>
+      {% endif %}
+    </div>
+  </section>
 
 </main>
 
 <script>
-// ============================================================
-// URL クエリパラメータ ユーティリティ
-// ============================================================
-function _getPageParam(name) {
-  const v = new URLSearchParams(window.location.search).get(name);
-  const n = parseInt(v, 10);
-  return (!isNaN(n) && n >= 1) ? n : 1;
-}
-function _setPageParam(name, value) {
-  const params = new URLSearchParams(window.location.search);
-  params.set(name, value);
-  history.replaceState(null, '', '?' + params.toString() + window.location.hash);
-}
-
-// ============================================================
-// モニターサイト一覧
-// ============================================================
-let _siteOrder = 'desc';
-let _sitePage = _getPageParam('site_page');
-
-function getSitePageSize() {
-  const sel = document.getElementById('sites-count-select');
-  return sel ? parseInt(sel.value) : 999;
-}
-
-function toggleSitesSort() {
-  _siteOrder = _siteOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('sites-sort-toggle').textContent = _siteOrder === 'desc' ? '新着順' : '古い順';
-  _sitePage = 1;
-  _setPageParam('site_page', 1);
-  renderSites();
-}
-
-function goSitePage(delta) {
-  const pairs = window._sitePairs || [];
-  const totalPages = Math.ceil(pairs.length / getSitePageSize());
-  _sitePage = Math.max(1, Math.min(totalPages, _sitePage + delta));
-  _setPageParam('site_page', _sitePage);
-  renderSites();
-}
-
-function renderSitesPagination(id, totalPages) {
-  const bar = document.getElementById(id);
-  if (!bar) return;
-  bar.innerHTML =
-    `<button class="btn-page" onclick="goSitePage(-1)" ${_sitePage<=1?'disabled':''}>← 前へ</button>` +
-    `<span class="page-info">${_sitePage} / ${totalPages} ページ</span>` +
-    `<button class="btn-page" onclick="goSitePage(1)" ${_sitePage>=totalPages?'disabled':''}>次へ →</button>`;
-}
-
-function closeAllSiteNameEdits() {
-  document.querySelectorAll('.site-name-edit-form').forEach(f => { f.style.display = 'none'; });
-  document.querySelectorAll('.site-name-view').forEach(s => { s.style.display = 'inline'; });
-  document.querySelectorAll('.site-name-edit-btn').forEach(b => { b.style.display = 'inline-flex'; });
-}
-
-function openSiteNameEdit(siteIndex) {
-  closeAllSiteNameEdits();
-
-  const span = document.getElementById(`site-name-view-${siteIndex}`);
-  const form = document.getElementById(`site-name-edit-form-${siteIndex}`);
-  const btn = document.getElementById(`site-name-edit-btn-${siteIndex}`);
-
-  if (span) span.style.display = 'none';
-  if (form) form.style.display = 'flex';
-  if (btn) btn.style.display = 'none';
-
-  const input = form ? form.querySelector('input[name="name"]') : null;
-  if (input) {
-    input.focus();
-    input.select();
-  }
-}
-
-function cancelSiteNameEdit(siteIndex) {
-  const span = document.getElementById(`site-name-view-${siteIndex}`);
-  const form = document.getElementById(`site-name-edit-form-${siteIndex}`);
-  const btn = document.getElementById(`site-name-edit-btn-${siteIndex}`);
-
-  if (span) span.style.display = 'inline';
-  if (form) form.style.display = 'none';
-  if (btn) btn.style.display = 'inline-flex';
-}
-
-function renderSites() {
-  closeAllSiteNameEdits();
-
-  const tbody = document.getElementById('sites-tbody');
-  if (!tbody || !window._sitePairs) return;
-
-  const pageSize = getSitePageSize();
-  let pairs = _siteOrder === 'desc' ? [...window._sitePairs] : [...window._sitePairs].reverse();
-  const total = pairs.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const start = (_sitePage - 1) * pageSize;
-
-  tbody.innerHTML = '';
-  pairs.slice(start, start + pageSize).forEach(([primary, secondary]) => {
-    tbody.appendChild(primary);
-    tbody.appendChild(secondary);
-  });
-
-  const badge = document.getElementById('sites-count-badge');
-  if (badge && total > 5) {
-    const s = start + 1, e = Math.min(start + pageSize, total);
-    badge.textContent = `${s}–${e} / 全 ${total} サイト`;
-  }
-
-  renderSitesPagination('sites-pagination-top', totalPages);
-  renderSitesPagination('sites-pagination-bottom', totalPages);
-}
-
-// ============================================================
-// キーワード管理
-// ============================================================
-let _kwOrder = 'desc';
-let _kwPage = _getPageParam('kw_page');
-
-function getKwPageSize() {
-  const sel = document.getElementById('kw-count-select');
-  return sel ? parseInt(sel.value) : 999;
-}
-
-function toggleKwSort() {
-  _kwOrder = _kwOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('kw-sort-toggle').textContent = _kwOrder === 'desc' ? '新着順' : '古い順';
-  _kwPage = 1;
-  _setPageParam('kw_page', 1);
-  renderKeywords();
-}
-
-function goKwPage(delta) {
-  const rows = window._kwRows || [];
-  const totalPages = Math.ceil(rows.length / getKwPageSize());
-  _kwPage = Math.max(1, Math.min(totalPages, _kwPage + delta));
-  _setPageParam('kw_page', _kwPage);
-  renderKeywords();
-}
-
-function renderKwPagination(id, totalPages) {
-  const bar = document.getElementById(id);
-  if (!bar) return;
-  bar.innerHTML =
-    `<button class="btn-page" onclick="goKwPage(-1)" ${_kwPage<=1?'disabled':''}>← 前へ</button>` +
-    `<span class="page-info">${_kwPage} / ${totalPages} ページ</span>` +
-    `<button class="btn-page" onclick="goKwPage(1)" ${_kwPage>=totalPages?'disabled':''}>次へ →</button>`;
-}
-
-function renderKeywords() {
-  const tbody = document.getElementById('kw-tbody');
-  if (!tbody || !window._kwRows) return;
-
-  const pageSize = getKwPageSize();
-  let rows = _kwOrder === 'desc' ? [...window._kwRows] : [...window._kwRows].reverse();
-  const total = rows.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const start = (_kwPage - 1) * pageSize;
-
-  tbody.innerHTML = '';
-  rows.slice(start, start + pageSize).forEach(row => tbody.appendChild(row));
-
-  const badge = document.getElementById('kw-count-badge');
-  if (badge && total > 5) {
-    const s = start + 1, e = Math.min(start + pageSize, total);
-    badge.textContent = `${s}–${e} / 全 ${total} 件`;
-  }
-
-  renderKwPagination('kw-pagination-top', totalPages);
-  renderKwPagination('kw-pagination-bottom', totalPages);
-}
-
-function toggleErrorDetail(btn) {
-  const detail = btn.nextElementSibling;
-  const open = detail.style.display === 'block';
-  detail.style.display = open ? 'none' : 'block';
-  btn.textContent = open ? 'エラーの理由を確認する' : '閉じる';
-}
-
 function toggleDiff(btn) {
   const block = btn.nextElementSibling;
   block.classList.toggle('open');
@@ -1150,218 +606,8 @@ function toggleDiff(btn) {
     : btn.textContent.replace('隠す', '表示（' + block.children.length + ' 件）');
 }
 
-let historyOrder = 'desc';
-let currentPage = _getPageParam('history_page');
-
-function getPageSize() {
-  return parseInt(document.getElementById('count-select').value);
-}
-
-function toggleSort() {
-  historyOrder = historyOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('sort-toggle').textContent = historyOrder === 'desc' ? '新着順' : '古い順';
-  currentPage = 1;
-  _setPageParam('history_page', 1);
-  renderHistory();
-}
-
-function applyHistoryFilter() {
-  currentPage = 1;
-  _setPageParam('history_page', 1);
-  renderHistory();
-}
-
-function goPage(delta) {
-  const total = window._historyItems.length;
-  const totalPages = Math.ceil(total / getPageSize());
-  currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
-  _setPageParam('history_page', currentPage);
-  renderHistory();
-}
-
-function renderPaginationBar(id, totalPages) {
-  const bar = document.getElementById(id);
-  if (!bar) return;
-  const total = window._historyItems.length;
-  const pageSize = getPageSize();
-  const start = (currentPage - 1) * pageSize + 1;
-  const end = Math.min(currentPage * pageSize, total);
-  bar.innerHTML =
-    `<button class="btn-page" onclick="goPage(-1)" ${currentPage <= 1 ? 'disabled' : ''}>← 前へ</button>` +
-    `<span class="page-info">${currentPage} / ${totalPages} ページ</span>` +
-    `<button class="btn-page" onclick="goPage(1)" ${currentPage >= totalPages ? 'disabled' : ''}>次へ →</button>`;
-}
-
-function renderHistory() {
-  const container = document.getElementById('timeline-container');
-  if (!container) return;
-
-  const pageSize = getPageSize();
-  const total = window._historyItems.length;
-  const totalPages = Math.ceil(total / pageSize);
-
-  let items = historyOrder === 'desc'
-    ? [...window._historyItems]
-    : [...window._historyItems].reverse();
-
-  const start = (currentPage - 1) * pageSize;
-  container.innerHTML = '';
-  items.slice(start, start + pageSize).forEach(item => container.appendChild(item));
-
-  const badge = document.getElementById('history-count-badge');
-  if (badge) {
-    const s = start + 1, e = Math.min(start + pageSize, total);
-    badge.textContent = `${s}–${e} 件 / 全 ${total} 件`;
-  }
-
-  renderPaginationBar('pagination-top', totalPages);
-  renderPaginationBar('pagination-bottom', totalPages);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const container = document.getElementById('timeline-container');
-  if (container) {
-    window._historyItems = Array.from(container.querySelectorAll('.timeline-item'));
-    renderHistory();
-  }
-
-  // サイト一覧: primary行とsecondary行をペアにして管理
-  const sitesTbody = document.getElementById('sites-tbody');
-  if (sitesTbody && document.getElementById('sites-count-select')) {
-    const primaries = Array.from(sitesTbody.querySelectorAll('tr.row-primary'));
-    window._sitePairs = primaries.map(primary => {
-      const idx = primary.getAttribute('data-site-index');
-      const secondary = sitesTbody.querySelector(`tr.row-secondary[data-site-index="${idx}"]`);
-      return [primary, secondary].filter(Boolean);
-    });
-    renderSites();
-  }
-
-  // キーワード一覧
-  const kwTbody = document.getElementById('kw-tbody');
-  if (kwTbody && document.getElementById('kw-count-select')) {
-    window._kwRows = Array.from(kwTbody.querySelectorAll('tr[data-kw-index]'));
-    renderKeywords();
-  }
-});
-
-// ============================================================
-// 記事一覧
-// ============================================================
-let _articleItems = [];
-let _articleOrder = 'desc';
-let _articlePage = _getPageParam('article_page');
-let _articleFilter = 'all';
-let _articleUnreadOnly = localStorage.getItem('bizradar_unread_only') === '1';
-
-function filterArticlesByKw(keyword) {
-  _articleFilter = keyword;
-  _articlePage = 1;
-  _setPageParam('article_page', 1);
-  document.querySelectorAll('.kw-filter-btn[data-kw]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.kw === keyword);
-  });
-  renderArticles();
-}
-
-function toggleUnreadFilter() {
-  _articleUnreadOnly = !_articleUnreadOnly;
-  localStorage.setItem('bizradar_unread_only', _articleUnreadOnly ? '1' : '0');
-  const btn = document.getElementById('unread-only-btn');
-  if (btn) btn.classList.toggle('active', _articleUnreadOnly);
-  _articlePage = 1;
-  _setPageParam('article_page', 1);
-  renderArticles();
-}
-
-function toggleArticleSort() {
-  _articleOrder = _articleOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('articles-sort-toggle').textContent = _articleOrder === 'desc' ? '新着順' : '古い順';
-  _articlePage = 1;
-  _setPageParam('article_page', 1);
-  renderArticles();
-}
-
-function changeArticlePageSize() {
-  _articlePage = 1;
-  _setPageParam('article_page', 1);
-  renderArticles();
-}
-
-function goArticlePage(delta) {
-  const filtered = _getFilteredArticles();
-  const pageSize = parseInt(document.getElementById('articles-count-select').value);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  _articlePage = Math.max(1, Math.min(totalPages, _articlePage + delta));
-  _setPageParam('article_page', _articlePage);
-  renderArticles();
-}
-
-function _getFilteredArticles() {
-  let items = _articleFilter === 'all'
-    ? [..._articleItems]
-    : _articleItems.filter(item => item.dataset.keyword === _articleFilter);
-  if (_articleUnreadOnly) {
-    items = items.filter(item => !item.classList.contains('article-read'));
-  }
-  items.sort((a, b) => {
-    const pa = a.dataset.published || '';
-    const pb = b.dataset.published || '';
-    if (pa < pb) return _articleOrder === 'desc' ? 1 : -1;
-    if (pa > pb) return _articleOrder === 'desc' ? -1 : 1;
-    return 0;
-  });
-  return items;
-}
-
-function _renderArticlePaginationBar(id, cur, total) {
-  const bar = document.getElementById(id);
-  if (!bar) return;
-  bar.innerHTML =
-    `<button class="btn-page" onclick="goArticlePage(-1)" ${cur <= 1 ? 'disabled' : ''}>← 前へ</button>` +
-    `<span class="page-info">${cur} / ${total} ページ</span>` +
-    `<button class="btn-page" onclick="goArticlePage(1)" ${cur >= total ? 'disabled' : ''}>次へ →</button>`;
-}
-
-function renderArticles() {
-  const container = document.getElementById('articles-container');
-  if (!container) return;
-  const pageSize = parseInt(document.getElementById('articles-count-select').value);
-  const filtered = _getFilteredArticles();
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if (_articlePage > totalPages) _articlePage = totalPages;
-  const start = (_articlePage - 1) * pageSize;
-
-  container.innerHTML = '';
-  filtered.slice(start, start + pageSize).forEach(item => container.appendChild(item));
-
-  const badge = document.getElementById('articles-count-badge');
-  if (badge) {
-    if (total === 0) {
-      badge.textContent = '0 件';
-    } else {
-      badge.textContent = `${start + 1}–${Math.min(start + pageSize, total)} 件 / 全 ${total} 件`;
-    }
-  }
-  _renderArticlePaginationBar('articles-pagination-top', _articlePage, totalPages);
-  _renderArticlePaginationBar('articles-pagination-bottom', _articlePage, totalPages);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const container = document.getElementById('articles-container');
-  if (container) {
-    _articleItems = Array.from(container.querySelectorAll('.article-item'));
-    const unreadBtn = document.getElementById('unread-only-btn');
-    if (unreadBtn) unreadBtn.classList.toggle('active', _articleUnreadOnly);
-    renderArticles();
-  }
-});
-
 // ============================================================
 // チェック中ステータス ポーリング
-// running → 完了の遷移を検知したらページをリロードして最新ステータスを表示する。
-// ボタンは操作せず、ステータス列のサーバーサイド描画に委ねる。
 // ============================================================
 let _checkingPollTimer = null;
 let _wasRunning = false;
@@ -1371,12 +617,11 @@ async function _pollCheckingStatus() {
   try {
     const res = await fetch('/api/checking_status');
     if (!res.ok) return;
-    const data        = await res.json();
+    const data = await res.json();
     const siteStatuses = data.site_statuses || {};
-    const hasRunning  = Object.values(siteStatuses).some(s => s === 'running');
+    const hasRunning = Object.values(siteStatuses).some(s => s === 'running');
 
     if (_wasRunning && !hasRunning) {
-      // running だったタスクが完了した → リロードして最新ステータスを描画
       location.reload();
       return;
     }
@@ -1384,33 +629,14 @@ async function _pollCheckingStatus() {
     if (hasRunning) {
       _checkingPollTimer = setTimeout(_pollCheckingStatus, 3000);
     }
-  } catch (_) {
-    // ネットワークエラー時はポーリング停止
-  }
+  } catch (_) {}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // バッジの有無に関わらず起動時に一度確認し、runningなら継続ポーリング
   if (document.querySelector('.badge-checking')) {
     _wasRunning = true;
   }
   _pollCheckingStatus();
-
-  // URLハッシュに応じてフラッシュメッセージをセクション内に移動
-  const flashContainer = document.getElementById('global-flash-messages');
-  if (flashContainer && flashContainer.querySelector('.flash')) {
-    const sectionMap = {
-      '#keywords-section': document.getElementById('keywords-section'),
-    };
-    const target = sectionMap[window.location.hash];
-    if (target) {
-      const card = target.querySelector('.card');
-      if (card) {
-        flashContainer.style.cssText = 'margin:0 0 12px';
-        card.insertBefore(flashContainer, card.firstChild);
-      }
-    }
-  }
 });
 </script>
 

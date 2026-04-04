@@ -443,7 +443,7 @@ def mark_article_read():
         flash("チェック済みにしました", "success")
     else:
         flash("記事が見つかりません", "error")
-    return redirect(url_for("index", _anchor="articles-section"))
+    return redirect(request.referrer or url_for("index"))
 
 
 @app.route("/mark_article_unread", methods=["POST"])
@@ -462,7 +462,7 @@ def mark_article_unread():
         flash("未読に戻しました", "success")
     else:
         flash("記事が見つかりません", "error")
-    return redirect(url_for("index", _anchor="articles-section"))
+    return redirect(request.referrer or url_for("index"))
 
 
 @app.route("/add_alert_keyword", methods=["POST"])
@@ -570,6 +570,28 @@ def set_interval():
     db.save_config(config)
     flash(f"チェック間隔を {seconds // 60} 分に変更しました", "success")
     return redirect(url_for("settings"))
+
+
+@app.route("/news")
+@login_required
+def news():
+    user_id = session["user_id"]
+    kw_entries = db.load_keywords(user_id)
+    keywords = [k["keyword"] for k in kw_entries]
+    articles_data = db.load_articles_data(user_id)
+    all_articles = articles_data.get("articles", [])[:300]
+    alert_kw_entries = db.load_alert_keywords(user_id)
+    alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
+    for a in all_articles:
+        a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws_set)
+    return render_template(
+        "news.html",
+        articles=all_articles,
+        keywords=keywords,
+        keyword_entries=kw_entries,
+        user_email=session.get("email", ""),
+        is_admin=session.get("is_admin", False),
+    )
 
 
 @app.route("/settings")

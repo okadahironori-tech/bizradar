@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ニュース記事 — BizRadar</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+      position: relative;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    .header-nav { display: flex; align-items: center; gap: 16px; flex-wrap: nowrap; }
+    .nav-link { font-size: 0.78rem; color: #8892b0; text-decoration: none; border: 1px solid #3a3a5c; border-radius: 7px; padding: 5px 14px; white-space: nowrap; }
+    .nav-link:hover { color: #fff; }
+    .nav-link.active { color: #fff; border-color: #6366f1; background: #3949ab; }
+    .nav-email { font-size: 0.78rem; color: #8892b0; white-space: nowrap; }
+    .nav-btn { background: none; border: 1px solid #3a3a5c; color: #8892b0; border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+    .nav-text-sp { display: none; }
+    .nav-text-pc { display: inline; }
+    .hamburger-btn { display: none; background: none; border: 1px solid #3a3a5c; border-radius: 7px; color: #8892b0; font-size: 1.2rem; padding: 4px 10px; cursor: pointer; line-height: 1; }
+    .hamburger-menu { display: none; position: absolute; top: 100%; right: 16px; background: #1a1a2e; border: 1px solid #3a3a5c; border-radius: 10px; min-width: 160px; z-index: 200; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .hamburger-menu.open { display: block; }
+    .hamburger-menu a, .hamburger-menu .hm-btn { display: block; width: 100%; text-align: left; padding: 12px 18px; font-size: 0.88rem; color: #ccd6f6; text-decoration: none; background: none; border: none; border-bottom: 1px solid #2a2a4e; cursor: pointer; font-family: inherit; }
+    .hamburger-menu a:last-child, .hamburger-menu .hm-btn:last-child { border-bottom: none; }
+    .hamburger-menu a:hover, .hamburger-menu .hm-btn:hover { background: #2d2d4e; color: #fff; }
+    .hamburger-menu a.active { color: #818cf8; font-weight: 700; }
+
+    main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
+
+    .flash { padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 16px; }
+    .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    .section-title { font-size: 1rem; font-weight: 700; color: #4a4a6a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .section-title .count { font-size: 0.78rem; font-weight: 600; color: #6b7280; background: #f3f4f6; border-radius: 10px; padding: 2px 10px; }
+    .history-controls { display: flex; gap: 8px; align-items: center; }
+    .btn-sort { font-size: 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 10px; cursor: pointer; color: #4a4a6a; }
+    .count-select { font-size: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px; background: #fff; color: #4a4a6a; cursor: pointer; }
+
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+
+    /* 記事スタイル */
+    .article-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #f0f2f5; }
+    .article-item:last-child { border-bottom: none; }
+    .article-item.article-read { opacity: 0.55; }
+    .article-item.article-alert { background: #fffbeb; border-left: 3px solid #f59e0b; }
+    .article-alert-badge { font-size: 0.68rem; font-weight: 700; background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; border-radius: 4px; padding: 1px 6px; white-space: nowrap; flex-shrink: 0; }
+    .article-kw { font-size: 0.72rem; background: #e8eaf6; color: #3949ab; border-radius: 4px; padding: 2px 8px; white-space: nowrap; flex-shrink: 0; }
+    .article-body { flex: 1; min-width: 0; }
+    .article-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; text-decoration: none; display: block; }
+    .article-title:hover { color: #3949ab; text-decoration: underline; }
+    .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
+    .article-read-mark { font-size: 0.78rem; color: #059669; font-weight: 700; flex-shrink: 0; }
+    .btn-check-done { font-size: 0.72rem; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .btn-check-done:hover { background: #d1fae5; }
+    .btn-unread { font-size: 0.72rem; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .btn-unread:hover { background: #e5e7eb; }
+
+    /* アラートpinnedセクション */
+    .alert-pinned-section { background: #fffbeb; border-bottom: 2px solid #fcd34d; }
+    .alert-pinned-header { font-size: 0.78rem; font-weight: 700; color: #b45309; padding: 8px 16px 4px; display: flex; align-items: center; gap: 6px; }
+    .alert-pinned-header::before { content: "⚠"; }
+    .alert-pinned-more { font-size: 0.75rem; color: #b45309; padding: 4px 16px 8px; }
+
+    /* フィルターバー */
+    .kw-filter-bar { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #f0f2f5; flex-wrap: wrap; align-items: center; }
+    .kw-filter-btn { font-size: 0.75rem; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 20px; padding: 3px 12px; cursor: pointer; color: #4a4a6a; transition: background 0.12s; white-space: nowrap; }
+    .kw-filter-btn:hover { background: #e8eaf6; color: #3949ab; }
+    .kw-filter-btn.active { background: #3949ab; color: #fff; border-color: #3949ab; }
+    .kw-filter-btn.unread-toggle { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+    .kw-filter-btn.unread-toggle.active { background: #059669; color: #fff; border-color: #059669; }
+
+    /* ページネーション */
+    .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 16px; border-top: 1px solid #f0f2f5; }
+    .pagination-bar.bottom { border-top: 1px solid #f0f2f5; border-bottom: none; }
+    .btn-page { font-size: 0.78rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 12px; cursor: pointer; color: #4a4a6a; }
+    .btn-page:disabled { opacity: 0.4; cursor: default; }
+    .page-info { font-size: 0.78rem; color: #6b7280; }
+
+    .empty-state { text-align: center; color: #9ca3af; font-size: 0.88rem; padding: 32px; }
+
+    @media (max-width: 600px) {
+      header { padding: 12px 14px; }
+      main { margin: 16px auto; padding: 0 10px; }
+      .header-nav { display: none; }
+      .hamburger-btn { display: block; }
+      .article-item { flex-wrap: wrap; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">ニュース記事</div>
+  </div>
+  <div class="header-nav">
+    <a href="/" class="nav-link"><span class="nav-text-pc">ダッシュボード</span><span class="nav-text-sp">ホーム</span></a>
+    <a href="/companies" class="nav-link">企業</a>
+    <a href="/settings" class="nav-link">設定</a>
+    {% if is_admin %}<a href="/admin" class="nav-link">管理者</a>{% endif %}
+    <span class="nav-email">{{ user_email }}</span>
+    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <button type="submit" class="nav-btn">ログアウト</button>
+    </form>
+  </div>
+  <button class="hamburger-btn" id="hamburger-btn" aria-label="メニュー">&#9776;</button>
+  <div class="hamburger-menu" id="hamburger-menu">
+    <a href="/">ダッシュボード</a>
+    <a href="/news" class="active">ニュース</a>
+    <a href="/companies">企業一覧</a>
+    <a href="/settings">設定</a>
+    {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
+    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <button type="submit" class="hm-btn">ログアウト</button>
+    </form>
+  </div>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <section id="articles-section">
+    <div class="section-title">
+      ニュース記事
+      <span class="count" id="articles-count-badge">{{ articles | length }} 件</span>
+      {% if articles %}
+      <div class="history-controls">
+        <button id="articles-sort-toggle" class="btn-sort" onclick="toggleArticleSort()">新着順</button>
+        <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
+          <option value="10" selected>10件</option>
+          <option value="20">20件</option>
+          <option value="30">30件</option>
+          <option value="50">50件</option>
+        </select>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      {% if articles %}
+        {% set alert_articles_pinned = articles | selectattr("is_alert") | list %}
+        {% if alert_articles_pinned %}
+        <div class="alert-pinned-section">
+          <div class="alert-pinned-header">重要アラート &nbsp;{{ alert_articles_pinned | length }} 件</div>
+          {% for article in alert_articles_pinned[:5] %}
+          <div class="article-item article-alert" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
+            {% if article.is_read %}<span class="article-read-mark">✓</span>{% endif %}
+            <span class="article-alert-badge">重要</span>
+            <span class="article-kw">{{ article.keyword }}</span>
+            <div class="article-body">
+              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
+              <div class="article-meta">
+                {% if article.source %}{{ article.source }}{% endif %}
+                {% if article.source and article.published %} · {% endif %}
+                {% if article.published %}{{ article.published }}{% endif %}
+              </div>
+            </div>
+            {% if article.is_read %}
+            <form method="POST" action="/mark_article_unread">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-unread">未読に戻す</button>
+            </form>
+            {% else %}
+            <form method="POST" action="/mark_article_read">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-check-done">チェック済み</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% if alert_articles_pinned | length > 5 %}
+          <div class="alert-pinned-more">他 {{ alert_articles_pinned | length - 5 }} 件は下の一覧で確認できます</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="kw-filter-bar">
+          <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
+          {% for kw in keyword_entries %}
+          <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
+          {% endfor %}
+          <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
+        </div>
+
+        <div class="pagination-bar" id="articles-pagination-top"></div>
+        <div id="articles-container">
+          {% for article in articles %}
+          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
+            {% if article.is_read %}<span class="article-read-mark">✓</span>{% endif %}
+            {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
+            <span class="article-kw">{{ article.keyword }}</span>
+            <div class="article-body">
+              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
+              <div class="article-meta">
+                {% if article.source %}{{ article.source }}{% endif %}
+                {% if article.source and article.published %} · {% endif %}
+                {% if article.published %}{{ article.published }}{% endif %}
+              </div>
+            </div>
+            {% if article.is_read %}
+            <form method="POST" action="/mark_article_unread">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-unread">未読に戻す</button>
+            </form>
+            {% else %}
+            <form method="POST" action="/mark_article_read">
+              <input type="hidden" name="article_id" value="{{ article.id }}">
+              <button type="submit" class="btn-check-done">チェック済み</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="pagination-bar bottom" id="articles-pagination-bottom"></div>
+      {% else %}
+        <div class="empty-state">記事がまだ収集されていません。次のチェック時に自動収集されます。</div>
+      {% endif %}
+    </div>
+  </section>
+</main>
+
+<script>
+// 記事一覧
+let _articleItems = [];
+let _articleOrder = 'desc';
+let _articlePage = 1;
+let _articleFilter = 'all';
+let _articleUnreadOnly = localStorage.getItem('bizradar_unread_only') === '1';
+
+function filterArticlesByKw(keyword) {
+  _articleFilter = keyword;
+  _articlePage = 1;
+  document.querySelectorAll('.kw-filter-btn[data-kw]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.kw === keyword);
+  });
+  renderArticles();
+}
+
+function toggleUnreadFilter() {
+  _articleUnreadOnly = !_articleUnreadOnly;
+  localStorage.setItem('bizradar_unread_only', _articleUnreadOnly ? '1' : '0');
+  const btn = document.getElementById('unread-only-btn');
+  if (btn) btn.classList.toggle('active', _articleUnreadOnly);
+  _articlePage = 1;
+  renderArticles();
+}
+
+function toggleArticleSort() {
+  _articleOrder = _articleOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('articles-sort-toggle').textContent = _articleOrder === 'desc' ? '新着順' : '古い順';
+  _articlePage = 1;
+  renderArticles();
+}
+
+function changeArticlePageSize() { _articlePage = 1; renderArticles(); }
+
+function goArticlePage(delta) {
+  const filtered = _getFilteredArticles();
+  const pageSize = parseInt(document.getElementById('articles-count-select').value);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  _articlePage = Math.max(1, Math.min(totalPages, _articlePage + delta));
+  renderArticles();
+}
+
+function _getFilteredArticles() {
+  let items = _articleFilter === 'all' ? [..._articleItems] : _articleItems.filter(i => i.dataset.keyword === _articleFilter);
+  if (_articleUnreadOnly) items = items.filter(i => !i.classList.contains('article-read'));
+  items.sort((a, b) => {
+    const pa = a.dataset.published || '', pb = b.dataset.published || '';
+    if (pa < pb) return _articleOrder === 'desc' ? 1 : -1;
+    if (pa > pb) return _articleOrder === 'desc' ? -1 : 1;
+    return 0;
+  });
+  return items;
+}
+
+function _renderArticlePaginationBar(id, cur, total) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  bar.innerHTML =
+    `<button class="btn-page" onclick="goArticlePage(-1)" ${cur<=1?'disabled':''}>← 前へ</button>` +
+    `<span class="page-info">${cur} / ${total} ページ</span>` +
+    `<button class="btn-page" onclick="goArticlePage(1)" ${cur>=total?'disabled':''}>次へ →</button>`;
+}
+
+function renderArticles() {
+  const container = document.getElementById('articles-container');
+  if (!container) return;
+  const pageSize = parseInt(document.getElementById('articles-count-select').value);
+  const filtered = _getFilteredArticles();
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (_articlePage > totalPages) _articlePage = totalPages;
+  const start = (_articlePage - 1) * pageSize;
+
+  container.innerHTML = '';
+  filtered.slice(start, start + pageSize).forEach(item => container.appendChild(item));
+
+  const badge = document.getElementById('articles-count-badge');
+  if (badge) {
+    badge.textContent = total === 0 ? '0 件' : `${start+1}–${Math.min(start+pageSize, total)} 件 / 全 ${total} 件`;
+  }
+  _renderArticlePaginationBar('articles-pagination-top', _articlePage, totalPages);
+  _renderArticlePaginationBar('articles-pagination-bottom', _articlePage, totalPages);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('articles-container');
+  if (container) {
+    _articleItems = Array.from(container.querySelectorAll('.article-item'));
+    const unreadBtn = document.getElementById('unread-only-btn');
+    if (unreadBtn) unreadBtn.classList.toggle('active', _articleUnreadOnly);
+    renderArticles();
+  }
+});
+</script>
+
+<script>
+(function () {
+  var btn = document.getElementById('hamburger-btn');
+  var menu = document.getElementById('hamburger-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function (e) { e.stopPropagation(); menu.classList.toggle('open'); });
+  document.addEventListener('click', function () { menu.classList.remove('open'); });
+  menu.addEventListener('click', function (e) { e.stopPropagation(); });
+})();
+</script>
+</body>
+</html>
