@@ -326,6 +326,7 @@ def remove_keyword():
         flash("該当キーワードが見つかりません", "error")
         return redirect(url_for("index", _anchor="keywords-section"))
     db.save_keywords(new_keywords, user_id)
+    db.delete_articles_by_keyword(user_id, keyword)
     flash(f"キーワードを削除しました: {keyword}", "success")
     return redirect(url_for("index", _anchor="keywords-section"))
 

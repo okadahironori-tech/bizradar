@@ -798,7 +798,8 @@
     </div>
   </section>
 
-  <!-- ニュース記事 -->
+  <!-- ニュース記事（キーワードが1件以上ある場合のみ表示） -->
+  {% if keywords %}
   <section id="articles-section">
     <div class="section-title">
       ニュース記事
@@ -867,6 +868,7 @@
       {% endif %}
     </div>
   </section>
+  {% endif %}
 
   <!-- アカウント設定 -->
   <section id="settings-section">

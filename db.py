@@ -676,6 +676,16 @@ def insert_articles(articles: list, user_id: int):
                 )
 
 
+def delete_articles_by_keyword(user_id: int, keyword: str):
+    """指定キーワードに紐づく記事を全件削除する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM articles WHERE user_id = %s AND keyword = %s",
+                (user_id, keyword),
+            )
+
+
 def mark_article_read(user_id: int, article_id: int) -> bool:
     """記事を既読にする"""
     with _conn() as conn:
