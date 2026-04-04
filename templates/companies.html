@@ -26,6 +26,8 @@
     }
     .nav-link:hover { color: #fff; }
     .nav-link.active { color: #fff; border-color: #6366f1; background: #3949ab; }
+    .nav-email { font-size: 0.78rem; color: #8892b0; white-space: nowrap; }
+    .nav-btn { background: none; border: 1px solid #3a3a5c; color: #8892b0; border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
     main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
 
     /* Flash */
@@ -122,6 +124,9 @@
       .form-grid { grid-template-columns: 1fr; }
       .company-stats { gap: 10px; }
       .stat-val { font-size: 0.9rem; }
+      .header-nav { gap: 6px; }
+      .nav-link, .nav-btn { font-size: 0.72rem; padding: 4px 10px; }
+      .nav-email { display: none; }
     }
   </style>
 </head>
@@ -133,13 +138,13 @@
   </div>
   <div class="header-nav">
     <a href="/" class="nav-link">ダッシュボード</a>
-    <a href="/companies" class="nav-link active">企業一覧</a>
+    <a href="/companies" class="nav-link active">企業</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
-    <span style="font-size:0.78rem;color:#8892b0;">{{ user_email }}</span>
+    <span class="nav-email">{{ user_email }}</span>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
-      <button type="submit" style="background:none;border:1px solid #3a3a5c;color:#8892b0;border-radius:7px;padding:5px 14px;font-size:0.78rem;cursor:pointer;">ログアウト</button>
+      <button type="submit" class="nav-btn">ログアウト</button>
     </form>
   </div>
 </header>

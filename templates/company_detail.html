@@ -18,12 +18,14 @@
     }
     header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
     header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
-    .header-nav { display: flex; align-items: center; gap: 16px; }
+    .header-nav { display: flex; align-items: center; gap: 16px; flex-wrap: nowrap; }
     .nav-link {
       font-size: 0.78rem; color: #8892b0; text-decoration: none;
-      border: 1px solid #3a3a5c; border-radius: 7px; padding: 5px 14px;
+      border: 1px solid #3a3a5c; border-radius: 7px; padding: 5px 14px; white-space: nowrap;
     }
     .nav-link:hover { color: #fff; }
+    .nav-email { font-size: 0.78rem; color: #8892b0; white-space: nowrap; }
+    .nav-btn { background: none; border: 1px solid #3a3a5c; color: #8892b0; border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
     main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
     section + section { margin-top: 24px; }
 
@@ -196,6 +198,9 @@
       .summary-item { min-width: 70px; padding: 10px 12px; }
       .summary-val { font-size: 1.2rem; }
       .form-grid { grid-template-columns: 1fr; }
+      .header-nav { gap: 6px; }
+      .nav-link, .nav-btn { font-size: 0.72rem; padding: 4px 10px; }
+      .nav-email { display: none; }
     }
   </style>
 </head>
@@ -207,13 +212,13 @@
   </div>
   <div class="header-nav">
     <a href="/" class="nav-link">ダッシュボード</a>
-    <a href="/companies" class="nav-link">企業一覧</a>
+    <a href="/companies" class="nav-link">企業</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
-    <span style="font-size:0.78rem;color:#8892b0;">{{ user_email }}</span>
+    <span class="nav-email">{{ user_email }}</span>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
-      <button type="submit" style="background:none;border:1px solid #3a3a5c;color:#8892b0;border-radius:7px;padding:5px 14px;font-size:0.78rem;cursor:pointer;">ログアウト</button>
+      <button type="submit" class="nav-btn">ログアウト</button>
     </form>
   </div>
 </header>
