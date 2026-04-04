@@ -207,6 +207,11 @@
   {% endif %}
   {% endwith %}
 
+  <!-- 戻るリンク -->
+  <div style="margin-bottom:12px;">
+    <a href="/companies" class="btn btn-ghost btn-sm">← 一覧</a>
+  </div>
+
   <!-- 企業ヘッダー -->
   <div class="company-header">
     <div class="company-avatar-lg">{{ company.name[0] }}</div>
@@ -219,7 +224,6 @@
       {% if company.memo %}<div class="memo">{{ company.memo }}</div>{% endif %}
     </div>
     <div class="company-header-actions">
-      <a href="/companies" class="btn btn-ghost btn-sm">← 一覧</a>
       <form method="POST" action="/companies/{{ company.id }}/delete"
             onsubmit="return confirm('「{{ company.name }}」を削除しますか？紐づけは解除されますが、サイト・キーワード・記事は削除されません。')">
         <button type="submit" class="btn btn-danger btn-sm">削除</button>
