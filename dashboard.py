@@ -421,6 +421,28 @@ def mark_article_unread():
     return redirect(url_for("index", _anchor="articles-section"))
 
 
+@app.route("/mark_read/<int:article_id>", methods=["POST"])
+@login_required
+def mark_read_api(article_id):
+    user_id = session["user_id"]
+    if article_id <= 0:
+        return jsonify({"ok": False, "error": "invalid id"}), 400
+    ok = db.mark_article_read(user_id, article_id)
+    return jsonify({"ok": ok})
+
+
+@app.route("/api/articles")
+@login_required
+def api_articles():
+    user_id = session["user_id"]
+    unread_only = request.args.get("unread_only", "false").lower() == "true"
+    data = db.load_articles_data(user_id)
+    articles = data.get("articles", [])
+    if unread_only:
+        articles = [a for a in articles if not a.get("is_read")]
+    return jsonify(articles)
+
+
 @app.route("/set_notify_timing", methods=["POST"])
 @login_required
 def set_notify_timing():

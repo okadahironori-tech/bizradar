@@ -313,6 +313,9 @@
     }
     .kw-filter-btn:hover { border-color: #3949ab; color: #3949ab; }
     .kw-filter-btn.active { background: #3949ab; color: #fff; border-color: #3949ab; }
+    .kw-filter-btn.unread-toggle { margin-left: auto; border-color: #059669; color: #059669; }
+    .kw-filter-btn.unread-toggle:hover { background: #ecfdf5; }
+    .kw-filter-btn.unread-toggle.active { background: #059669; color: #fff; border-color: #059669; }
 
     /* 記事アイテム */
     .article-item {
@@ -832,6 +835,7 @@
           {% for kw in keyword_entries %}
           <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
           {% endfor %}
+          <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
         </div>
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
@@ -1216,14 +1220,25 @@ let _articleItems = [];
 let _articleOrder = 'desc';
 let _articlePage = _getPageParam('article_page');
 let _articleFilter = 'all';
+let _articleUnreadOnly = localStorage.getItem('bizradar_unread_only') === '1';
 
 function filterArticlesByKw(keyword) {
   _articleFilter = keyword;
   _articlePage = 1;
   _setPageParam('article_page', 1);
-  document.querySelectorAll('.kw-filter-btn').forEach(btn => {
+  document.querySelectorAll('.kw-filter-btn[data-kw]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.kw === keyword);
   });
+  renderArticles();
+}
+
+function toggleUnreadFilter() {
+  _articleUnreadOnly = !_articleUnreadOnly;
+  localStorage.setItem('bizradar_unread_only', _articleUnreadOnly ? '1' : '0');
+  const btn = document.getElementById('unread-only-btn');
+  if (btn) btn.classList.toggle('active', _articleUnreadOnly);
+  _articlePage = 1;
+  _setPageParam('article_page', 1);
   renderArticles();
 }
 
@@ -1254,6 +1269,9 @@ function _getFilteredArticles() {
   let items = _articleFilter === 'all'
     ? [..._articleItems]
     : _articleItems.filter(item => item.dataset.keyword === _articleFilter);
+  if (_articleUnreadOnly) {
+    items = items.filter(item => !item.classList.contains('article-read'));
+  }
   items.sort((a, b) => {
     const pa = a.dataset.published || '';
     const pb = b.dataset.published || '';
@@ -1302,6 +1320,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('articles-container');
   if (container) {
     _articleItems = Array.from(container.querySelectorAll('.article-item'));
+    const unreadBtn = document.getElementById('unread-only-btn');
+    if (unreadBtn) unreadBtn.classList.toggle('active', _articleUnreadOnly);
     renderArticles();
   }
 });
