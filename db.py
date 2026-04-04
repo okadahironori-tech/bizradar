@@ -1161,7 +1161,7 @@ def load_company_change_history(user_id: int, company_id: int, limit: int = 10) 
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT s.url FROM sites WHERE user_id=%s AND company_id=%s",
+                "SELECT url FROM sites WHERE user_id=%s AND company_id=%s",
                 (user_id, company_id),
             )
             urls = [row["url"] for row in cur.fetchall()]
