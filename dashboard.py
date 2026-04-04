@@ -883,6 +883,33 @@ def link_keyword_to_company(company_id):
     return redirect(url_for("company_detail", company_id=company_id))
 
 
+@app.route("/companies/<int:company_id>/new_site", methods=["POST"])
+@login_required
+def new_site_for_company(company_id):
+    user_id = session["user_id"]
+    url  = request.form.get("url", "").strip()
+    name = request.form.get("name", "").strip()
+    if not url:
+        flash("URLを入力してください", "error")
+        return redirect(url_for("company_detail", company_id=company_id))
+    db.create_site_and_link(user_id, url, name, company_id)
+    flash(f"サイトを登録・紐づけしました", "success")
+    return redirect(url_for("company_detail", company_id=company_id))
+
+
+@app.route("/companies/<int:company_id>/new_keyword", methods=["POST"])
+@login_required
+def new_keyword_for_company(company_id):
+    user_id = session["user_id"]
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        flash("キーワードを入力してください", "error")
+        return redirect(url_for("company_detail", company_id=company_id))
+    db.create_keyword_and_link(user_id, keyword, company_id)
+    flash(f"「{keyword}」を登録・紐づけしました", "success")
+    return redirect(url_for("company_detail", company_id=company_id))
+
+
 # Render 上ではモニターをバックグラウンドスレッドで起動
 if os.environ.get("RENDER"):
     import monitor as _monitor

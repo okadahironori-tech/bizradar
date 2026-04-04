@@ -1264,6 +1264,30 @@ def set_keyword_company(user_id: int, keyword: str, company_id) -> bool:
             return cur.rowcount > 0
 
 
+def create_site_and_link(user_id: int, url: str, name: str, company_id: int) -> bool:
+    """新規サイトを作成して company_id を同時に紐づける。URL重複時は紐づけのみ更新。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO sites (url, name, user_id, company_id) VALUES (%s, %s, %s, %s) "
+                "ON CONFLICT (user_id, url) DO UPDATE SET name = EXCLUDED.name, company_id = EXCLUDED.company_id",
+                (url, name, user_id, company_id),
+            )
+            return True
+
+
+def create_keyword_and_link(user_id: int, keyword: str, company_id: int) -> bool:
+    """新規キーワードを作成して company_id を同時に紐づける。重複時は紐づけのみ更新。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO keywords (keyword, user_id, notify_enabled, company_id) VALUES (%s, %s, TRUE, %s) "
+                "ON CONFLICT (user_id, keyword) DO UPDATE SET company_id = EXCLUDED.company_id",
+                (keyword, user_id, company_id),
+            )
+            return True
+
+
 def load_sites_with_company(user_id: int) -> list:
     """全サイトを company_id 付きで返す（詳細画面の紐づけドロップダウン用）"""
     with _conn() as conn:

@@ -101,6 +101,26 @@
     }
     .link-form select:focus { border-color: #3949ab; }
 
+    /* 新規登録フォーム */
+    .new-form {
+      display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #f0f2f5;
+      flex-wrap: wrap; align-items: center; background: #f8f9ff;
+    }
+    .new-form-label {
+      font-size: 0.75rem; font-weight: 600; color: #6b7280;
+      white-space: nowrap; align-self: center;
+    }
+    .new-form input[type="text"], .new-form input[type="url"] {
+      flex: 1; min-width: 140px; padding: 7px 10px;
+      border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem;
+      outline: none; font-family: inherit;
+    }
+    .new-form input:focus { border-color: #3949ab; }
+    .form-section-divider {
+      padding: 6px 16px; font-size: 0.72rem; font-weight: 600; color: #9ca3af;
+      border-top: 1px solid #f0f2f5; background: #fafafa;
+    }
+
     /* ボタン */
     .btn { display: inline-block; border: none; border-radius: 7px; padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
     .btn-primary { background: #1a1a2e; color: #fff; }
@@ -281,9 +301,19 @@
       <div class="empty-msg">紐づくサイトがありません</div>
       {% endif %}
 
+      <!-- 新規サイト登録フォーム -->
+      <div class="form-section-divider">新規登録して紐づける</div>
+      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_site">
+        <span class="new-form-label">新規追加</span>
+        <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
+        <input type="url" name="url" placeholder="https://example.com/news" maxlength="500" required>
+        <button type="submit" class="btn btn-primary">登録して紐づける</button>
+      </form>
+
       {# 未紐づきサイトのみドロップダウンに表示 #}
       {% set unlinked_sites = all_sites | selectattr("company_id", "none") | list %}
       {% if unlinked_sites %}
+      <div class="form-section-divider">既存サイトから選んで紐づける</div>
       <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_site">
         <input type="hidden" name="action" value="link">
         <select name="site_url" required>
@@ -350,8 +380,17 @@
       <div class="empty-msg">紐づくキーワードがありません</div>
       {% endif %}
 
+      <!-- 新規キーワード登録フォーム -->
+      <div class="form-section-divider">新規登録して紐づける</div>
+      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
+        <span class="new-form-label">新規追加</span>
+        <input type="text" name="keyword" placeholder="キーワードを入力" maxlength="200" required>
+        <button type="submit" class="btn btn-primary">登録して紐づける</button>
+      </form>
+
       {% set unlinked_kws = all_keywords | selectattr("company_id", "none") | list %}
       {% if unlinked_kws %}
+      <div class="form-section-divider">既存キーワードから選んで紐づける</div>
       <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_keyword">
         <input type="hidden" name="action" value="link">
         <select name="keyword" required>
