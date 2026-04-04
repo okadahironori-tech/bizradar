@@ -446,6 +446,98 @@ def privacy():
     return render_template("privacy.html", back_url=back_url)
 
 
+# ============================================================
+# パスワードリセット
+# ============================================================
+
+def _send_reset_email(to_email: str, reset_url: str):
+    """パスワードリセットURLをメールで送信する"""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    import html as _html
+
+    smtp_server   = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port     = int(os.environ.get("SMTP_PORT", "587"))
+    sender_email  = os.environ.get("SENDER_EMAIL", "")
+    sender_pass   = os.environ.get("SENDER_PASSWORD", "")
+    if not sender_email or not sender_pass:
+        logger.error("メール送信設定が不足しています (SENDER_EMAIL / SENDER_PASSWORD)")
+        return
+
+    url_esc = _html.escape(reset_url)
+    html_body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:560px;margin:0 auto;padding:16px">
+<h2 style="font-size:1.1em">BizRadar パスワードリセット</h2>
+<p>以下のリンクから新しいパスワードを設定してください。<br>
+このリンクは<strong>1時間</strong>で無効になります。</p>
+<p style="margin:20px 0">
+  <a href="{url_esc}" style="background:#1a1a2e;color:#fff;padding:10px 20px;
+     border-radius:8px;text-decoration:none;font-weight:600">
+    パスワードをリセットする
+  </a>
+</p>
+<p style="font-size:0.85em;color:#6b7280">
+  このメールに心当たりがない場合は無視してください。<br>
+  リンク: {url_esc}
+</p>
+<hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px">
+<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
+
+    msg = MIMEMultipart()
+    msg["From"]    = sender_email
+    msg["To"]      = to_email
+    msg["Subject"] = "【BizRadar】パスワードリセットのご案内"
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_pass)
+            server.send_message(msg)
+        logger.info("パスワードリセットメールを送信しました → %s", to_email)
+    except smtplib.SMTPException as e:
+        logger.error("パスワードリセットメール送信に失敗しました: %s", e)
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "GET":
+        return render_template("forgot_password.html")
+
+    email = request.form.get("email", "").strip().lower()
+    # ユーザーが存在しなくても同じメッセージを返してメールアドレスの存在を漏らさない
+    user = db.get_user_by_email(email)
+    if user:
+        token = db.create_reset_token(user["id"])
+        reset_url = url_for("reset_password", token=token, _external=True)
+        _send_reset_email(email, reset_url)
+    return render_template("forgot_password.html", sent=True)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token: str):
+    user_id = db.get_reset_token_user_id(token)
+    if user_id is None:
+        return render_template("reset_password.html", invalid=True)
+
+    if request.method == "GET":
+        return render_template("reset_password.html", token=token)
+
+    password  = request.form.get("password", "")
+    password2 = request.form.get("password2", "")
+    if len(password) < 8:
+        return render_template("reset_password.html", token=token,
+                               error="パスワードは8文字以上で入力してください")
+    if password != password2:
+        return render_template("reset_password.html", token=token,
+                               error="パスワードが一致しません")
+
+    db.update_user_password(user_id, password)
+    db.invalidate_reset_token(token)
+    return redirect(url_for("login") + "?reset=1")
+
+
 @app.route("/api/checking_status")
 @login_required
 def api_checking_status():

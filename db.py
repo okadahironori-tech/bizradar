@@ -103,6 +103,12 @@ def init_db():
                     completed_at TIMESTAMPTZ,
                     PRIMARY KEY (task_type, key)
                 );
+                CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                    token      TEXT PRIMARY KEY,
+                    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    used       BOOLEAN NOT NULL DEFAULT FALSE
+                );
             """)
     _run_migrations()
 
@@ -786,3 +792,47 @@ def get_all_running_tasks() -> dict:
     """後方互換用: 実行中・完了猶予期間内タスクのキーセットを返す。"""
     statuses = get_running_task_statuses()
     return {task_type: set(keys.keys()) for task_type, keys in statuses.items()}
+
+
+# ============================================================
+# Password Reset Tokens
+# ============================================================
+
+def create_reset_token(user_id: int) -> str:
+    """パスワードリセット用トークンを生成してDBに保存し、トークン文字列を返す。
+    有効期限は1時間。既存の未使用トークンは削除してから新規作成する。
+    """
+    token = secrets.token_urlsafe(32)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            # 古いトークンを削除
+            cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+            cur.execute(
+                "INSERT INTO password_reset_tokens (token, user_id, expires_at) "
+                "VALUES (%s, %s, NOW() + INTERVAL '1 hour')",
+                (token, user_id),
+            )
+    return token
+
+
+def get_reset_token_user_id(token: str):
+    """有効なトークンに紐づく user_id を返す。無効・期限切れ・使用済みは None。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id FROM password_reset_tokens "
+                "WHERE token = %s AND used = FALSE AND expires_at > NOW()",
+                (token,),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def invalidate_reset_token(token: str):
+    """トークンを使用済みにする。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE password_reset_tokens SET used = TRUE WHERE token = %s",
+                (token,),
+            )
