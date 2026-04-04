@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設定 — BizRadar</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+      position: relative;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    .header-nav { display: flex; align-items: center; gap: 16px; flex-wrap: nowrap; }
+    .nav-link {
+      font-size: 0.78rem; color: #8892b0; text-decoration: none;
+      border: 1px solid #3a3a5c; border-radius: 7px; padding: 5px 14px; white-space: nowrap;
+    }
+    .nav-link:hover { color: #fff; }
+    .nav-link.active { color: #fff; border-color: #6366f1; background: #3949ab; }
+    .nav-email { font-size: 0.78rem; color: #8892b0; white-space: nowrap; }
+    .nav-btn { background: none; border: 1px solid #3a3a5c; color: #8892b0; border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+    .nav-text-sp { display: none; }
+    .nav-text-pc { display: inline; }
+
+    /* ハンバーガーメニュー */
+    .hamburger-btn {
+      display: none; background: none; border: 1px solid #3a3a5c;
+      border-radius: 7px; color: #8892b0; font-size: 1.2rem;
+      padding: 4px 10px; cursor: pointer; line-height: 1;
+    }
+    .hamburger-menu {
+      display: none; position: absolute; top: 100%; right: 16px;
+      background: #1a1a2e; border: 1px solid #3a3a5c; border-radius: 10px;
+      min-width: 160px; z-index: 200; overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .hamburger-menu.open { display: block; }
+    .hamburger-menu a, .hamburger-menu .hm-btn {
+      display: block; width: 100%; text-align: left;
+      padding: 12px 18px; font-size: 0.88rem; color: #ccd6f6;
+      text-decoration: none; background: none; border: none;
+      border-bottom: 1px solid #2a2a4e; cursor: pointer; font-family: inherit;
+    }
+    .hamburger-menu a:last-child, .hamburger-menu .hm-btn:last-child { border-bottom: none; }
+    .hamburger-menu a:hover, .hamburger-menu .hm-btn:hover { background: #2d2d4e; color: #fff; }
+    .hamburger-menu a.active { color: #818cf8; font-weight: 700; }
+
+    main { max-width: 800px; margin: 32px auto; padding: 0 16px; }
+    section + section { margin-top: 28px; }
+
+    /* Flash */
+    .flash { padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 16px; }
+    .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    .section-title {
+      font-size: 1rem; font-weight: 700; color: #4a4a6a;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .count-badge {
+      font-size: 0.72rem; font-weight: 600; color: #6b7280;
+      background: #f3f4f6; border-radius: 10px; padding: 2px 8px;
+    }
+
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden;
+    }
+
+    /* テーブル */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 16px; text-align: left; border-bottom: 1px solid #f0f2f5; font-size: 0.85rem; }
+    th { font-size: 0.75rem; font-weight: 600; color: #6b7280; background: #fafafa; }
+    tr:last-child td { border-bottom: none; }
+    .empty-state { text-align: center; color: #9ca3af; font-size: 0.88rem; padding: 28px; }
+
+    /* ボタン */
+    .btn { border: none; border-radius: 7px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .btn-remove { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-remove:hover { background: #fef2f2; }
+    .btn-check  { background: #f0f4ff; color: #3949ab; border: 1px solid #c7d2fe; }
+    .btn-check:hover { background: #e0e7ff; }
+    .btn-save   { background: #1a1a2e; color: #fff; }
+    .btn-save:hover { background: #2d2d4e; }
+    .btn-add    { background: #1a1a2e; color: #fff; }
+    .btn-add:hover { background: #2d2d4e; }
+
+    /* 通知トグル */
+    .btn-notify-toggle { border: none; border-radius: 20px; padding: 3px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+    .btn-notify-toggle.on  { background: #d1fae5; color: #059669; }
+    .btn-notify-toggle.off { background: #f3f4f6; color: #9ca3af; }
+
+    /* 追加フォーム */
+    .add-form {
+      display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #f0f2f5;
+      flex-wrap: wrap;
+    }
+    .input-name { padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; flex: 0 0 160px; }
+    .input-url  { padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; flex: 1; min-width: 200px; }
+    .input-name:focus, .input-url:focus { border-color: #3949ab; }
+
+    /* 設定パネル */
+    .settings-panel {
+      display: flex; align-items: center; gap: 16px; padding: 16px 20px;
+      flex-wrap: wrap;
+    }
+    .settings-panel label { font-size: 0.85rem; font-weight: 600; color: #4a4a6a; white-space: nowrap; }
+    .settings-panel + .settings-panel { border-top: 1px solid #f0f2f5; }
+    .settings-divider { border: none; border-top: 1px solid #f0f2f5; margin: 0; }
+    .interval-options { display: flex; gap: 16px; flex-wrap: wrap; }
+    .interval-options label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer; }
+    .pw-change-fields { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pw-change-fields input {
+      padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
+      font-size: 0.85rem; outline: none; flex: 1; min-width: 160px;
+    }
+    .pw-change-fields input:focus { border-color: #3949ab; }
+
+    /* アラートKWタグ */
+    .alert-kw-tag {
+      background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5;
+      border-radius: 20px; padding: 3px 12px; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer;
+    }
+    .alert-kw-tag:hover { background: #fee2e2; }
+
+    .row-actions { display: flex; gap: 6px; }
+
+    @media (max-width: 600px) {
+      header { padding: 12px 14px; }
+      main { margin: 16px auto; }
+      .header-nav { display: none; }
+      .hamburger-btn { display: block; }
+      .settings-panel { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .pw-change-fields { flex-direction: column; }
+      .add-form { flex-direction: column; }
+      .input-name, .input-url { flex: none; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">ウェブサイト変更検知モニター</div>
+  </div>
+  <div class="header-nav">
+    <a href="/" class="nav-link"><span class="nav-text-pc">ダッシュボード</span><span class="nav-text-sp">ホーム</span></a>
+    <a href="/companies" class="nav-link">企業</a>
+    <a href="/settings" class="nav-link active">設定</a>
+    {% if is_admin %}
+    <a href="/admin" class="nav-link">管理者</a>
+    {% endif %}
+    <span class="nav-email">{{ user_email }}</span>
+    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <button type="submit" class="nav-btn">ログアウト</button>
+    </form>
+  </div>
+  <button class="hamburger-btn" id="hamburger-btn" aria-label="メニュー">&#9776;</button>
+  <div class="hamburger-menu" id="hamburger-menu">
+    <a href="/">ダッシュボード</a>
+    <a href="/companies">企業一覧</a>
+    <a href="/settings" class="active">設定</a>
+    {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
+    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <button type="submit" class="hm-btn">ログアウト</button>
+    </form>
+  </div>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <!-- モニターサイト管理 -->
+  <section>
+    <div class="section-title">モニターサイト管理</div>
+    <div class="card">
+      <form class="add-form" method="POST" action="/add_site"
+            onsubmit="return confirm('「' + this.url.value + '」を追加しますか？')">
+        <input class="input-name" type="text" name="name" placeholder="会社名（任意）">
+        <input class="input-url" type="url" name="url" placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required>
+        <button type="submit" class="btn btn-add">+ 追加</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- キーワード管理 -->
+  <section>
+    <div class="section-title">
+      キーワード管理
+      <span class="count-badge">{{ keywords | length }} 件</span>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>キーワード</th>
+            <th style="text-align:right">収集記事数</th>
+            <th style="text-align:center">通知</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for kw in keyword_entries %}
+          {% set is_collecting = kw.keyword in keyword_collecting %}
+          <tr>
+            <td style="font-weight:600">{{ kw.keyword }}</td>
+            <td style="text-align:right; color:#6b7280; font-size:0.85rem">{{ keyword_counts.get(kw.keyword, 0) }} 件</td>
+            <td style="text-align:center">
+              <form method="POST" action="/toggle_keyword_notify">
+                <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
+                <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}">
+                  {% if kw.notify_enabled %}ON{% else %}OFF{% endif %}
+                </button>
+              </form>
+            </td>
+            <td>
+              <div class="row-actions" style="justify-content:flex-end">
+                <form method="POST" action="/collect_keyword">
+                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                  <button type="submit" class="btn btn-check"
+                    {% if is_collecting %}disabled{% endif %}
+                    onclick="this.disabled=true; this.textContent='収集中...'">
+                    {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
+                  </button>
+                </form>
+                <form method="POST" action="/remove_keyword"
+                      onsubmit="return confirm('「{{ kw.keyword }}」を削除しますか？')">
+                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                  <button type="submit" class="btn btn-remove">削除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not keywords %}
+          <tr><td colspan="4"><div class="empty-state">キーワードが登録されていません</div></td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+      <form class="add-form" method="POST" action="/add_keyword">
+        <input class="input-url" type="text" name="keyword"
+               placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
+        <button type="submit" class="btn btn-add">+ 追加</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- アカウント設定 -->
+  <section>
+    <div class="section-title">アカウント設定</div>
+    <div class="card">
+      {% if is_admin %}
+      <form class="settings-panel" method="POST" action="/set_interval">
+        <label>チェック間隔（管理者）</label>
+        <div class="interval-options">
+          {% for lbl, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
+          <label>
+            <input type="radio" name="seconds" value="{{ val }}" {% if check_interval == val %}checked{% endif %}>
+            <span>{{ lbl }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-save">保存</button>
+      </form>
+      <hr class="settings-divider">
+      {% endif %}
+
+      <form class="settings-panel" method="POST" action="/set_notify_timing">
+        <label>ニュース通知タイミング</label>
+        <div class="interval-options">
+          {% for lbl, val in [("即時通知", "immediate"), ("毎朝8時にまとめて通知", "digest_08"), ("毎日18時にまとめて通知", "digest_18")] %}
+          <label>
+            <input type="radio" name="notify_timing" value="{{ val }}" {% if notify_timing == val %}checked{% endif %}>
+            <span>{{ lbl }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-save">保存</button>
+      </form>
+      <hr class="settings-divider">
+
+      <div class="settings-panel" style="flex-direction:column; align-items:flex-start; gap:12px;">
+        <label>重要アラートキーワード</label>
+        <p style="font-size:0.82rem;color:#6b7280;margin:0;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
+        {% if alert_kw_entries %}
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          {% for ak in alert_kw_entries %}
+          <form method="POST" action="/delete_alert_keyword" style="margin:0;" onsubmit="return confirm('「{{ ak.keyword }}」を削除しますか？')">
+            <input type="hidden" name="keyword_id" value="{{ ak.id }}">
+            <button type="submit" class="alert-kw-tag">{{ ak.keyword }} ×</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:0.82rem;color:#9ca3af;margin:0;">アラートキーワードが登録されていません</p>
+        {% endif %}
+        <form method="POST" action="/add_alert_keyword" style="display:flex; gap:8px; flex-wrap:wrap; width:100%;">
+          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
+            style="flex:1; min-width:160px; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; outline:none;">
+          <button type="submit" class="btn btn-save">追加</button>
+        </form>
+      </div>
+      <hr class="settings-divider">
+
+      <form class="settings-panel" method="POST" action="/change_password">
+        <label>パスワード変更</label>
+        <div class="pw-change-fields">
+          <input type="password" name="current_password" placeholder="現在のパスワード" required>
+          <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required>
+          <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required>
+        </div>
+        <button type="submit" class="btn btn-save">変更する</button>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  var btn = document.getElementById('hamburger-btn');
+  var menu = document.getElementById('hamburger-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function (e) { e.stopPropagation(); menu.classList.toggle('open'); });
+  document.addEventListener('click', function () { menu.classList.remove('open'); });
+  menu.addEventListener('click', function (e) { e.stopPropagation(); });
+})();
+</script>
+</body>
+</html>

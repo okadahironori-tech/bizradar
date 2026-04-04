@@ -238,6 +238,7 @@
   <div class="header-nav">
     <a href="/" class="nav-link"><span class="nav-text-pc">ダッシュボード</span><span class="nav-text-sp">ホーム</span></a>
     <a href="/companies" class="nav-link">企業</a>
+    <a href="/settings" class="nav-link">設定</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
@@ -251,6 +252,7 @@
   <div class="hamburger-menu" id="hamburger-menu">
     <a href="/">ダッシュボード</a>
     <a href="/companies">企業一覧</a>
+    <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" class="hm-btn">ログアウト</button>

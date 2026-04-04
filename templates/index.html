@@ -601,6 +601,7 @@
   <div class="header-nav">
     <div class="updated-at">表示時刻: {{ now }}</div>
     <a href="/companies" class="nav-link">企業</a>
+    <a href="/settings" class="nav-link">設定</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
@@ -614,6 +615,7 @@
   <div class="hamburger-menu" id="hamburger-menu">
     <a href="/" class="active">ダッシュボード</a>
     <a href="/companies">企業一覧</a>
+    <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" class="hm-btn">ログアウト</button>
@@ -666,8 +668,8 @@
         </select>
       </div>
       {% endif %}
+      <a href="/settings" style="margin-left:auto; font-size:0.78rem; color:#3949ab; text-decoration:none; font-weight:600;">+ 追加・管理 →</a>
     </div>
-    <p style="font-size:0.78rem;color:#9ca3af;margin:0 0 8px 0;">ニュースやお知らせページのURLを登録することをおすすめします</p>
     <div class="card">
       {% if sites | length > 5 %}
       <div class="pagination-bar" id="sites-pagination-top"></div>
@@ -784,13 +786,6 @@
       <div class="pagination-bar bottom" id="sites-pagination-bottom"></div>
       {% endif %}
 
-      <!-- モニターサイト追加フォーム -->
-      <form class="add-form" method="POST" action="/add_site"
-            onsubmit="return confirm('「' + this.url.value + '」を追加しますか？')">
-        <input class="input-name" type="text" name="name" placeholder="会社名（任意）">
-        <input class="input-url" type="url" name="url" placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required>
-        <button type="submit" class="btn btn-add">+ モニターサイトを追加</button>
-      </form>
     </div>
   </section>
 
@@ -848,93 +843,6 @@
           変更は検知されていません
         </div>
       {% endif %}
-    </div>
-  </section>
-
-  <!-- キーワード管理 -->
-  <section id="keywords-section">
-    <div class="section-title">
-      キーワード管理
-      <span class="count" id="kw-count-badge">{{ keywords | length }} 件</span>
-      {% if keywords | length > 5 %}
-      <div class="history-controls">
-        <button id="kw-sort-toggle" class="btn-sort" onclick="toggleKwSort()">新着順</button>
-        <select id="kw-count-select" class="count-select" onchange="renderKeywords()">
-          <option value="5" selected>5件</option>
-          <option value="10">10件</option>
-          <option value="20">20件</option>
-        </select>
-      </div>
-      {% endif %}
-    </div>
-    <div class="card">
-      {% if keywords | length > 5 %}
-      <div class="pagination-bar" id="kw-pagination-top"></div>
-      {% endif %}
-      <table>
-        <thead>
-          <tr>
-            <th>キーワード</th>
-            <th style="text-align:right">収集記事数</th>
-            <th style="text-align:center">通知</th>
-            <th style="text-align:right">操作</th>
-          </tr>
-        </thead>
-        <tbody id="kw-tbody">
-          {% for kw in keyword_entries %}
-          {% set is_collecting = kw.keyword in keyword_collecting %}
-          <tr data-kw-index="{{ loop.index0 }}">
-            <td style="font-weight:600">{{ kw.keyword }}</td>
-            <td style="text-align:right; color:#6b7280; font-size:0.85rem">
-              {{ keyword_counts.get(kw.keyword, 0) }} 件
-            </td>
-            <td style="text-align:center">
-              <form method="POST" action="/toggle_keyword_notify" class="notify-toggle-form">
-                <input type="hidden" name="keyword" value="{{ kw.keyword }}">
-                <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
-                <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}">
-                  {% if kw.notify_enabled %}ON{% else %}OFF{% endif %}
-                </button>
-              </form>
-            </td>
-            <td>
-              <div class="row-actions">
-                <form method="POST" action="/collect_keyword">
-                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
-                  <button type="submit" class="btn btn-check"
-                    {% if is_collecting %}disabled{% endif %}
-                    onclick="this.disabled=true; this.textContent='収集中...'">
-                    {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
-                  </button>
-                </form>
-                <form method="POST" action="/remove_keyword"
-                      onsubmit="return confirm('「{{ kw.keyword }}」を削除しますか？')">
-                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
-                  <button type="submit" class="btn btn-remove">削除</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-          {% if not keywords %}
-          <tr>
-            <td colspan="4">
-              <div class="empty-state">
-                キーワードが登録されていません
-              </div>
-            </td>
-          </tr>
-          {% endif %}
-        </tbody>
-      </table>
-      {% if keywords | length > 5 %}
-      <div class="pagination-bar bottom" id="kw-pagination-bottom"></div>
-      {% endif %}
-      <form class="add-form" method="POST" action="/add_keyword">
-        <input class="input-url" type="text" name="keyword"
-               placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
-        <button type="submit" class="btn btn-add">+ キーワードを追加</button>
-      </form>
     </div>
   </section>
 
@@ -1052,73 +960,6 @@
   </section>
   {% endif %}
 
-  <!-- アカウント設定 -->
-  <section id="settings-section">
-    <div class="section-title">アカウント設定</div>
-    <div class="card">
-      {% if is_admin %}
-      <form class="settings-panel" method="POST" action="/set_interval">
-        <label>チェック間隔（管理者）</label>
-        <div class="interval-options">
-          {% for lbl, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
-          <label>
-            <input type="radio" name="seconds" value="{{ val }}"
-              {% if check_interval == val %}checked{% endif %}>
-            <span>{{ lbl }}</span>
-          </label>
-          {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-save">保存</button>
-      </form>
-      <hr class="settings-divider">
-      {% endif %}
-      <form class="settings-panel" method="POST" action="/set_notify_timing">
-        <label>ニュース通知タイミング</label>
-        <div class="interval-options">
-          {% for lbl, val in [("即時通知", "immediate"), ("毎朝8時にまとめて通知", "digest_08"), ("毎日18時にまとめて通知", "digest_18")] %}
-          <label>
-            <input type="radio" name="notify_timing" value="{{ val }}"
-              {% if notify_timing == val %}checked{% endif %}>
-            <span>{{ lbl }}</span>
-          </label>
-          {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-save">保存</button>
-      </form>
-      <hr class="settings-divider">
-      <div class="settings-panel" style="flex-direction:column;align-items:flex-start;gap:12px;">
-        <label>重要アラートキーワード</label>
-        <p style="font-size:0.82rem;color:#6b7280;margin:0;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
-        {% if alert_kw_entries %}
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          {% for ak in alert_kw_entries %}
-          <form method="POST" action="/delete_alert_keyword" style="margin:0;" onsubmit="return confirm('「{{ ak.keyword }}」を削除しますか？')">
-            <input type="hidden" name="keyword_id" value="{{ ak.id }}">
-            <button type="submit" class="alert-kw-tag">{{ ak.keyword }} ×</button>
-          </form>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p style="font-size:0.82rem;color:#9ca3af;margin:0;">アラートキーワードが登録されていません</p>
-        {% endif %}
-        <form method="POST" action="/add_alert_keyword" style="display:flex;gap:8px;flex-wrap:wrap;width:100%;">
-          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
-            style="flex:1;min-width:160px;padding:7px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.88rem;outline:none;">
-          <button type="submit" class="btn btn-save">追加</button>
-        </form>
-      </div>
-      <hr class="settings-divider">
-      <form class="settings-panel" method="POST" action="/change_password">
-        <label>パスワード変更</label>
-        <div class="pw-change-fields">
-          <input type="password" name="current_password" placeholder="現在のパスワード" required>
-          <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required>
-          <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required>
-        </div>
-        <button type="submit" class="btn btn-save">変更する</button>
-      </form>
-    </div>
-  </section>
 
 </main>
 

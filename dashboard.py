@@ -262,7 +262,7 @@ def add_site():
 
     if not url:
         flash("URLを入力してください", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("settings"))
 
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
@@ -270,12 +270,12 @@ def add_site():
     sites = db.load_sites(user_id)
     if any(s["url"] == url for s in sites):
         flash(f"すでに登録済みです: {url}", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("settings"))
 
     sites.append({"url": url, "name": name})
     db.save_sites(sites, user_id)
     flash(f"追加しました: {name if name else url}", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/remove_site", methods=["POST"])
@@ -472,15 +472,15 @@ def add_alert_keyword():
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
         flash("キーワードを入力してください", "error")
-        return redirect(url_for("index", _anchor="settings-section"))
+        return redirect(url_for("settings"))
     if len(keyword) > 50:
         flash("キーワードは50文字以内で入力してください", "error")
-        return redirect(url_for("index", _anchor="settings-section"))
+        return redirect(url_for("settings"))
     if db.add_alert_keyword(user_id, keyword):
         flash(f"アラートキーワード「{keyword}」を追加しました", "success")
     else:
         flash(f"「{keyword}」はすでに登録済みです", "error")
-    return redirect(url_for("index", _anchor="settings-section"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/delete_alert_keyword", methods=["POST"])
@@ -491,9 +491,9 @@ def delete_alert_keyword():
         keyword_id = int(request.form.get("keyword_id", "0"))
     except ValueError:
         flash("不正なリクエストです", "error")
-        return redirect(url_for("index", _anchor="settings-section"))
+        return redirect(url_for("settings"))
     db.delete_alert_keyword(user_id, keyword_id)
-    return redirect(url_for("index", _anchor="settings-section"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/mark_read/<int:article_id>", methods=["POST"])
@@ -528,7 +528,7 @@ def set_notify_timing():
         flash(f"通知タイミングを「{labels.get(timing, timing)}」に変更しました", "success")
     else:
         flash("通知タイミングの更新に失敗しました", "error")
-    return redirect(url_for("index", _anchor="settings-section"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/change_password", methods=["POST"])
@@ -541,19 +541,19 @@ def change_password():
 
     if new_pass != confirm:
         flash("新しいパスワードが一致しません", "error")
-        return redirect(url_for("index", _anchor="settings-section"))
+        return redirect(url_for("settings"))
     if len(new_pass) < 6:
         flash("パスワードは6文字以上で入力してください", "error")
-        return redirect(url_for("index", _anchor="settings-section"))
+        return redirect(url_for("settings"))
 
     user = db.get_user_by_id(user_id)
     if not user or not db.verify_user_password(user, current):
         flash("現在のパスワードが正しくありません", "error")
-        return redirect(url_for("index", _anchor="settings-section"))
+        return redirect(url_for("settings"))
 
     db.update_user_password(user_id, new_pass)
     flash("パスワードを変更しました", "success")
-    return redirect(url_for("index", _anchor="settings-section"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/set_interval", methods=["POST"])
@@ -569,7 +569,36 @@ def set_interval():
     config["check_interval_seconds"] = seconds
     db.save_config(config)
     flash(f"チェック間隔を {seconds // 60} 分に変更しました", "success")
-    return redirect(url_for("index", _anchor="settings-section"))
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings")
+@login_required
+def settings():
+    user_id = session["user_id"]
+    config = db.load_config()
+    kw_entries = db.load_keywords(user_id)
+    keywords = [k["keyword"] for k in kw_entries]
+    running = db.get_running_task_statuses()
+    collecting_kws = set(running.get("keyword_collect", {}).keys())
+    articles_data = db.load_articles_data(user_id)
+    keyword_counts = {}
+    for a in articles_data.get("articles", []):
+        kw = a.get("keyword", "")
+        keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
+    alert_kw_entries = db.load_alert_keywords(user_id)
+    return render_template(
+        "settings.html",
+        check_interval=config.get("check_interval_seconds", 3600),
+        keywords=keywords,
+        keyword_entries=kw_entries,
+        keyword_counts=keyword_counts,
+        keyword_collecting=collecting_kws,
+        notify_timing=db.get_user_notify_timing(user_id),
+        alert_kw_entries=alert_kw_entries,
+        user_email=session.get("email", ""),
+        is_admin=session.get("is_admin", False),
+    )
 
 
 @app.route("/admin")
