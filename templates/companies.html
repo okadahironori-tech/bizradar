@@ -122,11 +122,15 @@
       header { padding: 12px 14px; }
       main { margin: 16px auto; }
       .form-grid { grid-template-columns: 1fr; }
-      .company-stats { gap: 10px; }
-      .stat-val { font-size: 0.9rem; }
       .header-nav { gap: 6px; }
       .nav-link, .nav-btn { font-size: 0.72rem; padding: 4px 10px; }
       .nav-email { display: none; }
+
+      /* 企業カード: statsを2行目に折り返す */
+      .company-card { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
+      .company-main { min-width: 0; flex: 1 1 0; }
+      .company-stats { width: 100%; justify-content: flex-start; gap: 16px; margin-top: 0; }
+      .stat-val { font-size: 0.9rem; }
     }
   </style>
 </head>
