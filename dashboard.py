@@ -712,6 +712,131 @@ def api_status():
     })
 
 
+# ============================================================
+# Companies
+# ============================================================
+
+@app.route("/companies")
+@login_required
+def companies():
+    user_id = session["user_id"]
+    alert_kws = db.get_alert_keywords_set(user_id)
+    company_list = db.load_companies(user_id)
+    for c in company_list:
+        summary = db.get_company_summary(user_id, c["id"], alert_kws)
+        c.update(summary)
+    # アラートありを上位、次に最終更新新しい順
+    company_list.sort(key=lambda c: (-(c["alert_count"] > 0), c["latest_article"] or "" ), reverse=False)
+    company_list.sort(key=lambda c: c["alert_count"] > 0, reverse=True)
+    return render_template("companies.html",
+                           companies=company_list,
+                           user_email=session.get("email", ""),
+                           is_admin=session.get("is_admin", False))
+
+
+@app.route("/companies/add", methods=["POST"])
+@login_required
+def add_company():
+    user_id = session["user_id"]
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("企業名を入力してください", "error")
+        return redirect(url_for("companies"))
+    name_kana   = request.form.get("name_kana", "").strip()
+    website_url = request.form.get("website_url", "").strip()
+    memo        = request.form.get("memo", "").strip()
+    db.create_company(user_id, name, name_kana, website_url, memo)
+    flash(f"「{name}」を登録しました", "success")
+    return redirect(url_for("companies"))
+
+
+@app.route("/companies/<int:company_id>")
+@login_required
+def company_detail(company_id):
+    user_id = session["user_id"]
+    company = db.get_company(user_id, company_id)
+    if not company:
+        flash("企業が見つかりません", "error")
+        return redirect(url_for("companies"))
+
+    alert_kws = db.get_alert_keywords_set(user_id)
+
+    sites_linked    = db.load_company_sites(user_id, company_id)
+    keywords_linked = db.load_company_keywords(user_id, company_id)
+    articles        = db.load_company_articles(user_id, company_id, limit=30)
+    history         = db.load_company_change_history(user_id, company_id, limit=10)
+
+    # 記事に重要フラグ付与
+    for a in articles:
+        a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws)
+
+    # 全サイト・全キーワード（紐づけドロップダウン用）
+    all_sites    = db.load_sites_with_company(user_id)
+    all_keywords = db.load_keywords_with_company(user_id)
+
+    summary = db.get_company_summary(user_id, company_id, alert_kws)
+
+    return render_template("company_detail.html",
+                           company=company,
+                           sites_linked=sites_linked,
+                           keywords_linked=keywords_linked,
+                           articles=articles,
+                           history=history,
+                           all_sites=all_sites,
+                           all_keywords=all_keywords,
+                           summary=summary,
+                           user_email=session.get("email", ""),
+                           is_admin=session.get("is_admin", False))
+
+
+@app.route("/companies/<int:company_id>/edit", methods=["POST"])
+@login_required
+def edit_company(company_id):
+    user_id = session["user_id"]
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("企業名を入力してください", "error")
+        return redirect(url_for("company_detail", company_id=company_id))
+    name_kana   = request.form.get("name_kana", "").strip()
+    website_url = request.form.get("website_url", "").strip()
+    memo        = request.form.get("memo", "").strip()
+    db.update_company(user_id, company_id, name, name_kana, website_url, memo)
+    flash("企業情報を更新しました", "success")
+    return redirect(url_for("company_detail", company_id=company_id))
+
+
+@app.route("/companies/<int:company_id>/delete", methods=["POST"])
+@login_required
+def delete_company(company_id):
+    user_id = session["user_id"]
+    company = db.get_company(user_id, company_id)
+    if company and db.delete_company(user_id, company_id):
+        flash(f"「{company['name']}」を削除しました", "success")
+    return redirect(url_for("companies"))
+
+
+@app.route("/companies/<int:company_id>/link_site", methods=["POST"])
+@login_required
+def link_site_to_company(company_id):
+    user_id  = session["user_id"]
+    site_url = request.form.get("site_url", "")
+    action   = request.form.get("action", "link")  # "link" or "unlink"
+    target_id = company_id if action == "link" else None
+    db.set_site_company(user_id, site_url, target_id)
+    return redirect(url_for("company_detail", company_id=company_id))
+
+
+@app.route("/companies/<int:company_id>/link_keyword", methods=["POST"])
+@login_required
+def link_keyword_to_company(company_id):
+    user_id = session["user_id"]
+    keyword = request.form.get("keyword", "")
+    action  = request.form.get("action", "link")
+    target_id = company_id if action == "link" else None
+    db.set_keyword_company(user_id, keyword, target_id)
+    return redirect(url_for("company_detail", company_id=company_id))
+
+
 # Render 上ではモニターをバックグラウンドスレッドで起動
 if os.environ.get("RENDER"):
     import monitor as _monitor

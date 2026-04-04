@@ -115,6 +115,16 @@ def init_db():
                     keyword    TEXT NOT NULL,
                     UNIQUE (user_id, keyword)
                 );
+                CREATE TABLE IF NOT EXISTS companies (
+                    id          SERIAL PRIMARY KEY,
+                    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    name        TEXT NOT NULL,
+                    name_kana   TEXT NOT NULL DEFAULT '',
+                    website_url TEXT NOT NULL DEFAULT '',
+                    memo        TEXT NOT NULL DEFAULT '',
+                    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
             """)
     _run_migrations()
 
@@ -271,6 +281,16 @@ def _run_migrations():
             # articles: ダイジェスト送信済みフラグ
             cur.execute(
                 "ALTER TABLE articles ADD COLUMN IF NOT EXISTS notified_at TIMESTAMPTZ;"
+            )
+
+            # sites / keywords: company_id カラム追加
+            cur.execute(
+                "ALTER TABLE sites ADD COLUMN IF NOT EXISTS "
+                "company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
+            )
+            cur.execute(
+                "ALTER TABLE keywords ADD COLUMN IF NOT EXISTS "
+                "company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
             )
 
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
@@ -975,3 +995,225 @@ def invalidate_reset_token(token: str):
                 "UPDATE password_reset_tokens SET used = TRUE WHERE token = %s",
                 (token,),
             )
+
+
+# ============================================================
+# Companies
+# ============================================================
+
+def load_companies(user_id: int) -> list:
+    """企業一覧をサマリー情報付きで返す。
+    各企業に以下の集計値を付与:
+      site_count, keyword_count, unread_count, alert_count, last_updated
+    """
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at "
+                "FROM companies WHERE user_id = %s ORDER BY updated_at DESC",
+                (user_id,),
+            )
+            companies = [dict(row) for row in cur.fetchall()]
+    return companies
+
+
+def get_company(user_id: int, company_id: int) -> dict | None:
+    """1件の企業情報を返す（ユーザー所有確認込み）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at "
+                "FROM companies WHERE id = %s AND user_id = %s",
+                (company_id, user_id),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def create_company(user_id: int, name: str, name_kana: str = "",
+                   website_url: str = "", memo: str = "") -> int:
+    """企業を追加して id を返す"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO companies (user_id, name, name_kana, website_url, memo) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (user_id, name, name_kana, website_url, memo),
+            )
+            return cur.fetchone()[0]
+
+
+def update_company(user_id: int, company_id: int, name: str, name_kana: str = "",
+                   website_url: str = "", memo: str = "") -> bool:
+    """企業情報を更新する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE companies SET name=%s, name_kana=%s, website_url=%s, memo=%s, "
+                "updated_at=NOW() WHERE id=%s AND user_id=%s",
+                (name, name_kana, website_url, memo, company_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
+def delete_company(user_id: int, company_id: int) -> bool:
+    """企業を削除する（sites/keywords の company_id は ON DELETE SET NULL で自動解除）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM companies WHERE id = %s AND user_id = %s",
+                (company_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
+def get_company_summary(user_id: int, company_id: int, alert_kws: set) -> dict:
+    """企業の集計情報を返す（サイト数、キーワード数、未読数、アラート数、最終更新）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM sites WHERE user_id=%s AND company_id=%s",
+                (user_id, company_id),
+            )
+            site_count = cur.fetchone()[0]
+
+            cur.execute(
+                "SELECT COUNT(*) FROM keywords WHERE user_id=%s AND company_id=%s",
+                (user_id, company_id),
+            )
+            keyword_count = cur.fetchone()[0]
+
+            # 紐づくキーワードの記事を対象に未読・アラート集計
+            cur.execute(
+                "SELECT a.title, a.is_read FROM articles a "
+                "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "WHERE a.user_id=%s AND k.company_id=%s",
+                (user_id, company_id),
+            )
+            rows = cur.fetchall()
+            unread_count = sum(1 for r in rows if not r[1])
+            alert_count  = sum(
+                1 for r in rows
+                if any(kw in r[0].lower() for kw in alert_kws)
+            )
+
+            # 最終更新: 記事の最新 found_at か企業の updated_at の新しい方
+            cur.execute(
+                "SELECT MAX(a.found_at) FROM articles a "
+                "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "WHERE a.user_id=%s AND k.company_id=%s",
+                (user_id, company_id),
+            )
+            latest_article = cur.fetchone()[0]
+
+    return {
+        "site_count":    site_count,
+        "keyword_count": keyword_count,
+        "unread_count":  unread_count,
+        "alert_count":   alert_count,
+        "latest_article": latest_article,
+    }
+
+
+def load_company_sites(user_id: int, company_id: int) -> list:
+    """企業に紐づくサイト一覧"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, url, name FROM sites "
+                "WHERE user_id=%s AND company_id=%s ORDER BY id",
+                (user_id, company_id),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def load_company_keywords(user_id: int, company_id: int) -> list:
+    """企業に紐づくキーワード一覧"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, keyword, notify_enabled FROM keywords "
+                "WHERE user_id=%s AND company_id=%s ORDER BY id",
+                (user_id, company_id),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> list:
+    """企業に紐づくキーワードの最新記事"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, "
+                "       a.found_at, a.is_read "
+                "FROM articles a "
+                "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "WHERE a.user_id=%s AND k.company_id=%s "
+                "ORDER BY a.published DESC, a.id DESC LIMIT %s",
+                (user_id, company_id, limit),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def load_company_change_history(user_id: int, company_id: int, limit: int = 10) -> list:
+    """企業に紐づくサイトの変更検知履歴"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT s.url FROM sites WHERE user_id=%s AND company_id=%s",
+                (user_id, company_id),
+            )
+            urls = [row["url"] for row in cur.fetchall()]
+            if not urls:
+                return []
+            cur.execute(
+                "SELECT timestamp, url, name, diff FROM change_history "
+                "WHERE url = ANY(%s) ORDER BY id DESC LIMIT %s",
+                (urls, limit),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def set_site_company(user_id: int, site_url: str, company_id) -> bool:
+    """サイトの company_id を設定（None で解除）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE sites SET company_id=%s WHERE user_id=%s AND url=%s",
+                (company_id, user_id, site_url),
+            )
+            return cur.rowcount > 0
+
+
+def set_keyword_company(user_id: int, keyword: str, company_id) -> bool:
+    """キーワードの company_id を設定（None で解除）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE keywords SET company_id=%s WHERE user_id=%s AND keyword=%s",
+                (company_id, user_id, keyword),
+            )
+            return cur.rowcount > 0
+
+
+def load_sites_with_company(user_id: int) -> list:
+    """全サイトを company_id 付きで返す（詳細画面の紐づけドロップダウン用）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, url, name, company_id FROM sites WHERE user_id=%s ORDER BY id",
+                (user_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def load_keywords_with_company(user_id: int) -> list:
+    """全キーワードを company_id 付きで返す（詳細画面の紐づけドロップダウン用）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, keyword, notify_enabled, company_id FROM keywords "
+                "WHERE user_id=%s ORDER BY id",
+                (user_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
