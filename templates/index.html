@@ -191,6 +191,14 @@
 
     /* パスワード変更 */
     .settings-divider { border: none; border-top: 1px solid #e5e7eb; margin: 0; }
+    .alert-kw-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fef2f2; color: #dc2626;
+      border: 1.5px solid #fca5a5; border-radius: 20px;
+      padding: 3px 12px; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .alert-kw-tag:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
     .pw-change-fields {
       display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
     }
@@ -349,6 +357,18 @@
     .article-item.article-read .article-kw {
       background: #e5e7eb;
       color: #6b7280;
+    }
+    .article-item.article-alert {
+      background: #fff8f8;
+      border-left: 3px solid #dc2626;
+    }
+    .article-alert-badge {
+      flex-shrink: 0;
+      background: #dc2626; color: #fff;
+      font-size: 0.68rem; font-weight: 700;
+      padding: 2px 7px; border-radius: 4px;
+      white-space: nowrap; margin-top: 4px;
+      align-self: flex-start;
     }
     .article-read-mark {
       flex-shrink: 0;
@@ -840,9 +860,12 @@
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
           {% for article in articles %}
-          <div class="article-item {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
+          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
             {% if article.is_read %}
             <span class="article-read-mark" title="チェック済み">✓</span>
+            {% endif %}
+            {% if article.is_alert %}
+            <span class="article-alert-badge">重要</span>
             {% endif %}
             <span class="article-kw">{{ article.keyword }}</span>
             <div class="article-body">
@@ -916,6 +939,28 @@
         </div>
         <button type="submit" class="btn btn-save">保存</button>
       </form>
+      <hr class="settings-divider">
+      <div class="settings-panel" style="flex-direction:column;align-items:flex-start;gap:12px;">
+        <label>重要アラートキーワード</label>
+        <p style="font-size:0.82rem;color:#6b7280;margin:0;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
+        {% if alert_kw_entries %}
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          {% for ak in alert_kw_entries %}
+          <form method="POST" action="/delete_alert_keyword" style="margin:0;" onsubmit="return confirm('「{{ ak.keyword }}」を削除しますか？')">
+            <input type="hidden" name="keyword_id" value="{{ ak.id }}">
+            <button type="submit" class="alert-kw-tag">{{ ak.keyword }} ×</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:0.82rem;color:#9ca3af;margin:0;">アラートキーワードが登録されていません</p>
+        {% endif %}
+        <form method="POST" action="/add_alert_keyword" style="display:flex;gap:8px;flex-wrap:wrap;width:100%;">
+          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
+            style="flex:1;min-width:160px;padding:7px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.88rem;outline:none;">
+          <button type="submit" class="btn btn-save">追加</button>
+        </form>
+      </div>
       <hr class="settings-divider">
       <form class="settings-panel" method="POST" action="/change_password">
         <label>パスワード変更</label>

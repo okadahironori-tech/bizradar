@@ -118,25 +118,39 @@ def fetch_news_articles(keyword: str) -> list:
     return articles
 
 
-def send_digest_email(user_email: str, articles_by_keyword: dict):
+def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set = None):
     """ダイジェストメールを送信する。
     articles_by_keyword: {keyword: [article, ...], ...}
+    alert_kws: アラートキーワードの小文字セット
     """
     import html as _html
+    if alert_kws is None:
+        alert_kws = set()
     total = sum(len(v) for v in articles_by_keyword.values())
     if total == 0:
         return
     from datetime import datetime as _dt
     now = _dt.now().strftime("%Y年%m月%d日 %H:%M")
-    subject = f"【BizRadar ダイジェスト】本日の新着記事 {total} 件"
 
+    # 重要記事の総数を集計（件名用）
+    total_alert = sum(
+        1 for arts in articles_by_keyword.values()
+        for a in arts if _is_alert(a.get("title", ""), alert_kws)
+    )
+    alert_prefix = "【重要あり】" if total_alert > 0 else ""
+    subject = f"{alert_prefix}【BizRadar ダイジェスト】本日の新着記事 {total} 件"
+
+    # 各キーワードブロック内でも重要記事を上に並び替え
     sections_html = ""
     for keyword, arts in articles_by_keyword.items():
         if not arts:
             continue
         kw_esc = _html.escape(keyword)
+        important = [a for a in arts if _is_alert(a.get("title", ""), alert_kws)]
+        normal    = [a for a in arts if not _is_alert(a.get("title", ""), alert_kws)]
+        sorted_arts = important + normal
         rows = ""
-        for a in arts:
+        for a in sorted_arts:
             title_esc = _html.escape(a.get("title", ""))
             url_esc   = _html.escape(a.get("url", ""))
             source    = _html.escape(a.get("source", ""))
@@ -147,10 +161,17 @@ def send_digest_email(user_email: str, articles_by_keyword: dict):
             if published:
                 meta_parts.append(f"日時: {published}")
             meta_html = "　".join(meta_parts)
+            is_alert_art = _is_alert(a.get("title", ""), alert_kws)
+            alert_badge = (
+                '<span style="background:#dc2626;color:#fff;font-size:0.75em;'
+                'font-weight:700;padding:1px 7px;border-radius:4px;margin-right:6px;'
+                'vertical-align:middle">重要</span>'
+            ) if is_alert_art else ""
+            row_bg = 'background:#fff5f5;' if is_alert_art else ''
             rows += (
-                f'<tr>'
+                f'<tr style="{row_bg}">'
                 f'<td style="padding:8px 4px;vertical-align:top">'
-                f'<div style="font-weight:600">{title_esc}</div>'
+                f'<div style="font-weight:600">{alert_badge}{title_esc}</div>'
                 f'<div style="font-size:0.82em;color:#6b7280;margin-top:2px">{meta_html}</div>'
                 f'<div style="margin-top:4px">'
                 f'<a href="{url_esc}" style="color:#2563eb;text-decoration:none">記事を読む →</a>'
@@ -167,11 +188,21 @@ def send_digest_email(user_email: str, articles_by_keyword: dict):
             f'</div>'
         )
 
+    alert_banner = ""
+    if total_alert > 0:
+        alert_banner = (
+            '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;'
+            f'padding:8px 14px;margin-bottom:16px;font-size:0.88em;color:#991b1b;">'
+            f'⚠️ 重要アラート: {total_alert} 件の重要記事が含まれています'
+            '</div>'
+        )
+
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
 <h2 style="font-size:1.1em;margin-bottom:4px">BizRadar ダイジェスト</h2>
 <p style="color:#6b7280;font-size:0.85em;margin-top:0">集計日時: {now} ／ 新着記事 {total} 件</p>
 <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
+{alert_banner}
 {sections_html}
 <hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px">
 <p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
@@ -220,14 +251,54 @@ def send_digest_for_user(user_id: int):
     user_email = user.get("email", "") or EMAIL_SETTINGS["recipient_email"]
 
     if articles_by_keyword:
-        send_digest_email(user_email, articles_by_keyword)
+        alert_kws = db.get_alert_keywords_set(user_id)
+        send_digest_email(user_email, articles_by_keyword, alert_kws=alert_kws)
 
     # 送信有無にかかわらず全未通知を通知済みにする（再送防止）
     db.mark_all_unnotified_notified(user_id)
     print(f"[ダイジェスト] user_id={user_id} 通知済みにマーク完了")
 
 
-def send_news_email(keyword: str, articles: list):
+def _is_alert(title: str, alert_kws: set) -> bool:
+    """記事タイトルにアラートキーワードが含まれるか判定する"""
+    t = title.lower()
+    return any(kw in t for kw in alert_kws)
+
+
+def _article_row_html(i: int, a: dict, alert: bool) -> str:
+    """メール用記事行 HTML を生成する（重要ラベル付き）"""
+    import html as _html
+    title_esc = _html.escape(a.get("title", ""))
+    url_esc   = _html.escape(a.get("url", ""))
+    source    = _html.escape(a.get("source", ""))
+    published = _html.escape(a.get("published", ""))
+    meta_parts = []
+    if source:
+        meta_parts.append(f"出典: {source}")
+    if published:
+        meta_parts.append(f"日時: {published}")
+    meta_html = "　".join(meta_parts)
+    alert_badge = (
+        '<span style="background:#dc2626;color:#fff;font-size:0.75em;'
+        'font-weight:700;padding:1px 7px;border-radius:4px;margin-right:6px;'
+        'vertical-align:middle">重要</span>'
+    ) if alert else ""
+    row_bg = 'background:#fff5f5;' if alert else ''
+    return (
+        f'<tr style="{row_bg}">'
+        f'<td style="padding:8px 4px;vertical-align:top;color:#6b7280;font-size:0.85em">{i}</td>'
+        f'<td style="padding:8px 4px">'
+        f'<div style="font-weight:600">{alert_badge}{title_esc}</div>'
+        f'<div style="font-size:0.85em;color:#6b7280;margin-top:2px">{meta_html}</div>'
+        f'<div style="margin-top:4px">'
+        f'<a href="{url_esc}" style="color:#2563eb;text-decoration:none">記事を読む →</a>'
+        f'</div>'
+        f'</td>'
+        f'</tr>'
+    )
+
+
+def send_news_email(keyword: str, articles: list, user_id: int = None):
     """新着ニュース記事をメールで通知する（HTMLメール）"""
     import html as _html
     # タイトルで重複排除（同一タイトルは最初の1件のみ送信）
@@ -241,40 +312,39 @@ def send_news_email(keyword: str, articles: list):
     articles = unique_articles
     if not articles:
         return
+
+    alert_kws = db.get_alert_keywords_set(user_id) if user_id else set()
+
+    # 重要記事を上、通常記事を下に並び替え
+    important = [a for a in articles if _is_alert(a.get("title", ""), alert_kws)]
+    normal    = [a for a in articles if not _is_alert(a.get("title", ""), alert_kws)]
+    sorted_articles = important + normal
+    has_alert = bool(important)
+
     now = datetime.now().strftime("%Y年%m月%d日 %H:%M")
-    subject = f"【ニュース新着通知】「{keyword}」の新着記事 {len(articles)} 件"
+    alert_prefix = "【重要あり】" if has_alert else ""
+    subject = f"{alert_prefix}【ニュース新着通知】「{keyword}」の新着記事 {len(sorted_articles)} 件"
 
     rows_html = ""
-    for i, a in enumerate(articles[:10], 1):
-        title_esc = _html.escape(a.get("title", ""))
-        url_esc   = _html.escape(a.get("url", ""))
-        source    = _html.escape(a.get("source", ""))
-        published = _html.escape(a.get("published", ""))
-        meta_parts = []
-        if source:
-            meta_parts.append(f"出典: {source}")
-        if published:
-            meta_parts.append(f"日時: {published}")
-        meta_html = "　".join(meta_parts)
-        rows_html += (
-            f'<tr>'
-            f'<td style="padding:8px 4px;vertical-align:top;color:#6b7280;font-size:0.85em">{i}</td>'
-            f'<td style="padding:8px 4px">'
-            f'<div style="font-weight:600">{title_esc}</div>'
-            f'<div style="font-size:0.85em;color:#6b7280;margin-top:2px">{meta_html}</div>'
-            f'<div style="margin-top:4px">'
-            f'<a href="{url_esc}" style="color:#2563eb;text-decoration:none">記事を読む →</a>'
-            f'</div>'
-            f'</td>'
-            f'</tr>'
+    for i, a in enumerate(sorted_articles[:10], 1):
+        rows_html += _article_row_html(i, a, _is_alert(a.get("title", ""), alert_kws))
+
+    alert_banner = ""
+    if has_alert:
+        alert_banner = (
+            '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;'
+            'padding:8px 14px;margin-bottom:16px;font-size:0.88em;color:#991b1b;">'
+            f'⚠️ 重要アラート: {len(important)} 件の重要記事が含まれています'
+            '</div>'
         )
 
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
 <h2 style="font-size:1.1em;margin-bottom:4px">
-  「{_html.escape(keyword)}」の新着記事 {len(articles)} 件
+  「{_html.escape(keyword)}」の新着記事 {len(sorted_articles)} 件
 </h2>
 <p style="color:#6b7280;font-size:0.85em;margin-top:0">検出日時: {now}</p>
+{alert_banner}
 <table style="width:100%;border-collapse:collapse">
 {rows_html}
 </table>
@@ -331,7 +401,7 @@ def check_single_keyword(keyword: str, user_id=None):
         if notify_ok:
             timing = db.get_user_notify_timing(user_id)
             if timing == "immediate":
-                send_news_email(keyword, new_articles)
+                send_news_email(keyword, new_articles, user_id=user_id)
                 db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
             else:
                 print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
@@ -391,7 +461,7 @@ def check_all_keywords():
                 if notify_ok:
                     timing = db.get_user_notify_timing(user_id)
                     if timing == "immediate":
-                        send_news_email(keyword, new_articles)
+                        send_news_email(keyword, new_articles, user_id=user_id)
                         db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
                     else:
                         print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")

@@ -192,6 +192,14 @@ def index():
         kw = a.get("keyword", "")
         keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
 
+    alert_kw_entries = db.load_alert_keywords(user_id)
+    alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
+
+    # 記事に重要フラグを付与
+    for a in articles:
+        title_lower = a.get("title", "").lower()
+        a["is_alert"] = any(kw in title_lower for kw in alert_kws_set)
+
     return render_template(
         "index.html",
         sites=sites,
@@ -206,6 +214,7 @@ def index():
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
         notify_timing=db.get_user_notify_timing(user_id),
+        alert_kw_entries=alert_kw_entries,
     )
 
 
@@ -419,6 +428,37 @@ def mark_article_unread():
     else:
         flash("記事が見つかりません", "error")
     return redirect(url_for("index", _anchor="articles-section"))
+
+
+@app.route("/add_alert_keyword", methods=["POST"])
+@login_required
+def add_alert_keyword():
+    user_id = session["user_id"]
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        flash("キーワードを入力してください", "error")
+        return redirect(url_for("index", _anchor="settings-section"))
+    if len(keyword) > 50:
+        flash("キーワードは50文字以内で入力してください", "error")
+        return redirect(url_for("index", _anchor="settings-section"))
+    if db.add_alert_keyword(user_id, keyword):
+        flash(f"アラートキーワード「{keyword}」を追加しました", "success")
+    else:
+        flash(f"「{keyword}」はすでに登録済みです", "error")
+    return redirect(url_for("index", _anchor="settings-section"))
+
+
+@app.route("/delete_alert_keyword", methods=["POST"])
+@login_required
+def delete_alert_keyword():
+    user_id = session["user_id"]
+    try:
+        keyword_id = int(request.form.get("keyword_id", "0"))
+    except ValueError:
+        flash("不正なリクエストです", "error")
+        return redirect(url_for("index", _anchor="settings-section"))
+    db.delete_alert_keyword(user_id, keyword_id)
+    return redirect(url_for("index", _anchor="settings-section"))
 
 
 @app.route("/mark_read/<int:article_id>", methods=["POST"])

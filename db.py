@@ -109,6 +109,12 @@ def init_db():
                     expires_at TIMESTAMPTZ NOT NULL,
                     used       BOOLEAN NOT NULL DEFAULT FALSE
                 );
+                CREATE TABLE IF NOT EXISTS alert_keywords (
+                    id         SERIAL PRIMARY KEY,
+                    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    keyword    TEXT NOT NULL,
+                    UNIQUE (user_id, keyword)
+                );
             """)
     _run_migrations()
 
@@ -879,6 +885,52 @@ def get_all_running_tasks() -> dict:
     """後方互換用: 実行中・完了猶予期間内タスクのキーセットを返す。"""
     statuses = get_running_task_statuses()
     return {task_type: set(keys.keys()) for task_type, keys in statuses.items()}
+
+
+# ============================================================
+# Alert Keywords
+# ============================================================
+
+def load_alert_keywords(user_id: int) -> list:
+    """ユーザーのアラートキーワード一覧を返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, keyword FROM alert_keywords WHERE user_id = %s ORDER BY id",
+                (user_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def add_alert_keyword(user_id: int, keyword: str) -> bool:
+    """アラートキーワードを追加する。重複時は False を返す"""
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO alert_keywords (user_id, keyword) VALUES (%s, %s)",
+                    (user_id, keyword),
+                )
+        return True
+    except psycopg2.errors.UniqueViolation:
+        return False
+
+
+def delete_alert_keyword(user_id: int, keyword_id: int) -> bool:
+    """アラートキーワードを削除する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM alert_keywords WHERE id = %s AND user_id = %s",
+                (keyword_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
+def get_alert_keywords_set(user_id: int) -> set:
+    """アラートキーワードを小文字セットで返す（マッチング用）"""
+    rows = load_alert_keywords(user_id)
+    return {r["keyword"].lower() for r in rows}
 
 
 # ============================================================
