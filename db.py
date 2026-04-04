@@ -541,6 +541,20 @@ def load_keywords(user_id=None) -> list:
             return [{"keyword": row[0], "notify_enabled": bool(row[1])} for row in cur.fetchall()]
 
 
+def add_keyword_if_not_exists(user_id: int, keyword: str) -> bool:
+    """キーワードを1件追加する。既に存在する場合は何もせず False を返す。
+    ON CONFLICT DO NOTHING でアトミックに重複チェックと挿入を行う。
+    """
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO keywords (keyword, user_id, notify_enabled) VALUES (%s, %s, TRUE) "
+                "ON CONFLICT (user_id, keyword) DO NOTHING",
+                (keyword, user_id),
+            )
+            return cur.rowcount > 0
+
+
 def save_keywords(keywords: list, user_id: int):
     normalized = []
     for k in keywords:

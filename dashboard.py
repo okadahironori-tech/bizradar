@@ -304,14 +304,10 @@ def add_keyword():
     if not keyword:
         flash("キーワードを入力してください", "error")
         return redirect(url_for("index", _anchor="keywords-section"))
-    keywords = db.load_keywords(user_id)
-    existing = [k["keyword"] for k in keywords]
-    if keyword in existing:
+    if db.add_keyword_if_not_exists(user_id, keyword):
+        flash(f"キーワードを追加しました: {keyword}", "success")
+    else:
         flash(f"すでに登録済みです: {keyword}", "error")
-        return redirect(url_for("index", _anchor="keywords-section"))
-    keywords.append({"keyword": keyword, "notify_enabled": True})
-    db.save_keywords(keywords, user_id)
-    flash(f"キーワードを追加しました: {keyword}", "success")
     return redirect(url_for("index", _anchor="keywords-section"))
 
 
