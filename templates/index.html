@@ -29,6 +29,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: relative;
     }
     header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
     header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
@@ -44,6 +45,29 @@
       border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; white-space: nowrap;
     }
     .nav-email { font-size: 0.78rem; color: #8892b0; white-space: nowrap; }
+
+    /* ハンバーガーメニュー */
+    .hamburger-btn {
+      display: none; background: none; border: 1px solid #3a3a5c;
+      border-radius: 7px; color: #8892b0; font-size: 1.2rem;
+      padding: 4px 10px; cursor: pointer; line-height: 1;
+    }
+    .hamburger-menu {
+      display: none; position: absolute; top: 100%; right: 16px;
+      background: #1a1a2e; border: 1px solid #3a3a5c; border-radius: 10px;
+      min-width: 160px; z-index: 200; overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .hamburger-menu.open { display: block; }
+    .hamburger-menu a, .hamburger-menu .hm-btn {
+      display: block; width: 100%; text-align: left;
+      padding: 12px 18px; font-size: 0.88rem; color: #ccd6f6;
+      text-decoration: none; background: none; border: none;
+      border-bottom: 1px solid #2a2a4e; cursor: pointer; font-family: inherit;
+    }
+    .hamburger-menu a:last-child, .hamburger-menu .hm-btn:last-child { border-bottom: none; }
+    .hamburger-menu a:hover, .hamburger-menu .hm-btn:hover { background: #2d2d4e; color: #fff; }
+    .hamburger-menu a.active { color: #818cf8; font-weight: 700; }
 
     main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
     section + section { margin-top: 32px; }
@@ -513,16 +537,9 @@
     /* ── スマホ (〜 480px) ── */
     @media (max-width: 480px) {
       /* ヘッダー */
-      header {
-        padding: 12px 14px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-      }
-      .header-nav { gap: 6px; }
-      .nav-link, .nav-btn { font-size: 0.72rem; padding: 4px 10px; }
-      .updated-at { display: none; }
-      .nav-email { display: none; }
+      header { padding: 12px 14px; }
+      .header-nav { display: none; }
+      .hamburger-btn { display: block; }
 
       /* レイアウト */
       main { margin: 14px auto; padding: 0 10px; }
@@ -590,6 +607,16 @@
     <span class="nav-email">{{ user_email }}</span>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" class="nav-btn">ログアウト</button>
+    </form>
+  </div>
+  <!-- ハンバーガーボタン（スマホのみ表示） -->
+  <button class="hamburger-btn" id="hamburger-btn" aria-label="メニュー">&#9776;</button>
+  <div class="hamburger-menu" id="hamburger-menu">
+    <a href="/" class="active">ダッシュボード</a>
+    <a href="/companies">企業一覧</a>
+    {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
+    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>
 </header>
@@ -1557,6 +1584,15 @@ if ('serviceWorker' in navigator) {
   <span style="color:#d1d5db;">|</span>
   <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 8px;">プライバシーポリシー</a>
 </footer>
-
+<script>
+(function () {
+  var btn = document.getElementById('hamburger-btn');
+  var menu = document.getElementById('hamburger-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function (e) { e.stopPropagation(); menu.classList.toggle('open'); });
+  document.addEventListener('click', function () { menu.classList.remove('open'); });
+  menu.addEventListener('click', function (e) { e.stopPropagation(); });
+})();
+</script>
 </body>
 </html>
