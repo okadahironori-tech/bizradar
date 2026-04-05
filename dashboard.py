@@ -213,7 +213,7 @@ def index():
             "url":         url,
             "name":        s.get("name", ""),
             "company_id":  s.get("company_id"),
-            "last_check":  _utc_to_jst(check_info.get("timestamp", "未チェック")),
+            "last_check":  check_info.get("timestamp", "未チェック"),
             "status":      status,
             "error":       error_text,
             "error_label": error_label,
@@ -222,10 +222,7 @@ def index():
             "checking":    site_statuses.get(url) == "running",
         })
 
-    change_history = [
-        {**e, "timestamp": _utc_to_jst(e.get("timestamp", ""))}
-        for e in log.get("change_history", [])[:50]
-    ]
+    change_history = log.get("change_history", [])[:50]
     interval = config.get("check_interval_seconds", 3600)
 
     kw_entries = db.load_keywords(user_id)
@@ -251,7 +248,7 @@ def index():
     for a in articles:
         title_lower = a.get("title", "").lower()
         a["is_alert"] = any(kw in title_lower for kw in alert_kws_set)
-        a["published"] = _utc_to_jst(a.get("published", ""))
+        a["published"] = a.get("published", "")
 
     # ---- サマリー集計 ----
     unread_count       = sum(1 for a in articles if not a.get("is_read"))
@@ -625,7 +622,7 @@ def news():
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
     for a in all_articles:
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws_set)
-        a["published"] = _utc_to_jst(a.get("published", ""))
+        a["published"] = a.get("published", "")
     return render_template(
         "news.html",
         articles=all_articles,
@@ -806,7 +803,7 @@ def api_status():
         site_data.append({
             "url":        url,
             "name":       s.get("name", ""),
-            "last_check": _utc_to_jst(check_info.get("timestamp", "未チェック")),
+            "last_check": check_info.get("timestamp", "未チェック"),
             "status":     check_info.get("status", "unknown"),
         })
 
@@ -855,7 +852,7 @@ def companies():
         sites.append({
             "url":         url,
             "name":        s.get("name", ""),
-            "last_check":  _utc_to_jst(check_info.get("timestamp", "未チェック")),
+            "last_check":  check_info.get("timestamp", "未チェック"),
             "status":      status,
             "error_label": error_label,
             "error_cls":   error_cls,
@@ -920,15 +917,12 @@ def company_detail(company_id):
     sites_linked    = db.load_company_sites(user_id, company_id)
     keywords_linked = db.load_company_keywords(user_id, company_id)
     articles        = db.load_company_articles(user_id, company_id, limit=30)
-    history         = [
-        {**h, "timestamp": _utc_to_jst(h.get("timestamp", ""))}
-        for h in db.load_company_change_history(user_id, company_id, limit=10)
-    ]
+    history         = db.load_company_change_history(user_id, company_id, limit=10)
 
-    # 記事に重要フラグ付与・published をJSTに変換
+    # 記事に重要フラグ付与
     for a in articles:
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws)
-        a["published"] = _utc_to_jst(a.get("published", ""))
+        a["published"] = a.get("published", "")
 
     # 全サイト・全キーワード（紐づけドロップダウン用）
     all_sites    = db.load_sites_with_company(user_id)
