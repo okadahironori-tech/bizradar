@@ -469,12 +469,19 @@
                 <a href="{{ event.url }}" target="_blank" rel="noopener"
                    style="color:#3949ab;text-decoration:none;">{{ event.url }}</a>
               </div>
-              {% if event.diff %}
+              {% set visible = [] %}
+              {% for d in event.diff %}
+                {% if d.type == 'added' and d.text | length >= 10
+                      and not ('年' in d.text and '月' in d.text and '日' in d.text and d.text | length <= 11) %}
+                  {% if visible.append(d) %}{% endif %}
+                {% endif %}
+              {% endfor %}
+              {% if visible %}
                 <button class="diff-toggle" onclick="toggleDiff(this)">
-                  差分を表示（{{ event.diff | length }} 件）
+                  差分を表示（{{ visible | length }} 件）
                 </button>
                 <div class="diff-block">
-                  {% for d in event.diff if d.type == 'added' %}
+                  {% for d in visible %}
                   <div class="diff-line diff-added">{{ d.text }}</div>
                   {% endfor %}
                 </div>
