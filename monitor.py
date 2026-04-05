@@ -5,6 +5,7 @@
 
 import difflib
 import hashlib
+import re
 import smtplib
 import time
 import os
@@ -473,6 +474,42 @@ def check_all_keywords():
     print(f"[ニュースチェック完了]")
 
 
+_NOISE_TAGS = ["script", "style", "nav", "footer", "header", "aside", "iframe", "noscript"]
+_NOISE_RE = re.compile(
+    r"pager|pagination|pagenav|page.nav|"
+    r"ranking|popular|recommend|related|"
+    r"\bad\b|ads|advertisement|banner|"
+    r"breadcrumb|sitemap|sns|share|"
+    r"counter|access.?count",
+    re.IGNORECASE,
+)
+_CONTENT_RE = re.compile(r"content|main|news.?list|article.?list|entry", re.IGNORECASE)
+
+
+def extract_main_content(soup):
+    """ノイズ要素を除外して主要コンテンツのテキストを返す"""
+    for tag in soup(_NOISE_TAGS):
+        tag.decompose()
+
+    noise_tags = [
+        tag for tag in soup.find_all(True)
+        if _NOISE_RE.search(" ".join(tag.get("class", [])))
+        or _NOISE_RE.search(tag.get("id") or "")
+    ]
+    for tag in noise_tags:
+        tag.decompose()
+
+    main = (
+        soup.find("main")
+        or soup.find("article")
+        or soup.find(id=_CONTENT_RE)
+        or soup.find(class_=_CONTENT_RE)
+    )
+    target = main or soup.find("body") or soup
+    lines = [ln.strip() for ln in target.get_text(separator="\n").splitlines() if ln.strip()]
+    return "\n".join(lines)
+
+
 def get_page_content(url: str):
     """ウェブページのテキスト内容を取得する。戻り値: (content or None, error_message or None)"""
     headers = {
@@ -486,11 +523,8 @@ def get_page_content(url: str):
         response.raise_for_status()
         response.encoding = response.apparent_encoding
         soup = BeautifulSoup(response.text, "html.parser")
-        for tag in soup(["script", "style"]):
-            tag.decompose()
-        text = soup.get_text(separator="\n")
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-        return "\n".join(lines), None
+        text = extract_main_content(soup)
+        return text, None
     except requests.exceptions.SSLError:
         error = "SSL証明書エラー"
     except requests.exceptions.ConnectTimeout:
