@@ -232,7 +232,7 @@ def index():
 
     # ---- サマリー集計 ----
     unread_count       = sum(1 for a in articles if not a.get("is_read"))
-    alert_count        = sum(1 for a in articles if a.get("is_alert"))
+    alert_count        = sum(1 for a in articles if a.get("is_alert") and not a.get("is_read"))
     error_site_count   = sum(1 for s in sites if s["status"] == "error")
     today_company_list = db.load_active_companies_today(user_id)
     today_companies    = len(today_company_list)
