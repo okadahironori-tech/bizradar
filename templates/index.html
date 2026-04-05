@@ -405,42 +405,14 @@
     </div>
   </div>
 
-  <!-- 重要アラート -->
-  {% set alert_articles = articles | selectattr("is_alert") | list %}
-  {% if alert_articles %}
-  <section>
+  <!-- 重要アラート（JS再描画） -->
+  <section id="dash-alert-section" style="display:none">
     <div class="section-title">
       重要アラート
-      <span class="count">{{ alert_articles | length }} 件</span>
+      <span class="count" id="dash-alert-count"></span>
     </div>
-    <div class="alert-section-card">
-      {% for article in alert_articles[:3] %}
-      <div class="article-item article-alert {% if article.is_read %}article-read{% endif %}" data-article-id="{{ article.id }}">
-        <span class="article-read-mark" title="チェック済み"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
-        <span class="article-alert-badge">重要</span>
-        {% if kw_company_map.get(article.keyword) %}
-        <a href="/companies/{{ kw_company_map[article.keyword] }}" class="article-kw" style="text-decoration:none;">{{ article.keyword }}</a>
-        {% else %}
-        <span class="article-kw">{{ article.keyword }}</span>
-        {% endif %}
-        <div class="article-body">
-          <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
-          <div class="article-meta">
-            {% if article.source %}{{ article.source }}{% endif %}
-            {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
-            {% if article.published %}{{ article.published }}{% endif %}
-          </div>
-        </div>
-        <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
-        <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
-      </div>
-      {% endfor %}
-      <div class="view-all-bar">
-        <a href="/news" class="view-all-link">すべてのニュースを見る →</a>
-      </div>
-    </div>
+    <div class="alert-section-card" id="dash-alert-container"></div>
   </section>
-  {% endif %}
 
   <!-- 本日の更新企業 -->
   <section>
@@ -464,43 +436,14 @@
     </div>
   </section>
 
-  <!-- ニュース記事（最新5件、アラート除く） -->
+  <!-- ニュース記事（JS再描画） -->
   {% if keywords %}
-  {% set normal_articles = articles | rejectattr("is_alert") | list %}
-  <section>
+  <section id="dash-news-section">
     <div class="section-title">
       ニュース記事
-      <span class="count">{{ normal_articles | length }} 件</span>
+      <span class="count" id="dash-news-count"></span>
     </div>
-    <div class="card">
-      {% if normal_articles %}
-        {% for article in normal_articles[:5] %}
-        <div class="article-item {% if article.is_read %}article-read{% endif %}" data-article-id="{{ article.id }}">
-          <span class="article-read-mark" title="チェック済み"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
-          {% if kw_company_map.get(article.keyword) %}
-          <a href="/companies/{{ kw_company_map[article.keyword] }}" class="article-kw" style="text-decoration:none;">{{ article.keyword }}</a>
-          {% else %}
-          <span class="article-kw">{{ article.keyword }}</span>
-          {% endif %}
-          <div class="article-body">
-            <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
-            <div class="article-meta">
-              {% if article.source %}{{ article.source }}{% endif %}
-              {% if article.source and article.published %}&nbsp;·&nbsp;{% endif %}
-              {% if article.published %}{{ article.published }}{% endif %}
-            </div>
-          </div>
-          <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
-          <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
-        </div>
-        {% endfor %}
-        <div class="view-all-bar">
-          <a href="/news" class="view-all-link">すべてのニュースを見る →</a>
-        </div>
-      {% else %}
-        <div class="empty-state">記事がまだ収集されていません。次のチェック時に自動収集されます。</div>
-      {% endif %}
-    </div>
+    <div class="card" id="dash-news-container"></div>
   </section>
   {% endif %}
 
@@ -608,71 +551,92 @@
 
 <script>
 // ============================================================
-// 記事 既読 / 未読 トグル（非同期・即時非表示）
+// ダッシュボード記事管理（全記事をJS配列で保持・セクション再描画）
 // ============================================================
+const _dashArticles = {{ articles | tojson }};
+const _kwCompanyMap = {{ kw_company_map | tojson }};
+
+// 既読状態を id → bool で管理（サーバー初期値から開始）
+const _readState = new Map(_dashArticles.map(a => [a.id, !!a.is_read]));
+
+function _esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _articleItemHtml(article) {
+  const companyId = _kwCompanyMap[article.keyword];
+  const kwHtml = companyId
+    ? `<a href="/companies/${companyId}" class="article-kw" style="text-decoration:none;">${_esc(article.keyword)}</a>`
+    : `<span class="article-kw">${_esc(article.keyword)}</span>`;
+  const alertBadge = article.is_alert ? '<span class="article-alert-badge">重要</span>' : '';
+  const alertClass = article.is_alert ? ' article-alert' : '';
+  const parts = [article.source, article.published].filter(Boolean);
+  const meta = parts.length ? `<div class="article-meta">${_esc(parts.join(' · '))}</div>` : '';
+  return `<div class="article-item${alertClass}" data-article-id="${article.id}">
+    ${alertBadge}${kwHtml}
+    <div class="article-body">
+      <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
+      ${meta}
+    </div>
+    <button class="btn-check-done" onclick="markRead(this)">チェック済み</button>
+  </div>`;
+}
+
+const _VIEW_ALL_BAR = '<div class="view-all-bar"><a href="/news" class="view-all-link">すべてのニュースを見る →</a></div>';
+
+function renderDashSections() {
+  // ── 重要アラート: 未読アラート 上位3件 ──
+  const alertSection   = document.getElementById('dash-alert-section');
+  const alertContainer = document.getElementById('dash-alert-container');
+  const alertCount     = document.getElementById('dash-alert-count');
+  if (alertContainer) {
+    const unreadAlerts = _dashArticles.filter(a => a.is_alert && !_readState.get(a.id));
+    if (alertSection) alertSection.style.display = unreadAlerts.length ? '' : 'none';
+    if (alertCount)   alertCount.textContent = unreadAlerts.length + ' 件';
+    alertContainer.innerHTML = unreadAlerts.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR;
+  }
+
+  // ── ニュース記事: 未読・非アラート 上位5件 ──
+  const newsContainer = document.getElementById('dash-news-container');
+  const newsCount     = document.getElementById('dash-news-count');
+  if (newsContainer) {
+    const unreadNews = _dashArticles.filter(a => !a.is_alert && !_readState.get(a.id));
+    if (newsCount) newsCount.textContent = unreadNews.length + ' 件';
+    newsContainer.innerHTML = unreadNews.length
+      ? unreadNews.slice(0, 5).map(_articleItemHtml).join('') + _VIEW_ALL_BAR
+      : '<div class="empty-state">未読記事はありません</div>' + _VIEW_ALL_BAR;
+  }
+}
+
 async function markRead(btn) {
   const item = btn.closest('.article-item');
-  const id = item.dataset.articleId;
+  const id   = parseInt(item.dataset.articleId, 10);
+  item.style.transition = 'opacity 0.2s';
+  item.style.opacity = '0';
   try {
-    const res = await fetch(`/mark_read/${id}`, { method: 'POST' });
-    if (!res.ok) return;
+    const res  = await fetch(`/mark_read/${id}`, { method: 'POST' });
+    if (!res.ok) { item.style.opacity = ''; item.style.transition = ''; return; }
     const data = await res.json();
-    if (!data.ok) return;
-    // 既読スタイルに切り替え
-    item.classList.add('article-read');
-    const mark = item.querySelector('.article-read-mark');
-    if (mark) mark.style.display = '';
-    btn.style.display = 'none';
-    const unreadBtn = item.querySelector('.btn-unread');
-    if (unreadBtn) unreadBtn.style.display = '';
-    // フェードアウト → 非表示
-    item.style.transition = 'opacity 0.25s';
-    item.style.opacity = '0';
-    setTimeout(() => {
-      item.style.transition = 'max-height 0.3s ease, padding-top 0.3s, padding-bottom 0.3s';
-      item.style.overflow = 'hidden';
-      item.style.maxHeight = item.offsetHeight + 'px';
-      // 次フレームで高さを潰す
-      requestAnimationFrame(() => {
-        item.style.maxHeight = '0';
-        item.style.paddingTop = '0';
-        item.style.paddingBottom = '0';
-      });
-    }, 260);
-    setTimeout(() => {
-      item.style.display = 'none';
-      // インラインスタイルをリセット（未読に戻す時の再表示用）
-      ['transition','opacity','maxHeight','overflow','paddingTop','paddingBottom'].forEach(p => { item.style[p] = ''; });
-    }, 600);
-  } catch (_) {}
+    if (!data.ok) { item.style.opacity = ''; item.style.transition = ''; return; }
+    _readState.set(id, true);
+    setTimeout(renderDashSections, 220);
+  } catch (_) {
+    item.style.opacity = ''; item.style.transition = '';
+  }
 }
 
 async function markUnread(btn) {
   const item = btn.closest('.article-item');
-  const id = item.dataset.articleId;
+  const id   = parseInt(item.dataset.articleId, 10);
   try {
-    const res = await fetch(`/mark_unread/${id}`, { method: 'POST' });
+    const res  = await fetch(`/mark_unread/${id}`, { method: 'POST' });
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
-    // 未読スタイルに切り替え
-    item.classList.remove('article-read');
-    const mark = item.querySelector('.article-read-mark');
-    if (mark) mark.style.display = 'none';
-    btn.style.display = 'none';
-    const readBtn = item.querySelector('.btn-check-done');
-    if (readBtn) readBtn.style.display = '';
-    // 非表示だった場合はフェードイン
-    item.style.display = '';
-    item.style.opacity = '0';
-    setTimeout(() => {
-      item.style.transition = 'opacity 0.25s';
-      item.style.opacity = '1';
-    }, 10);
-    setTimeout(() => {
-      item.style.transition = '';
-      item.style.opacity = '';
-    }, 280);
+    _readState.set(id, false);
+    renderDashSections();
   } catch (_) {}
 }
 
@@ -711,6 +675,7 @@ async function _pollCheckingStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  renderDashSections();
   if (document.querySelector('.badge-checking')) {
     _wasRunning = true;
   }
