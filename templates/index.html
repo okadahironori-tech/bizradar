@@ -450,14 +450,30 @@
 
   <!-- 変更検知履歴（最新5件） -->
   <section>
+    {% set hist_ns = namespace(shown=0) %}
+    {% set hist_events = [] %}
+    {% for event in change_history %}
+      {% set ns = namespace(count=0) %}
+      {% for d in event.diff %}
+        {% set clean = d.text | replace('\t', '') %}
+        {% if d.type == 'added' and clean | length >= 10
+              and not ('年' in clean and '月' in clean and '日' in clean and clean | length <= 11) %}
+          {% set ns.count = ns.count + 1 %}
+        {% endif %}
+      {% endfor %}
+      {% if ns.count > 0 and hist_ns.shown < 5 %}
+        {% if hist_events.append(event) %}{% endif %}
+        {% set hist_ns.shown = hist_ns.shown + 1 %}
+      {% endif %}
+    {% endfor %}
     <div class="section-title">
       変更検知履歴
-      <span class="count">{{ change_history | length }} 件</span>
+      <span class="count">{{ hist_ns.shown }} 件</span>
     </div>
     <div class="card">
-      {% if change_history %}
+      {% if hist_events %}
         <div class="timeline">
-          {% for event in change_history[:5] %}
+          {% for event in hist_events %}
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div class="timeline-content">
@@ -479,16 +495,14 @@
                   {% set ns.count = ns.count + 1 %}
                 {% endif %}
               {% endfor %}
-              {% if ns.count > 0 %}
-                <button class="diff-toggle" onclick="toggleDiff(this)">
-                  差分を表示（{{ ns.count }} 件）
-                </button>
-                <div class="diff-block">
-                  {% for d in visible %}
-                  <div class="diff-line diff-added">{{ d.text }}</div>
-                  {% endfor %}
-                </div>
-              {% endif %}
+              <button class="diff-toggle" onclick="toggleDiff(this)">
+                差分を表示（{{ ns.count }} 件）
+              </button>
+              <div class="diff-block">
+                {% for d in visible %}
+                <div class="diff-line diff-added">{{ d.text }}</div>
+                {% endfor %}
+              </div>
             </div>
           </div>
           {% endfor %}
