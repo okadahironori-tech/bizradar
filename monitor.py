@@ -515,11 +515,12 @@ def extract_main_content(soup):
     target = main or soup.find("body") or soup
 
     # ④ 短すぎる行（3文字以下）を除去してテキスト化
-    lines = [
-        ln.strip() for ln in target.get_text(separator="\n").splitlines()
-        if len(ln.strip()) > 3
-    ]
-    return "\n".join(lines)
+    return _normalize_lines(target.get_text(separator="\n"))
+
+
+def _normalize_lines(text: str) -> str:
+    """テキストの各行を正規化する（strip + 3文字以下の行を除去）"""
+    return "\n".join(ln.strip() for ln in text.splitlines() if len(ln.strip()) > 3)
 
 
 def get_page_content(url: str):
@@ -640,7 +641,7 @@ def check_single_site(url: str, site_name: str = ""):
             log["last_checks"][url] = {"timestamp": now_str, "status": "new"}
         elif previous_hashes[url] != new_hash:
             print(f"  → 変更を検出しました！: {url}")
-            old_content  = content_store.get(url, "")
+            old_content  = _normalize_lines(content_store.get(url, ""))
             diff_summary = compute_diff_summary(old_content, content) if old_content else []
             send_email(url, site_name)
             log["last_checks"][url] = {"timestamp": now_str, "status": "changed"}
