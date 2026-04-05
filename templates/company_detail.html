@@ -235,8 +235,7 @@
   </div>
   <div class="header-nav">
     <a href="/" class="nav-link"><span class="nav-text-pc">ダッシュボード</span><span class="nav-text-sp">ホーム</span></a>
-    <a href="/companies" class="nav-link">企業</a>
-    <a href="/settings" class="nav-link">設定</a>
+    <a href="/companies" class="nav-link">モニター管理</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
@@ -251,8 +250,7 @@
     <span style="display:block;padding:10px 18px 6px;font-size:0.75rem;color:#6b7280;border-bottom:1px solid #2a2a4e;">{{ user_email }}</span>
     <a href="/">ダッシュボード</a>
     <a href="/news">ニュース</a>
-    <a href="/companies" class="active">企業一覧</a>
-    <a href="/settings">設定</a>
+    <a href="/companies" class="active">モニター管理</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" class="hm-btn">ログアウト</button>

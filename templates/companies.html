@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>企業一覧 — BizRadar</title>
+  <title>モニター管理 — BizRadar</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <style>
@@ -19,20 +19,6 @@
     }
     header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
     header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
-    .header-nav { display: none; }
-    .nav-link {
-      font-size: 0.78rem; color: #8892b0; text-decoration: none;
-      border: 1px solid #3a3a5c; border-radius: 7px; padding: 5px 14px;
-      transition: color 0.15s;
-    }
-    .nav-link:hover { color: #fff; }
-    .nav-link.active { color: #fff; border-color: #6366f1; background: #3949ab; }
-    .nav-email { font-size: 0.78rem; color: #8892b0; white-space: nowrap; }
-    .nav-btn { background: none; border: 1px solid #3a3a5c; color: #8892b0; border-radius: 7px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
-    .nav-text-sp { display: none; }
-    .nav-text-pc { display: inline; }
-
-    /* ハンバーガーメニュー */
     .hamburger-btn {
       display: block; background: none; border: 1px solid #3a3a5c;
       border-radius: 7px; color: #8892b0; font-size: 1.2rem;
@@ -56,25 +42,29 @@
     .hamburger-menu a.active { color: #818cf8; font-weight: 700; }
 
     main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
+    section + section { margin-top: 28px; }
 
     /* Flash */
     .flash { padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 16px; }
-    .flash.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-    .flash.error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+    .flash.success, .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash.error,   .flash-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
 
     .section-title {
       font-size: 1rem; font-weight: 700; color: #4a4a6a;
       display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
     }
-    .count {
+    .count, .count-badge {
       font-size: 0.78rem; font-weight: 600; color: #6b7280;
       background: #f3f4f6; border-radius: 10px; padding: 2px 10px;
     }
 
-    /* 企業カード一覧 */
-    .company-grid {
-      display: grid; gap: 12px; margin-bottom: 32px;
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden;
     }
+
+    /* ── 企業カード ── */
+    .company-grid { display: grid; gap: 12px; margin-bottom: 32px; }
     .company-card {
       background: #fff; border-radius: 12px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.07);
@@ -97,21 +87,15 @@
     .company-name { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
     .company-kana { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
     .company-url  { font-size: 0.75rem; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .company-stats {
-      display: flex; gap: 16px; align-items: center; flex-shrink: 0; flex-wrap: wrap;
-    }
+    .company-stats { display: flex; gap: 16px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
     .stat-item { text-align: center; }
     .stat-val  { font-size: 1rem; font-weight: 700; color: #1a1a2e; }
-    .stat-val.alert { color: #dc2626; }
+    .stat-val.alert  { color: #dc2626; }
     .stat-val.unread { color: #3949ab; }
     .stat-label { font-size: 0.68rem; color: #9ca3af; margin-top: 1px; }
     .badge-alert {
       background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5;
       font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 20px;
-    }
-    .empty-state {
-      text-align: center; color: #9ca3af; font-size: 0.88rem;
-      padding: 40px 0;
     }
     .drag-handle {
       cursor: grab; color: #d1d5db; font-size: 1.1rem;
@@ -121,40 +105,129 @@
     .drag-handle:active { cursor: grabbing; }
     .sortable-ghost { opacity: 0.4; }
 
-    /* 追加フォーム */
+    /* ── 企業追加フォーム ── */
     .add-card {
       background: #fff; border-radius: 12px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.07);
       padding: 20px 24px;
     }
     .add-card h3 { font-size: 0.92rem; font-weight: 700; color: #4a4a6a; margin-bottom: 16px; }
-    .form-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .form-group { display: flex; flex-direction: column; gap: 4px; }
     .form-group.full { grid-column: 1 / -1; }
     .form-group label { font-size: 0.78rem; font-weight: 600; color: #4a4a6a; }
     .form-group input, .form-group textarea {
       padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
-      font-size: 0.88rem; outline: none; transition: border-color 0.15s;
-      font-family: inherit;
+      font-size: 0.88rem; outline: none; transition: border-color 0.15s; font-family: inherit;
     }
     .form-group input:focus, .form-group textarea:focus { border-color: #3949ab; }
     .form-group textarea { resize: vertical; min-height: 60px; }
-    .btn { border: none; border-radius: 8px; padding: 9px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+
+    /* ── サイト管理テーブル ── */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 16px; text-align: left; border-bottom: 1px solid #f0f2f5; font-size: 0.85rem; }
+    th { font-size: 0.75rem; font-weight: 600; color: #6b7280; background: #fafafa; }
+    tr:last-child td { border-bottom: none; }
+    .empty-state { text-align: center; color: #9ca3af; font-size: 0.88rem; padding: 28px 0; }
+    .row-actions { display: flex; gap: 6px; }
+
+    /* ── ボタン共通 ── */
+    .btn { border: none; border-radius: 7px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
     .btn-primary { background: #1a1a2e; color: #fff; margin-top: 4px; }
     .btn-primary:hover { background: #2d2d4e; }
+    .btn-remove { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-remove:hover { background: #fef2f2; }
+    .btn-check  { background: #f0f4ff; color: #3949ab; border: 1px solid #c7d2fe; }
+    .btn-check:hover { background: #e0e7ff; }
+    .btn-save   { background: #1a1a2e; color: #fff; }
+    .btn-save:hover { background: #2d2d4e; }
+    .btn-add    { background: #1a1a2e; color: #fff; }
+    .btn-add:hover { background: #2d2d4e; }
+    .btn-edit { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
+    .btn-edit:hover { background: #c5cae9; }
+    .btn-cancel-edit { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+    .btn-cancel-edit:hover { background: #e5e7eb; }
+
+    /* ── 通知トグル ── */
+    .btn-notify-toggle { border: none; border-radius: 20px; padding: 3px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+    .btn-notify-toggle.on  { background: #d1fae5; color: #059669; }
+    .btn-notify-toggle.off { background: #f3f4f6; color: #9ca3af; }
+
+    /* ── サイト追加フォーム ── */
+    .add-form {
+      display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #f0f2f5; flex-wrap: wrap;
+    }
+    .input-name { padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; flex: 0 0 160px; }
+    .input-url  { padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; flex: 1; min-width: 200px; }
+    .input-name:focus, .input-url:focus { border-color: #3949ab; }
+
+    /* ── サイト名インライン編集 ── */
+    .site-name-edit-wrap { margin-top: 4px; display: none; }
+    .site-name-edit-wrap.open { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .site-name { font-weight: 700; color: #1a1a2e; font-size: 0.9rem; }
+    .url-link { color: #3949ab; text-decoration: none; word-break: break-all; font-size: 0.8rem; }
+    .url-link:hover { text-decoration: underline; }
+    .input-site-name { padding: 6px 10px; border: 1.5px solid #d1d5db; border-radius: 7px; font-size: 0.85rem; outline: none; flex: 1; min-width: 120px; }
+    .input-site-name:focus { border-color: #3949ab; }
+
+    /* ── ステータスバッジ ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    }
+    .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .badge-ok      { background: #e8f5e9; color: #2e7d32; }
+    .badge-ok::before { background: #4caf50; }
+    .badge-changed { background: #fff3e0; color: #e65100; }
+    .badge-changed::before { background: #ff9800; }
+    .badge-error   { background: #fce4ec; color: #b71c1c; }
+    .badge-error::before { background: #f44336; }
+    .badge-new     { background: #e3f2fd; color: #1565c0; }
+    .badge-new::before { background: #2196f3; }
+    .badge-unknown { background: #f5f5f5; color: #757575; }
+    .badge-unknown::before { background: #9e9e9e; }
+    .badge-checking { background: #e8eaf6; color: #3949ab; }
+    .badge-checking::before { background: #3949ab; animation: pulse 1s infinite; }
+    .badge-error-warn { background: #fff3e0; color: #c05000; }
+    .badge-error-warn::before { background: #f97316; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ── 設定パネル ── */
+    .settings-panel {
+      display: flex; align-items: center; gap: 16px; padding: 16px 20px; flex-wrap: wrap;
+    }
+    .settings-panel label { font-size: 0.85rem; font-weight: 600; color: #4a4a6a; white-space: nowrap; }
+    .settings-panel + .settings-panel { border-top: 1px solid #f0f2f5; }
+    .settings-divider { border: none; border-top: 1px solid #f0f2f5; margin: 0; }
+    .interval-options { display: flex; gap: 16px; flex-wrap: wrap; }
+    .interval-options label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer; }
+    .pw-change-fields { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pw-change-fields input {
+      padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
+      font-size: 0.85rem; outline: none; flex: 1; min-width: 160px;
+    }
+    .pw-change-fields input:focus { border-color: #3949ab; }
+
+    /* ── アラートKWタグ ── */
+    .alert-kw-tag {
+      background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5;
+      border-radius: 20px; padding: 3px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    }
+    .alert-kw-tag:hover { background: #fee2e2; }
 
     @media (max-width: 600px) {
       header { padding: 12px 14px; }
       main { margin: 16px auto; }
       .form-grid { grid-template-columns: 1fr; }
-
-      /* 企業カード: statsを2行目に折り返す */
       .company-card { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
       .company-main { min-width: 0; flex: 1 1 0; }
       .company-stats { width: 100%; justify-content: flex-start; gap: 16px; margin-top: 0; }
       .stat-val { font-size: 0.9rem; }
+      .settings-panel { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .pw-change-fields { flex-direction: column; }
+      .add-form { flex-direction: column; }
+      .input-name, .input-url { flex: none; width: 100%; }
     }
   </style>
 </head>
@@ -162,28 +235,14 @@
 <header>
   <div>
     <h1>BizRadar</h1>
-    <div class="subtitle">ウェブサイト変更検知モニター</div>
+    <div class="subtitle">モニター管理</div>
   </div>
-  <div class="header-nav">
-    <a href="/" class="nav-link"><span class="nav-text-pc">ダッシュボード</span><span class="nav-text-sp">ホーム</span></a>
-    <a href="/companies" class="nav-link active">企業</a>
-    <a href="/settings" class="nav-link">設定</a>
-    {% if is_admin %}
-    <a href="/admin" class="nav-link">管理者</a>
-    {% endif %}
-    <span class="nav-email">{{ user_email }}</span>
-    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
-      <button type="submit" class="nav-btn">ログアウト</button>
-    </form>
-  </div>
-  <!-- ハンバーガーボタン（スマホのみ表示） -->
   <button class="hamburger-btn" id="hamburger-btn" aria-label="メニュー">&#9776;</button>
   <div class="hamburger-menu" id="hamburger-menu">
     <span style="display:block;padding:10px 18px 6px;font-size:0.75rem;color:#6b7280;border-bottom:1px solid #2a2a4e;">{{ user_email }}</span>
     <a href="/">ダッシュボード</a>
     <a href="/news">ニュース</a>
-    <a href="/companies" class="active">企業一覧</a>
-    <a href="/settings">設定</a>
+    <a href="/companies" class="active">モニター管理</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" class="hm-btn">ログアウト</button>
@@ -200,82 +259,295 @@
   {% endif %}
   {% endwith %}
 
-  <!-- 企業一覧 -->
-  <div class="section-title">
-    企業一覧
-    <span class="count">{{ companies | length }} 社</span>
-  </div>
+  <!-- ── モニターサイト管理 ── -->
+  <section>
+    <div class="section-title">
+      モニターサイト管理
+      <span class="count-badge">{{ sites | length }} サイト</span>
+    </div>
+    <div class="card">
+      {% if sites %}
+      <table>
+        <thead>
+          <tr>
+            <th>会社名 / URL</th>
+            <th>ステータス</th>
+            <th>最終チェック</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for site in sites %}
+          <tr>
+            <td>
+              <div id="site-name-view-{{ loop.index0 }}">
+                <span class="site-name">{{ site.name if site.name else '—' }}</span>
+              </div>
+              <form id="site-name-form-{{ loop.index0 }}" class="site-name-edit-wrap" method="POST" action="/update_site_name">
+                <input type="hidden" name="url" value="{{ site.url }}">
+                <input type="text" name="name" value="{{ site.name }}" class="input-site-name" placeholder="会社名">
+                <button type="submit" class="btn btn-save">保存</button>
+                <button type="button" class="btn btn-cancel-edit" onclick="closeSiteEdit({{ loop.index0 }})">キャンセル</button>
+              </form>
+              <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
+            </td>
+            <td>
+              {% if site.checking %}
+                <span class="badge badge-checking">チェック中...</span>
+              {% elif site.status == "ok" %}
+                <span class="badge badge-ok">正常</span>
+              {% elif site.status == "changed" %}
+                <span class="badge badge-changed">変更あり</span>
+              {% elif site.status == "error" %}
+                <span class="badge {{ site.error_cls }}">{{ site.error_label }}</span>
+              {% elif site.status == "new" %}
+                <span class="badge badge-new">初回記録</span>
+              {% else %}
+                <span class="badge badge-unknown">未チェック</span>
+              {% endif %}
+            </td>
+            <td style="font-size:0.8rem; color:#6b7280; white-space:nowrap;">{{ site.last_check }}</td>
+            <td>
+              <div class="row-actions" style="justify-content:flex-end; flex-wrap:wrap;">
+                <form method="POST" action="/check_site">
+                  <input type="hidden" name="url" value="{{ site.url }}">
+                  <button type="submit" class="btn btn-check" {% if site.checking %}disabled{% endif %}>
+                    {% if site.checking %}チェック中{% else %}今すぐチェック{% endif %}
+                  </button>
+                </form>
+                <button type="button" class="btn btn-edit" onclick="openSiteEdit({{ loop.index0 }})">編集</button>
+                <form method="POST" action="/remove_site"
+                      onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
+                  <input type="hidden" name="url" value="{{ site.url }}">
+                  <button type="submit" class="btn btn-remove">削除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">モニターサイトが登録されていません</div>
+      {% endif %}
+      <form class="add-form" method="POST" action="/add_site"
+            onsubmit="return confirm('「' + this.url.value + '」を追加しますか？')">
+        <input class="input-name" type="text" name="name" placeholder="会社名（任意）">
+        <input class="input-url" type="url" name="url" placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required>
+        <button type="submit" class="btn btn-add">+ 追加</button>
+      </form>
+    </div>
+  </section>
 
-  {% if companies %}
-  <div class="company-grid">
-    {% for c in companies %}
-    <a href="/companies/{{ c.id }}" class="company-card {% if c.alert_count > 0 %}has-alert{% endif %}" data-id="{{ c.id }}">
-      <div class="drag-handle" title="ドラッグして並び替え">⠿</div>
-      <div class="company-avatar">{{ c.name[0] }}</div>
-      <div class="company-main">
-        <div class="company-name">
-          {{ c.name }}
-          {% if c.alert_count > 0 %}
-          <span class="badge-alert">重要 {{ c.alert_count }}</span>
+  <!-- ── キーワード管理 ── -->
+  <section>
+    <div class="section-title">
+      キーワード管理
+      <span class="count-badge">{{ keywords | length }} 件</span>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>キーワード</th>
+            <th style="text-align:right">収集記事数</th>
+            <th style="text-align:center">通知</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for kw in keyword_entries %}
+          {% set is_collecting = kw.keyword in keyword_collecting %}
+          <tr>
+            <td style="font-weight:600">{{ kw.keyword }}</td>
+            <td style="text-align:right; color:#6b7280; font-size:0.85rem">{{ keyword_counts.get(kw.keyword, 0) }} 件</td>
+            <td style="text-align:center">
+              <form method="POST" action="/toggle_keyword_notify">
+                <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
+                <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}">
+                  {% if kw.notify_enabled %}ON{% else %}OFF{% endif %}
+                </button>
+              </form>
+            </td>
+            <td>
+              <div class="row-actions" style="justify-content:flex-end">
+                <form method="POST" action="/collect_keyword">
+                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                  <button type="submit" class="btn btn-check"
+                    {% if is_collecting %}disabled{% endif %}
+                    onclick="this.disabled=true; this.textContent='収集中...'">
+                    {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
+                  </button>
+                </form>
+                <form method="POST" action="/remove_keyword"
+                      onsubmit="return confirm('「{{ kw.keyword }}」を削除しますか？')">
+                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                  <button type="submit" class="btn btn-remove">削除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not keywords %}
+          <tr><td colspan="4"><div class="empty-state">キーワードが登録されていません</div></td></tr>
           {% endif %}
-        </div>
-        {% if c.name_kana %}<div class="company-kana">{{ c.name_kana }}</div>{% endif %}
-        {% if c.website_url %}<div class="company-url">{{ c.website_url }}</div>{% endif %}
-      </div>
-      <div class="company-stats">
-        <div class="stat-item">
-          <div class="stat-val {% if c.unread_count > 0 %}unread{% endif %}">{{ c.unread_count }}</div>
-          <div class="stat-label">未読記事</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-val">{{ c.site_count }}</div>
-          <div class="stat-label">サイト</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-val">{{ c.keyword_count }}</div>
-          <div class="stat-label">キーワード</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-val" style="font-size:0.72rem;color:#9ca3af;">
-            {% if c.latest_article %}{{ c.latest_article[:10] }}{% else %}—{% endif %}
-          </div>
-          <div class="stat-label">最終記事</div>
-        </div>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty-state">
-    企業がまだ登録されていません。下のフォームから追加してください。
-  </div>
-  {% endif %}
+        </tbody>
+      </table>
+      <form class="add-form" method="POST" action="/add_keyword">
+        <input class="input-url" type="text" name="keyword"
+               placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
+        <button type="submit" class="btn btn-add">+ 追加</button>
+      </form>
+    </div>
+  </section>
 
-  <!-- 企業追加フォーム -->
-  <div class="add-card">
-    <h3>企業を追加</h3>
-    <form method="POST" action="/companies/add">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>企業名 <span style="color:#dc2626">*</span></label>
-          <input type="text" name="name" placeholder="例: トヨタ自動車" required maxlength="100">
+  <!-- ── 企業一覧 ── -->
+  <section>
+    <div class="section-title">
+      企業
+      <span class="count">{{ companies | length }} 社</span>
+    </div>
+
+    {% if companies %}
+    <div class="company-grid">
+      {% for c in companies %}
+      <a href="/companies/{{ c.id }}" class="company-card {% if c.alert_count > 0 %}has-alert{% endif %}" data-id="{{ c.id }}">
+        <div class="drag-handle" title="ドラッグして並び替え">⠿</div>
+        <div class="company-avatar">{{ c.name[0] }}</div>
+        <div class="company-main">
+          <div class="company-name">
+            {{ c.name }}
+            {% if c.alert_count > 0 %}
+            <span class="badge-alert">重要 {{ c.alert_count }}</span>
+            {% endif %}
+          </div>
+          {% if c.name_kana %}<div class="company-kana">{{ c.name_kana }}</div>{% endif %}
+          {% if c.website_url %}<div class="company-url">{{ c.website_url }}</div>{% endif %}
         </div>
-        <div class="form-group">
-          <label>企業名（かな）</label>
-          <input type="text" name="name_kana" placeholder="例: とよたじどうしゃ" maxlength="200">
+        <div class="company-stats">
+          <div class="stat-item">
+            <div class="stat-val {% if c.unread_count > 0 %}unread{% endif %}">{{ c.unread_count }}</div>
+            <div class="stat-label">未読記事</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val">{{ c.site_count }}</div>
+            <div class="stat-label">サイト</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val">{{ c.keyword_count }}</div>
+            <div class="stat-label">キーワード</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" style="font-size:0.72rem;color:#9ca3af;">
+              {% if c.latest_article %}{{ c.latest_article[:10] }}{% else %}—{% endif %}
+            </div>
+            <div class="stat-label">最終記事</div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>WebサイトURL</label>
-          <input type="url" name="website_url" placeholder="https://example.com" maxlength="500">
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">企業がまだ登録されていません。下のフォームから追加してください。</div>
+    {% endif %}
+
+    <!-- 企業追加フォーム -->
+    <div class="add-card">
+      <h3>企業を追加</h3>
+      <form method="POST" action="/companies/add">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>企業名 <span style="color:#dc2626">*</span></label>
+            <input type="text" name="name" placeholder="例: トヨタ自動車" required maxlength="100">
+          </div>
+          <div class="form-group">
+            <label>企業名（かな）</label>
+            <input type="text" name="name_kana" placeholder="例: とよたじどうしゃ" maxlength="200">
+          </div>
+          <div class="form-group">
+            <label>WebサイトURL</label>
+            <input type="url" name="website_url" placeholder="https://example.com" maxlength="500">
+          </div>
+          <div class="form-group">
+            <label>メモ</label>
+            <input type="text" name="memo" placeholder="任意のメモ" maxlength="500">
+          </div>
         </div>
-        <div class="form-group">
-          <label>メモ</label>
-          <input type="text" name="memo" placeholder="任意のメモ" maxlength="500">
+        <button type="submit" class="btn btn-primary">追加</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ── アカウント設定 ── -->
+  <section>
+    <div class="section-title">アカウント設定</div>
+    <div class="card">
+      {% if is_admin %}
+      <form class="settings-panel" method="POST" action="/set_interval">
+        <label>チェック間隔（管理者）</label>
+        <div class="interval-options">
+          {% for lbl, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
+          <label>
+            <input type="radio" name="seconds" value="{{ val }}" {% if check_interval == val %}checked{% endif %}>
+            <span>{{ lbl }}</span>
+          </label>
+          {% endfor %}
         </div>
+        <button type="submit" class="btn btn-save">保存</button>
+      </form>
+      <hr class="settings-divider">
+      {% endif %}
+
+      <form class="settings-panel" method="POST" action="/set_notify_timing">
+        <label>ニュース通知タイミング</label>
+        <div class="interval-options">
+          {% for lbl, val in [("即時通知", "immediate"), ("毎朝8時にまとめて通知", "digest_08"), ("毎日18時にまとめて通知", "digest_18")] %}
+          <label>
+            <input type="radio" name="notify_timing" value="{{ val }}" {% if notify_timing == val %}checked{% endif %}>
+            <span>{{ lbl }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-save">保存</button>
+      </form>
+      <hr class="settings-divider">
+
+      <div class="settings-panel" style="flex-direction:column; align-items:flex-start; gap:12px;">
+        <label>重要アラートキーワード</label>
+        <p style="font-size:0.82rem;color:#6b7280;margin:0;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
+        {% if alert_kw_entries %}
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          {% for ak in alert_kw_entries %}
+          <form method="POST" action="/delete_alert_keyword" style="margin:0;" onsubmit="return confirm('「{{ ak.keyword }}」を削除しますか？')">
+            <input type="hidden" name="keyword_id" value="{{ ak.id }}">
+            <button type="submit" class="alert-kw-tag">{{ ak.keyword }} ×</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:0.82rem;color:#9ca3af;margin:0;">アラートキーワードが登録されていません</p>
+        {% endif %}
+        <form method="POST" action="/add_alert_keyword" style="display:flex; gap:8px; flex-wrap:wrap; width:100%;">
+          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
+            style="flex:1; min-width:160px; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; outline:none;">
+          <button type="submit" class="btn btn-save">追加</button>
+        </form>
       </div>
-      <button type="submit" class="btn btn-primary">追加</button>
-    </form>
-  </div>
+      <hr class="settings-divider">
+
+      <form class="settings-panel" method="POST" action="/change_password">
+        <label>パスワード変更</label>
+        <div class="pw-change-fields">
+          <input type="password" name="current_password" placeholder="現在のパスワード" required>
+          <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required>
+          <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required>
+        </div>
+        <button type="submit" class="btn btn-save">変更する</button>
+      </form>
+    </div>
+  </section>
+
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -283,7 +555,6 @@
 (function () {
   var grid = document.querySelector('.company-grid');
   if (!grid) return;
-
   Sortable.create(grid, {
     handle: '.drag-handle',
     animation: 150,
@@ -299,6 +570,19 @@
     }
   });
 })();
+</script>
+<script>
+function openSiteEdit(idx) {
+  document.getElementById('site-name-view-' + idx).style.display = 'none';
+  var form = document.getElementById('site-name-form-' + idx);
+  form.classList.add('open');
+  var input = form.querySelector('input[name="name"]');
+  if (input) { input.focus(); input.select(); }
+}
+function closeSiteEdit(idx) {
+  document.getElementById('site-name-view-' + idx).style.display = '';
+  document.getElementById('site-name-form-' + idx).classList.remove('open');
+}
 </script>
 <script>
 (function () {

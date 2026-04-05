@@ -350,7 +350,7 @@
     <div class="updated-at">表示時刻: {{ now }}</div>
     <a href="/companies" class="nav-link">企業</a>
     <a href="/news" class="nav-link">ニュース</a>
-    <a href="/settings" class="nav-link">設定</a>
+    <a href="/companies" class="nav-link">モニター管理</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
@@ -365,8 +365,7 @@
     <span style="display:block;padding:10px 18px 6px;font-size:0.75rem;color:#6b7280;border-bottom:1px solid #2a2a4e;">{{ user_email }}</span>
     <a href="/" class="active">ダッシュボード</a>
     <a href="/news">ニュース</a>
-    <a href="/companies">企業一覧</a>
-    <a href="/settings">設定</a>
+    <a href="/companies">モニター管理</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" class="hm-btn">ログアウト</button>
@@ -493,7 +492,7 @@
     <div class="section-title">
       モニターサイト
       <span class="count">{{ sites | length }} サイト</span>
-      <a href="/settings" style="margin-left:auto; font-size:0.78rem; color:#3949ab; text-decoration:none; font-weight:600;">管理する →</a>
+      <a href="/companies" style="margin-left:auto; font-size:0.78rem; color:#3949ab; text-decoration:none; font-weight:600;">管理する →</a>
     </div>
     <div class="card">
       {% if sites %}
@@ -538,7 +537,7 @@
       </table>
       {% if sites | length > 5 %}
       <div class="view-all-bar">
-        <a href="/settings" class="view-all-link">すべて管理する（{{ sites | length }} サイト） →</a>
+        <a href="/companies" class="view-all-link">すべて管理する（{{ sites | length }} サイト） →</a>
       </div>
       {% endif %}
       {% else %}
