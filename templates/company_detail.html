@@ -19,7 +19,7 @@
     }
     header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
     header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
-    .header-nav { display: flex; align-items: center; gap: 16px; flex-wrap: nowrap; }
+    .header-nav { display: none; }
     .nav-link {
       font-size: 0.78rem; color: #8892b0; text-decoration: none;
       border: 1px solid #3a3a5c; border-radius: 7px; padding: 5px 14px; white-space: nowrap;
@@ -32,7 +32,7 @@
 
     /* ハンバーガーメニュー */
     .hamburger-btn {
-      display: none; background: none; border: 1px solid #3a3a5c;
+      display: block; background: none; border: 1px solid #3a3a5c;
       border-radius: 7px; color: #8892b0; font-size: 1.2rem;
       padding: 4px 10px; cursor: pointer; line-height: 1;
     }
@@ -224,8 +224,6 @@
       .summary-item { min-width: 70px; padding: 10px 12px; }
       .summary-val { font-size: 1.2rem; }
       .form-grid { grid-template-columns: 1fr; }
-      .header-nav { display: none; }
-      .hamburger-btn { display: block; }
     }
   </style>
 </head>
@@ -250,8 +248,10 @@
   <!-- ハンバーガーボタン（スマホのみ表示） -->
   <button class="hamburger-btn" id="hamburger-btn" aria-label="メニュー">&#9776;</button>
   <div class="hamburger-menu" id="hamburger-menu">
+    <span style="display:block;padding:10px 18px 6px;font-size:0.75rem;color:#6b7280;border-bottom:1px solid #2a2a4e;">{{ user_email }}</span>
     <a href="/">ダッシュボード</a>
-    <a href="/companies">企業一覧</a>
+    <a href="/news">ニュース</a>
+    <a href="/companies" class="active">企業一覧</a>
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
