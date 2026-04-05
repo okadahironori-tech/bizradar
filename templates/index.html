@@ -237,8 +237,10 @@
       padding: 3px 10px; line-height: 1.5;
       white-space: pre-wrap; word-break: break-all;
     }
-    .diff-added         { background: #f0fdf4; color: #166534; }
-    .diff-added::before { content: "+ "; }
+    .diff-added          { background: #f0fdf4; color: #166534; }
+    .diff-added::before  { content: "+ "; }
+    .diff-removed        { background: #fef2f2; color: #991b1b; }
+    .diff-removed::before { content: "- "; }
 
     .empty-state {
       padding: 40px 20px; text-align: center;
@@ -472,8 +474,8 @@
                   差分を表示（{{ event.diff | length }} 件）
                 </button>
                 <div class="diff-block">
-                  {% for d in event.diff if d.type == "added" %}
-                  <div class="diff-line diff-added">{{ d.text }}</div>
+                  {% for d in event.diff %}
+                  <div class="diff-line {% if d.type == 'added' %}diff-added{% else %}diff-removed{% endif %}">{{ d.text }}</div>
                   {% endfor %}
                 </div>
               {% endif %}

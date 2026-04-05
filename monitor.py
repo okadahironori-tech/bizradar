@@ -554,23 +554,24 @@ def compute_hash(content: str) -> str:
 
 
 def compute_diff_summary(old_content: str, new_content: str) -> list:
-    """変更箇所のサマリーを生成する（最大10件）"""
+    """変更箇所のサマリーを生成する（追加・削除それぞれ最大5件、合計最大10件）"""
     old_lines = old_content.splitlines()
     new_lines = new_content.splitlines()
     diff = difflib.unified_diff(old_lines, new_lines, lineterm="", n=0)
-    changes = []
+    added = []
+    removed = []
     for line in diff:
         if line.startswith("+") and not line.startswith("+++"):
             text = line[1:].strip()
-            if text:
-                changes.append({"type": "added", "text": text})
+            if text and len(added) < 5:
+                added.append({"type": "added", "text": text})
         elif line.startswith("-") and not line.startswith("---"):
             text = line[1:].strip()
-            if text:
-                changes.append({"type": "removed", "text": text})
-        if len(changes) >= 10:
+            if text and len(removed) < 5:
+                removed.append({"type": "removed", "text": text})
+        if len(added) >= 5 and len(removed) >= 5:
             break
-    return changes
+    return added + removed
 
 
 def send_email(url: str, site_name: str = ""):
