@@ -442,6 +442,7 @@
     <div class="section-title">
       ニュース記事
       <span class="count" id="dash-news-count"></span>
+      <span style="font-size:0.74rem; color:#9ca3af; font-weight:400; margin-left:4px;">チェック済み記事はニュース一覧で確認できます</span>
     </div>
     <div class="card" id="dash-news-container"></div>
   </section>
@@ -584,7 +585,7 @@ function _articleItemHtml(article) {
   </div>`;
 }
 
-const _VIEW_ALL_BAR = '<div class="view-all-bar"><a href="/news" class="view-all-link">すべてのニュースを見る →</a></div>';
+const _VIEW_ALL_BAR = '<div class="view-all-bar"><a href="/news" class="view-all-link">既読を含む全記事はニュース一覧へ →</a></div>';
 
 function renderDashSections() {
   // ── 重要アラート: 未読アラート 上位3件 ──
