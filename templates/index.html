@@ -474,8 +474,8 @@
                   差分を表示（{{ event.diff | length }} 件）
                 </button>
                 <div class="diff-block">
-                  {% for d in event.diff %}
-                  <div class="diff-line {% if d.type == 'added' %}diff-added{% else %}diff-removed{% endif %}">{{ d.text }}</div>
+                  {% for d in event.diff if d.type == 'added' %}
+                  <div class="diff-line diff-added">{{ d.text }}</div>
                   {% endfor %}
                 </div>
               {% endif %}
