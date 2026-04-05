@@ -471,8 +471,9 @@
               </div>
               {% set visible = [] %}
               {% for d in event.diff %}
-                {% if d.type == 'added' and d.text | length >= 10
-                      and not ('年' in d.text and '月' in d.text and '日' in d.text and d.text | length <= 11) %}
+                {% set clean = d.text | replace('\t', '') %}
+                {% if d.type == 'added' and clean | length >= 10
+                      and not ('年' in clean and '月' in clean and '日' in clean and clean | length <= 11) %}
                   {% if visible.append(d) %}{% endif %}
                 {% endif %}
               {% endfor %}
