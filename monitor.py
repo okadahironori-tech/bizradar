@@ -480,7 +480,8 @@ _NOISE_RE = re.compile(
     r"ranking|popular|recommend|related|"
     r"\bad\b|ads|advertisement|banner|"
     r"breadcrumb|sitemap|sns|share|"
-    r"counter|access.?count",
+    r"counter|access.?count|"
+    r"menu|gnav|\bnav\b|global.nav|sidebar",
     re.IGNORECASE,
 )
 _CONTENT_RE = re.compile(r"content|main|news.?list|article.?list|entry", re.IGNORECASE)
@@ -488,9 +489,13 @@ _CONTENT_RE = re.compile(r"content|main|news.?list|article.?list|entry", re.IGNO
 
 def extract_main_content(soup):
     """ノイズ要素を除外して主要コンテンツのテキストを返す"""
+    # ① タグ名で除去（role="navigation" も含む）
     for tag in soup(_NOISE_TAGS):
         tag.decompose()
+    for tag in soup.find_all(attrs={"role": "navigation"}):
+        tag.decompose()
 
+    # ② class/id のノイズパターンで除去
     noise_tags = [
         tag for tag in soup.find_all(True)
         if _NOISE_RE.search(" ".join(tag.get("class", [])))
@@ -499,14 +504,21 @@ def extract_main_content(soup):
     for tag in noise_tags:
         tag.decompose()
 
+    # ③ 主要コンテンツ領域を優先抽出
     main = (
         soup.find("main")
         or soup.find("article")
+        or soup.find("section", class_=_CONTENT_RE)
+        or soup.find("div", class_=_CONTENT_RE)
         or soup.find(id=_CONTENT_RE)
-        or soup.find(class_=_CONTENT_RE)
     )
     target = main or soup.find("body") or soup
-    lines = [ln.strip() for ln in target.get_text(separator="\n").splitlines() if ln.strip()]
+
+    # ④ 短すぎる行（3文字以下）を除去してテキスト化
+    lines = [
+        ln.strip() for ln in target.get_text(separator="\n").splitlines()
+        if len(ln.strip()) > 3
+    ]
     return "\n".join(lines)
 
 
