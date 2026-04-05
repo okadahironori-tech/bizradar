@@ -506,6 +506,16 @@ def mark_read_api(article_id):
     return jsonify({"ok": ok})
 
 
+@app.route("/mark_unread/<int:article_id>", methods=["POST"])
+@login_required
+def mark_unread_api(article_id):
+    user_id = session["user_id"]
+    if article_id <= 0:
+        return jsonify({"ok": False, "error": "invalid id"}), 400
+    ok = db.mark_article_unread(user_id, article_id)
+    return jsonify({"ok": ok})
+
+
 @app.route("/api/articles")
 @login_required
 def api_articles():

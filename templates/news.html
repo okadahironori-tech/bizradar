@@ -158,8 +158,8 @@
         <div class="alert-pinned-section">
           <div class="alert-pinned-header">重要アラート &nbsp;{{ alert_articles_pinned | length }} 件</div>
           {% for article in alert_articles_pinned[:5] %}
-          <div class="article-item article-alert" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
-            {% if article.is_read %}<span class="article-read-mark">✓</span>{% endif %}
+          <div class="article-item article-alert {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
+            <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
             <span class="article-alert-badge">重要</span>
             <span class="article-kw">{{ article.keyword }}</span>
             <div class="article-body">
@@ -170,17 +170,8 @@
                 {% if article.published %}{{ article.published }}{% endif %}
               </div>
             </div>
-            {% if article.is_read %}
-            <form method="POST" action="/mark_article_unread">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-unread">未読に戻す</button>
-            </form>
-            {% else %}
-            <form method="POST" action="/mark_article_read">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-check-done">チェック済み</button>
-            </form>
-            {% endif %}
+            <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
+            <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
           </div>
           {% endfor %}
           {% if alert_articles_pinned | length > 5 %}
@@ -201,7 +192,7 @@
         <div id="articles-container">
           {% for article in articles %}
           <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
-            {% if article.is_read %}<span class="article-read-mark">✓</span>{% endif %}
+            <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
             {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
             <span class="article-kw">{{ article.keyword }}</span>
             <div class="article-body">
@@ -212,17 +203,8 @@
                 {% if article.published %}{{ article.published }}{% endif %}
               </div>
             </div>
-            {% if article.is_read %}
-            <form method="POST" action="/mark_article_unread">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-unread">未読に戻す</button>
-            </form>
-            {% else %}
-            <form method="POST" action="/mark_article_read">
-              <input type="hidden" name="article_id" value="{{ article.id }}">
-              <button type="submit" class="btn-check-done">チェック済み</button>
-            </form>
-            {% endif %}
+            <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
+            <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
           </div>
           {% endfor %}
         </div>
@@ -235,6 +217,79 @@
 </main>
 
 <script>
+// ============================================================
+// 記事 既読 / 未読 トグル（非同期・即時非表示）
+// ============================================================
+async function markRead(btn) {
+  const item = btn.closest('.article-item');
+  const id = item.dataset.articleId;
+  try {
+    const res = await fetch(`/mark_read/${id}`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    // 同じ記事IDを持つすべての要素（pinnedと本体の重複）を更新
+    document.querySelectorAll(`.article-item[data-article-id="${id}"]`).forEach(el => {
+      el.classList.add('article-read');
+      const mark = el.querySelector('.article-read-mark');
+      if (mark) mark.style.display = '';
+      const cb = el.querySelector('.btn-check-done');
+      if (cb) cb.style.display = 'none';
+      const ub = el.querySelector('.btn-unread');
+      if (ub) ub.style.display = '';
+      // フェードアウト → 非表示
+      el.style.transition = 'opacity 0.25s';
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.style.transition = 'max-height 0.3s ease, padding-top 0.3s, padding-bottom 0.3s';
+        el.style.overflow = 'hidden';
+        el.style.maxHeight = el.offsetHeight + 'px';
+        requestAnimationFrame(() => {
+          el.style.maxHeight = '0';
+          el.style.paddingTop = '0';
+          el.style.paddingBottom = '0';
+        });
+      }, 260);
+      setTimeout(() => {
+        el.style.display = 'none';
+        ['transition','opacity','maxHeight','overflow','paddingTop','paddingBottom'].forEach(p => { el.style[p] = ''; });
+      }, 600);
+    });
+    // _articleItems の article-read クラスは el に直接付いているので renderArticles() の再フィルターに反映済み
+  } catch (_) {}
+}
+
+async function markUnread(btn) {
+  const item = btn.closest('.article-item');
+  const id = item.dataset.articleId;
+  try {
+    const res = await fetch(`/mark_unread/${id}`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    document.querySelectorAll(`.article-item[data-article-id="${id}"]`).forEach(el => {
+      el.classList.remove('article-read');
+      const mark = el.querySelector('.article-read-mark');
+      if (mark) mark.style.display = 'none';
+      const ub = el.querySelector('.btn-unread');
+      if (ub) ub.style.display = 'none';
+      const cb = el.querySelector('.btn-check-done');
+      if (cb) cb.style.display = '';
+      // 非表示だった場合はフェードイン
+      el.style.display = '';
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.style.transition = 'opacity 0.25s';
+        el.style.opacity = '1';
+      }, 10);
+      setTimeout(() => {
+        el.style.transition = '';
+        el.style.opacity = '';
+      }, 280);
+    });
+  } catch (_) {}
+}
+
 // 記事一覧
 let _articleItems = [];
 let _articleOrder = 'desc';

@@ -406,10 +406,8 @@
     </div>
     <div class="alert-section-card">
       {% for article in alert_articles[:3] %}
-      <div class="article-item article-alert">
-        {% if article.is_read %}
-        <span class="article-read-mark" title="チェック済み">✓</span>
-        {% endif %}
+      <div class="article-item article-alert {% if article.is_read %}article-read{% endif %}" data-article-id="{{ article.id }}">
+        <span class="article-read-mark" title="チェック済み"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
         <span class="article-alert-badge">重要</span>
         <span class="article-kw">{{ article.keyword }}</span>
         <div class="article-body">
@@ -420,17 +418,8 @@
             {% if article.published %}{{ article.published }}{% endif %}
           </div>
         </div>
-        {% if article.is_read %}
-        <form method="POST" action="/mark_article_unread">
-          <input type="hidden" name="article_id" value="{{ article.id }}">
-          <button type="submit" class="btn-unread">未読に戻す</button>
-        </form>
-        {% else %}
-        <form method="POST" action="/mark_article_read">
-          <input type="hidden" name="article_id" value="{{ article.id }}">
-          <button type="submit" class="btn-check-done">チェック済み</button>
-        </form>
-        {% endif %}
+        <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
+        <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
       </div>
       {% endfor %}
       <div class="view-all-bar">
@@ -463,10 +452,8 @@
     <div class="card">
       {% if normal_articles %}
         {% for article in normal_articles[:5] %}
-        <div class="article-item {% if article.is_read %}article-read{% endif %}">
-          {% if article.is_read %}
-          <span class="article-read-mark" title="チェック済み">✓</span>
-          {% endif %}
+        <div class="article-item {% if article.is_read %}article-read{% endif %}" data-article-id="{{ article.id }}">
+          <span class="article-read-mark" title="チェック済み"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
           <span class="article-kw">{{ article.keyword }}</span>
           <div class="article-body">
             <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
@@ -476,17 +463,8 @@
               {% if article.published %}{{ article.published }}{% endif %}
             </div>
           </div>
-          {% if article.is_read %}
-          <form method="POST" action="/mark_article_unread">
-            <input type="hidden" name="article_id" value="{{ article.id }}">
-            <button type="submit" class="btn-unread">未読に戻す</button>
-          </form>
-          {% else %}
-          <form method="POST" action="/mark_article_read">
-            <input type="hidden" name="article_id" value="{{ article.id }}">
-            <button type="submit" class="btn-check-done">チェック済み</button>
-          </form>
-          {% endif %}
+          <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
+          <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
         </div>
         {% endfor %}
         <div class="view-all-bar">
@@ -598,6 +576,75 @@
 </main>
 
 <script>
+// ============================================================
+// 記事 既読 / 未読 トグル（非同期・即時非表示）
+// ============================================================
+async function markRead(btn) {
+  const item = btn.closest('.article-item');
+  const id = item.dataset.articleId;
+  try {
+    const res = await fetch(`/mark_read/${id}`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    // 既読スタイルに切り替え
+    item.classList.add('article-read');
+    const mark = item.querySelector('.article-read-mark');
+    if (mark) mark.style.display = '';
+    btn.style.display = 'none';
+    const unreadBtn = item.querySelector('.btn-unread');
+    if (unreadBtn) unreadBtn.style.display = '';
+    // フェードアウト → 非表示
+    item.style.transition = 'opacity 0.25s';
+    item.style.opacity = '0';
+    setTimeout(() => {
+      item.style.transition = 'max-height 0.3s ease, padding-top 0.3s, padding-bottom 0.3s';
+      item.style.overflow = 'hidden';
+      item.style.maxHeight = item.offsetHeight + 'px';
+      // 次フレームで高さを潰す
+      requestAnimationFrame(() => {
+        item.style.maxHeight = '0';
+        item.style.paddingTop = '0';
+        item.style.paddingBottom = '0';
+      });
+    }, 260);
+    setTimeout(() => {
+      item.style.display = 'none';
+      // インラインスタイルをリセット（未読に戻す時の再表示用）
+      ['transition','opacity','maxHeight','overflow','paddingTop','paddingBottom'].forEach(p => { item.style[p] = ''; });
+    }, 600);
+  } catch (_) {}
+}
+
+async function markUnread(btn) {
+  const item = btn.closest('.article-item');
+  const id = item.dataset.articleId;
+  try {
+    const res = await fetch(`/mark_unread/${id}`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    // 未読スタイルに切り替え
+    item.classList.remove('article-read');
+    const mark = item.querySelector('.article-read-mark');
+    if (mark) mark.style.display = 'none';
+    btn.style.display = 'none';
+    const readBtn = item.querySelector('.btn-check-done');
+    if (readBtn) readBtn.style.display = '';
+    // 非表示だった場合はフェードイン
+    item.style.display = '';
+    item.style.opacity = '0';
+    setTimeout(() => {
+      item.style.transition = 'opacity 0.25s';
+      item.style.opacity = '1';
+    }, 10);
+    setTimeout(() => {
+      item.style.transition = '';
+      item.style.opacity = '';
+    }, 280);
+  } catch (_) {}
+}
+
 function toggleDiff(btn) {
   const block = btn.nextElementSibling;
   block.classList.toggle('open');
