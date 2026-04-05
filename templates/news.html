@@ -166,7 +166,7 @@
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
           {% for article in articles %}
-          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
+          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %}>
             <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
             {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
             <span class="article-kw">{{ article.keyword }}</span>
@@ -299,11 +299,12 @@ function _renderArticlePaginationBar(id, cur, total) {
 }
 
 // アラートpinnedセクションを _articleItems から再計算して再描画
+// 判定は data-is-alert 属性（サーバー側 is_alert フラグをそのまま使用）
 function renderAlertPinnedSection() {
   const section = document.getElementById('alert-pinned-section');
   if (!section) return;
   const unreadAlerts = _articleItems.filter(
-    i => i.classList.contains('article-alert') && !i.classList.contains('article-read')
+    i => i.dataset.isAlert === '1' && !i.classList.contains('article-read')
   );
   if (unreadAlerts.length === 0) {
     section.style.display = 'none';
@@ -318,6 +319,7 @@ function renderAlertPinnedSection() {
   sorted.slice(0, 5).forEach(item => {
     const clone = item.cloneNode(true);
     clone.style.cssText = '';
+    // 未読状態として表示（チェック済みボタンのみ表示）
     const mark = clone.querySelector('.article-read-mark');
     if (mark) mark.style.display = 'none';
     const cb = clone.querySelector('.btn-check-done');
@@ -346,7 +348,7 @@ function renderArticles() {
 
   container.innerHTML = '';
   filtered.slice(start, start + pageSize).forEach(item => {
-    // アニメーション等のインラインスタイルをクリアしてから追加
+    // アニメーション等のインラインスタイルをクリア
     item.style.display = '';
     item.style.opacity = '';
     item.style.transition = '';
@@ -354,6 +356,14 @@ function renderArticles() {
     item.style.overflow = '';
     item.style.paddingTop = '';
     item.style.paddingBottom = '';
+    // article-read クラスと子要素の表示状態を同期
+    const isRead = item.classList.contains('article-read');
+    const mark = item.querySelector('.article-read-mark');
+    if (mark) mark.style.display = isRead ? '' : 'none';
+    const cb = item.querySelector('.btn-check-done');
+    if (cb) cb.style.display = isRead ? 'none' : '';
+    const ub = item.querySelector('.btn-unread');
+    if (ub) ub.style.display = isRead ? '' : 'none';
     container.appendChild(item);
   });
 
