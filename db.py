@@ -1056,6 +1056,45 @@ def count_active_companies_today(user_id: int) -> int:
             return row[0] if row else 0
 
 
+def load_active_companies_today(user_id: int) -> list:
+    """当日 JST 0:00 以降に活動のあった企業を {id, name} のリストで返す。"""
+    from datetime import datetime, timezone, timedelta
+    jst = timezone(timedelta(hours=9))
+    now_jst = datetime.now(jst)
+    jst_midnight = now_jst.replace(hour=0, minute=0, second=0, microsecond=0)
+    utc_midnight = jst_midnight.astimezone(timezone.utc)
+    today_utc_str = utc_midnight.strftime("%Y-%m-%d %H:%M:%S")
+
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT c.id, c.name
+                FROM companies c
+                WHERE c.user_id = %s
+                  AND c.id IN (
+                    SELECT s.company_id
+                    FROM sites s
+                    JOIN change_history ch ON ch.url = s.url
+                    WHERE s.user_id = %s
+                      AND s.company_id IS NOT NULL
+                      AND ch.timestamp >= %s
+                    UNION
+                    SELECT k.company_id
+                    FROM keywords k
+                    JOIN articles a
+                      ON a.user_id = k.user_id AND a.keyword = k.keyword
+                    WHERE k.user_id = %s
+                      AND k.company_id IS NOT NULL
+                      AND a.found_at >= %s
+                  )
+                ORDER BY c.name
+                """,
+                (user_id, user_id, today_utc_str, user_id, today_utc_str),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
 def load_companies(user_id: int) -> list:
     """企業一覧をユーザー設定の並び順で返す。"""
     with _conn() as conn:

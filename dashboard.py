@@ -178,7 +178,7 @@ def index():
     log       = db.load_monitor_log(user_id)
     hashes    = db.load_hashes()
     config    = db.load_config()
-    site_list = db.load_sites(user_id)
+    site_list = db.load_sites_with_company(user_id)
     running    = db.get_running_task_statuses()
     site_statuses  = running.get("site_check", {})
     collecting_kws = set(running.get("keyword_collect", {}).keys())
@@ -193,6 +193,7 @@ def index():
         sites.append({
             "url":         url,
             "name":        s.get("name", ""),
+            "company_id":  s.get("company_id"),
             "last_check":  check_info.get("timestamp", "未チェック"),
             "status":      status,
             "error":       error_text,
@@ -208,6 +209,10 @@ def index():
     kw_entries = db.load_keywords(user_id)
     keywords   = [k["keyword"] for k in kw_entries]
     collecting = collecting_kws
+
+    # キーワード → 企業ID マッピング（企業紐づけがあるもののみ）
+    kw_with_company = db.load_keywords_with_company(user_id)
+    kw_company_map  = {k["keyword"]: k["company_id"] for k in kw_with_company if k.get("company_id")}
 
     articles_data = db.load_articles_data(user_id)
     all_articles  = articles_data.get("articles", [])
@@ -226,10 +231,11 @@ def index():
         a["is_alert"] = any(kw in title_lower for kw in alert_kws_set)
 
     # ---- サマリー集計 ----
-    unread_count     = sum(1 for a in articles if not a.get("is_read"))
-    alert_count      = sum(1 for a in articles if a.get("is_alert"))
-    error_site_count = sum(1 for s in sites if s["status"] == "error")
-    today_companies  = db.count_active_companies_today(user_id)
+    unread_count       = sum(1 for a in articles if not a.get("is_read"))
+    alert_count        = sum(1 for a in articles if a.get("is_alert"))
+    error_site_count   = sum(1 for s in sites if s["status"] == "error")
+    today_company_list = db.load_active_companies_today(user_id)
+    today_companies    = len(today_company_list)
 
     return render_template(
         "index.html",
@@ -239,6 +245,7 @@ def index():
         check_interval=interval,
         keywords=keywords,
         keyword_entries=kw_entries,
+        kw_company_map=kw_company_map,
         articles=articles,
         keyword_counts=keyword_counts,
         keyword_collecting=collecting,
@@ -250,6 +257,7 @@ def index():
         summary_alert=alert_count,
         summary_error_sites=error_site_count,
         summary_today_companies=today_companies,
+        today_company_list=today_company_list,
     )
 
 
@@ -287,10 +295,10 @@ def remove_site():
     new_sites = [s for s in sites if s["url"] != url]
     if len(new_sites) == len(sites):
         flash("該当URLが見つかりません", "error")
-        return redirect(url_for("index"))
+        return redirect(request.referrer or url_for("settings"))
     db.save_sites(new_sites, user_id)
     flash(f"削除しました: {url}", "success")
-    return redirect(url_for("index"))
+    return redirect(request.referrer or url_for("settings"))
 
 
 @app.route("/update_site_name", methods=["POST"])
@@ -305,20 +313,20 @@ def update_site_name():
 
     if not url:
         flash("URLが不正です", "error")
-        return redirect(url_for("index"))
+        return redirect(request.referrer or url_for("settings"))
 
     # そのユーザーが登録しているURLか確認（URL固定の保証）
     if not any(s["url"] == url for s in db.load_sites(user_id)):
         flash("該当URLが見つかりません", "error")
-        return redirect(url_for("index"))
+        return redirect(request.referrer or url_for("settings"))
 
     ok = db.update_site_name(user_id=user_id, url=url, name=name)
     if not ok:
         flash("会社名の更新に失敗しました", "error")
-        return redirect(url_for("index"))
+        return redirect(request.referrer or url_for("settings"))
 
     flash(f"会社名を更新しました: {name if name else url}", "success")
-    return redirect(url_for("index"))
+    return redirect(request.referrer or url_for("settings"))
 
 
 @app.route("/check_site", methods=["POST"])
@@ -327,7 +335,7 @@ def check_site():
     url = request.form.get("url", "").strip()
     if url in db.get_all_running_tasks().get("site_check", set()):
         flash(f"チェック実行中です: {url}", "error")
-        return redirect(url_for("index"))
+        return redirect(request.referrer or url_for("settings"))
 
     user_id = session["user_id"]
     sites = db.load_sites(user_id)
@@ -345,7 +353,7 @@ def check_site():
 
     threading.Thread(target=run, daemon=True).start()
     flash(f"チェックを開始しました: {site_name if site_name else url}", "success")
-    return redirect(url_for("index"))
+    return redirect(request.referrer or url_for("settings"))
 
 
 @app.route("/collect_keyword", methods=["POST"])
@@ -619,8 +627,30 @@ def settings():
         kw = a.get("keyword", "")
         keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
     alert_kw_entries = db.load_alert_keywords(user_id)
+
+    # サイト一覧（ステータス付き）
+    log = db.load_monitor_log(user_id)
+    site_statuses = running.get("site_check", {})
+    sites = []
+    for s in db.load_sites(user_id):
+        url = s["url"]
+        check_info = log["last_checks"].get(url, {})
+        error_text = check_info.get("error", "")
+        status = check_info.get("status", "unknown")
+        error_label, error_cls = _classify_site_error(error_text) if status == "error" else ("", "")
+        sites.append({
+            "url":         url,
+            "name":        s.get("name", ""),
+            "last_check":  check_info.get("timestamp", "未チェック"),
+            "status":      status,
+            "error_label": error_label,
+            "error_cls":   error_cls,
+            "checking":    site_statuses.get(url) == "running",
+        })
+
     return render_template(
         "settings.html",
+        sites=sites,
         check_interval=config.get("check_interval_seconds", 3600),
         keywords=keywords,
         keyword_entries=kw_entries,

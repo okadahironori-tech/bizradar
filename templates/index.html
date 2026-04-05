@@ -194,6 +194,15 @@
     .today-companies-label {
       font-size: 0.72rem; color: #9ca3af; font-weight: 500; margin-top: 5px;
     }
+    .today-company-names {
+      margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .today-company-link {
+      font-size: 0.8rem; color: #3949ab; text-decoration: none; font-weight: 600;
+      background: #e8eaf6; border-radius: 20px; padding: 3px 10px;
+    }
+    .today-company-link:hover { background: #c5cae9; }
+    .today-company-sep { font-size: 0.8rem; color: #d1d5db; align-self: center; }
 
     /* 変更履歴 */
     .timeline { padding: 4px 0; }
@@ -409,7 +418,11 @@
       <div class="article-item article-alert {% if article.is_read %}article-read{% endif %}" data-article-id="{{ article.id }}">
         <span class="article-read-mark" title="チェック済み"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
         <span class="article-alert-badge">重要</span>
+        {% if kw_company_map.get(article.keyword) %}
+        <a href="/companies/{{ kw_company_map[article.keyword] }}" class="article-kw" style="text-decoration:none;">{{ article.keyword }}</a>
+        {% else %}
         <span class="article-kw">{{ article.keyword }}</span>
+        {% endif %}
         <div class="article-body">
           <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
           <div class="article-meta">
@@ -433,11 +446,21 @@
   <section>
     <div class="section-title">本日の更新企業</div>
     <div class="today-companies-card">
-      <div>
+      <div style="flex:1; min-width:0;">
         <div class="today-companies-num">{{ summary_today_companies }}</div>
         <div class="today-companies-label">企業が本日活動</div>
+        {% if today_company_list %}
+        <div class="today-company-names">
+          {% for c in today_company_list[:5] %}
+          <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
+          {% endfor %}
+          {% if today_company_list | length > 5 %}
+          <span class="today-company-sep">他 {{ today_company_list | length - 5 }} 社</span>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
-      <a href="/companies" class="view-all-link">企業一覧を見る →</a>
+      <a href="/companies" class="view-all-link" style="flex-shrink:0;">一覧を見る →</a>
     </div>
   </section>
 
@@ -454,7 +477,11 @@
         {% for article in normal_articles[:5] %}
         <div class="article-item {% if article.is_read %}article-read{% endif %}" data-article-id="{{ article.id }}">
           <span class="article-read-mark" title="チェック済み"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
+          {% if kw_company_map.get(article.keyword) %}
+          <a href="/companies/{{ kw_company_map[article.keyword] }}" class="article-kw" style="text-decoration:none;">{{ article.keyword }}</a>
+          {% else %}
           <span class="article-kw">{{ article.keyword }}</span>
+          {% endif %}
           <div class="article-body">
             <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
             <div class="article-meta">
@@ -539,7 +566,11 @@
           {% for site in sites[:5] %}
           <tr>
             <td>
+              {% if site.company_id %}
+              <a href="/companies/{{ site.company_id }}" class="site-name" style="text-decoration:none;">{{ site.name if site.name else "—" }}</a>
+              {% else %}
               <div class="site-name">{{ site.name if site.name else "—" }}</div>
+              {% endif %}
               <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
             </td>
             <td>
