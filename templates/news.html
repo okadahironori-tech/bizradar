@@ -152,32 +152,7 @@
 
     <div class="card">
       {% if articles %}
-        {% set alert_articles_pinned = articles | selectattr("is_alert") | list %}
-        {% if alert_articles_pinned %}
-        <div class="alert-pinned-section">
-          <div class="alert-pinned-header">重要アラート &nbsp;{{ alert_articles_pinned | length }} 件</div>
-          {% for article in alert_articles_pinned[:5] %}
-          <div class="article-item article-alert {% if article.is_read %}article-read{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}">
-            <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
-            <span class="article-alert-badge">重要</span>
-            <span class="article-kw">{{ article.keyword }}</span>
-            <div class="article-body">
-              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
-              <div class="article-meta">
-                {% if article.source %}{{ article.source }}{% endif %}
-                {% if article.source and article.published %} · {% endif %}
-                {% if article.published %}{{ article.published }}{% endif %}
-              </div>
-            </div>
-            <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
-            <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
-          </div>
-          {% endfor %}
-          {% if alert_articles_pinned | length > 5 %}
-          <div class="alert-pinned-more">他 {{ alert_articles_pinned | length - 5 }} 件は下の一覧で確認できます</div>
-          {% endif %}
-        </div>
-        {% endif %}
+        <div id="alert-pinned-section" class="alert-pinned-section" style="display:none"></div>
 
         <div style="font-size:0.78rem; color:#9ca3af; padding: 8px 16px 0;">未読・既読を含むすべての記事を確認できます。「未読のみ」で絞り込むこともできます。</div>
         <div class="kw-filter-bar">
@@ -218,7 +193,7 @@
 
 <script>
 // ============================================================
-// 記事 既読 / 未読 トグル（非同期・即時非表示）
+// 記事 既読 / 未読 トグル（非同期・再描画）
 // ============================================================
 async function markRead(btn) {
   const item = btn.closest('.article-item');
@@ -228,34 +203,19 @@ async function markRead(btn) {
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
-    // 同じ記事IDを持つすべての要素（pinnedと本体の重複）を更新
-    document.querySelectorAll(`.article-item[data-article-id="${id}"]`).forEach(el => {
-      el.classList.add('article-read');
-      const mark = el.querySelector('.article-read-mark');
-      if (mark) mark.style.display = '';
-      const cb = el.querySelector('.btn-check-done');
-      if (cb) cb.style.display = 'none';
-      const ub = el.querySelector('.btn-unread');
-      if (ub) ub.style.display = '';
-      // フェードアウト → 非表示
-      el.style.transition = 'opacity 0.25s';
-      el.style.opacity = '0';
-      setTimeout(() => {
-        el.style.transition = 'max-height 0.3s ease, padding-top 0.3s, padding-bottom 0.3s';
-        el.style.overflow = 'hidden';
-        el.style.maxHeight = el.offsetHeight + 'px';
-        requestAnimationFrame(() => {
-          el.style.maxHeight = '0';
-          el.style.paddingTop = '0';
-          el.style.paddingBottom = '0';
-        });
-      }, 260);
-      setTimeout(() => {
-        el.style.display = 'none';
-        ['transition','opacity','maxHeight','overflow','paddingTop','paddingBottom'].forEach(p => { el.style[p] = ''; });
-      }, 600);
-    });
-    // _articleItems の article-read クラスは el に直接付いているので renderArticles() の再フィルターに反映済み
+    // マスター配列の状態を更新
+    const mainItem = _articleItems.find(i => i.dataset.articleId === id);
+    if (mainItem) mainItem.classList.add('article-read');
+    // アラートpinnedセクションを即時再描画
+    renderAlertPinnedSection();
+    // クリックされた要素をフェードアウトしてから通常一覧を再描画
+    item.style.transition = 'opacity 0.22s';
+    item.style.opacity = '0';
+    setTimeout(() => {
+      item.style.transition = '';
+      item.style.opacity = '';
+      renderArticles();
+    }, 230);
   } catch (_) {}
 }
 
@@ -267,26 +227,11 @@ async function markUnread(btn) {
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
-    document.querySelectorAll(`.article-item[data-article-id="${id}"]`).forEach(el => {
-      el.classList.remove('article-read');
-      const mark = el.querySelector('.article-read-mark');
-      if (mark) mark.style.display = 'none';
-      const ub = el.querySelector('.btn-unread');
-      if (ub) ub.style.display = 'none';
-      const cb = el.querySelector('.btn-check-done');
-      if (cb) cb.style.display = '';
-      // 非表示だった場合はフェードイン
-      el.style.display = '';
-      el.style.opacity = '0';
-      setTimeout(() => {
-        el.style.transition = 'opacity 0.25s';
-        el.style.opacity = '1';
-      }, 10);
-      setTimeout(() => {
-        el.style.transition = '';
-        el.style.opacity = '';
-      }, 280);
-    });
+    // マスター配列の状態を更新
+    const mainItem = _articleItems.find(i => i.dataset.articleId === id);
+    if (mainItem) mainItem.classList.remove('article-read');
+    // 全セクションを再描画
+    renderAll();
   } catch (_) {}
 }
 
@@ -353,6 +298,42 @@ function _renderArticlePaginationBar(id, cur, total) {
     `<button class="btn-page" onclick="goArticlePage(1)" ${cur>=total?'disabled':''}>次へ →</button>`;
 }
 
+// アラートpinnedセクションを _articleItems から再計算して再描画
+function renderAlertPinnedSection() {
+  const section = document.getElementById('alert-pinned-section');
+  if (!section) return;
+  const unreadAlerts = _articleItems.filter(
+    i => i.classList.contains('article-alert') && !i.classList.contains('article-read')
+  );
+  if (unreadAlerts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  const sorted = [...unreadAlerts].sort((a, b) => {
+    const pa = a.dataset.published || '', pb = b.dataset.published || '';
+    return pa < pb ? 1 : pa > pb ? -1 : 0;
+  });
+  section.style.display = '';
+  section.innerHTML = `<div class="alert-pinned-header">重要アラート　${unreadAlerts.length} 件</div>`;
+  sorted.slice(0, 5).forEach(item => {
+    const clone = item.cloneNode(true);
+    clone.style.cssText = '';
+    const mark = clone.querySelector('.article-read-mark');
+    if (mark) mark.style.display = 'none';
+    const cb = clone.querySelector('.btn-check-done');
+    if (cb) { cb.style.display = ''; cb.setAttribute('onclick', 'markRead(this)'); }
+    const ub = clone.querySelector('.btn-unread');
+    if (ub) { ub.style.display = 'none'; ub.setAttribute('onclick', 'markUnread(this)'); }
+    section.appendChild(clone);
+  });
+  if (unreadAlerts.length > 5) {
+    const more = document.createElement('div');
+    more.className = 'alert-pinned-more';
+    more.textContent = `他 ${unreadAlerts.length - 5} 件は下の一覧で確認できます`;
+    section.appendChild(more);
+  }
+}
+
 function renderArticles() {
   const container = document.getElementById('articles-container');
   if (!container) return;
@@ -364,7 +345,17 @@ function renderArticles() {
   const start = (_articlePage - 1) * pageSize;
 
   container.innerHTML = '';
-  filtered.slice(start, start + pageSize).forEach(item => container.appendChild(item));
+  filtered.slice(start, start + pageSize).forEach(item => {
+    // アニメーション等のインラインスタイルをクリアしてから追加
+    item.style.display = '';
+    item.style.opacity = '';
+    item.style.transition = '';
+    item.style.maxHeight = '';
+    item.style.overflow = '';
+    item.style.paddingTop = '';
+    item.style.paddingBottom = '';
+    container.appendChild(item);
+  });
 
   const badge = document.getElementById('articles-count-badge');
   if (badge) {
@@ -374,13 +365,19 @@ function renderArticles() {
   _renderArticlePaginationBar('articles-pagination-bottom', _articlePage, totalPages);
 }
 
+// pinned + 通常一覧の一括再描画
+function renderAll() {
+  renderAlertPinnedSection();
+  renderArticles();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('articles-container');
   if (container) {
     _articleItems = Array.from(container.querySelectorAll('.article-item'));
     const unreadBtn = document.getElementById('unread-only-btn');
     if (unreadBtn) unreadBtn.classList.toggle('active', _articleUnreadOnly);
-    renderArticles();
+    renderAll();
   }
 });
 </script>
