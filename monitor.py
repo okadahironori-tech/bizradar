@@ -12,7 +12,9 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+JST = timezone(timedelta(hours=9))
 
 import time as time_module
 from urllib.parse import quote
@@ -104,7 +106,7 @@ def fetch_news_articles(keyword: str) -> list:
             source = _sanitize_text(source)
         published = ""
         if entry.get("published_parsed"):
-            dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed))
+            dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed), tz=timezone.utc).astimezone(JST)
             published = dt.strftime("%Y-%m-%d %H:%M")
         else:
             published = entry.get("published", "")
@@ -130,8 +132,7 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
     total = sum(len(v) for v in articles_by_keyword.values())
     if total == 0:
         return
-    from datetime import datetime as _dt
-    now = _dt.now().strftime("%Y年%m月%d日 %H:%M")
+    now = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
 
     # 重要記事の総数を集計（件名用）
     total_alert = sum(
@@ -322,7 +323,7 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
     sorted_articles = important + normal
     has_alert = bool(important)
 
-    now = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+    now = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
     alert_prefix = "【重要あり】" if has_alert else ""
     subject = f"{alert_prefix}【ニュース新着通知】「{keyword}」の新着記事 {len(sorted_articles)} 件"
 
@@ -383,7 +384,7 @@ def check_single_keyword(keyword: str, user_id=None):
         print(f"  [エラー] 取得失敗: {e}")
         return
 
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
     new_articles = []
     for article in articles:
         url        = article["url"]
@@ -418,7 +419,7 @@ def check_all_keywords():
     if not kw_with_users:
         return
 
-    print(f"[ニュースチェック開始] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[ニュースチェック開始] {datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')}")
 
     # user_id ごとにキーワードをグループ化（notify_enabled 付き）
     user_keywords: dict = {}
@@ -442,7 +443,7 @@ def check_all_keywords():
                 print(f"  [エラー] 取得失敗: {e}")
                 continue
 
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
             new_articles = []
             for article in articles:
                 url       = article["url"]
@@ -589,7 +590,7 @@ def compute_diff_summary(old_content: str, new_content: str) -> list:
 
 def send_email(url: str, site_name: str = ""):
     """変更を検知したらメールで通知する"""
-    now   = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+    now   = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
     label = site_name if site_name else url
     subject = f"【サイト更新通知】{label} が更新されました"
     body = f"""
@@ -622,7 +623,7 @@ def send_email(url: str, site_name: str = ""):
 
 def check_single_site(url: str, site_name: str = ""):
     """単一URLをチェックしてDBを更新する"""
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
     print(f"  確認中: {url}")
 
     previous_hashes = db.load_hashes()
@@ -665,7 +666,7 @@ def check_single_site(url: str, site_name: str = ""):
 
 def check_all_sites():
     """全URLをチェックして変更があれば通知する"""
-    print(f"\n[チェック開始] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\n[チェック開始] {datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')}")
     sites = db.load_sites_for_monitor()
     for site in sites:
         check_single_site(site["url"], site.get("name", ""))

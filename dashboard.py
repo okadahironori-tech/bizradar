@@ -8,8 +8,27 @@ import os
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from functools import wraps
+
+JST = timezone(timedelta(hours=9))
+
+
+def _now_jst_str(fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
+    return datetime.now(JST).strftime(fmt)
+
+
+def _utc_to_jst(ts: str) -> str:
+    """UTC文字列（'YYYY-MM-DD HH:MM:SS' または 'YYYY-MM-DD HH:MM'）をJSTに変換する"""
+    if not ts or ts == "未チェック":
+        return ts
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            dt = datetime.strptime(ts, fmt).replace(tzinfo=timezone.utc).astimezone(JST)
+            return dt.strftime(fmt)
+        except ValueError:
+            continue
+    return ts
 
 
 def _classify_site_error(error: str) -> tuple:
@@ -194,7 +213,7 @@ def index():
             "url":         url,
             "name":        s.get("name", ""),
             "company_id":  s.get("company_id"),
-            "last_check":  check_info.get("timestamp", "未チェック"),
+            "last_check":  _utc_to_jst(check_info.get("timestamp", "未チェック")),
             "status":      status,
             "error":       error_text,
             "error_label": error_label,
@@ -203,7 +222,10 @@ def index():
             "checking":    site_statuses.get(url) == "running",
         })
 
-    change_history = log.get("change_history", [])[:50]
+    change_history = [
+        {**e, "timestamp": _utc_to_jst(e.get("timestamp", ""))}
+        for e in log.get("change_history", [])[:50]
+    ]
     interval = config.get("check_interval_seconds", 3600)
 
     kw_entries = db.load_keywords(user_id)
@@ -225,10 +247,11 @@ def index():
     alert_kw_entries = db.load_alert_keywords(user_id)
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
 
-    # 記事に重要フラグを付与
+    # 記事に重要フラグ付与・published をJSTに変換
     for a in articles:
         title_lower = a.get("title", "").lower()
         a["is_alert"] = any(kw in title_lower for kw in alert_kws_set)
+        a["published"] = _utc_to_jst(a.get("published", ""))
 
     # ---- サマリー集計 ----
     unread_count       = sum(1 for a in articles if not a.get("is_read"))
@@ -241,7 +264,7 @@ def index():
         "index.html",
         sites=sites,
         change_history=change_history,
-        now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        now=_now_jst_str(),
         check_interval=interval,
         keywords=keywords,
         keyword_entries=kw_entries,
@@ -602,6 +625,7 @@ def news():
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
     for a in all_articles:
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws_set)
+        a["published"] = _utc_to_jst(a.get("published", ""))
     return render_template(
         "news.html",
         articles=all_articles,
@@ -782,14 +806,14 @@ def api_status():
         site_data.append({
             "url":        url,
             "name":       s.get("name", ""),
-            "last_check": check_info.get("timestamp", "未チェック"),
+            "last_check": _utc_to_jst(check_info.get("timestamp", "未チェック")),
             "status":     check_info.get("status", "unknown"),
         })
 
     return jsonify({
         "sites":          site_data,
         "change_history": log.get("change_history", [])[:50],
-        "generated_at":   datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at":   _now_jst_str(),
     })
 
 
@@ -831,7 +855,7 @@ def companies():
         sites.append({
             "url":         url,
             "name":        s.get("name", ""),
-            "last_check":  check_info.get("timestamp", "未チェック"),
+            "last_check":  _utc_to_jst(check_info.get("timestamp", "未チェック")),
             "status":      status,
             "error_label": error_label,
             "error_cls":   error_cls,
@@ -896,11 +920,15 @@ def company_detail(company_id):
     sites_linked    = db.load_company_sites(user_id, company_id)
     keywords_linked = db.load_company_keywords(user_id, company_id)
     articles        = db.load_company_articles(user_id, company_id, limit=30)
-    history         = db.load_company_change_history(user_id, company_id, limit=10)
+    history         = [
+        {**h, "timestamp": _utc_to_jst(h.get("timestamp", ""))}
+        for h in db.load_company_change_history(user_id, company_id, limit=10)
+    ]
 
-    # 記事に重要フラグ付与
+    # 記事に重要フラグ付与・published をJSTに変換
     for a in articles:
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws)
+        a["published"] = _utc_to_jst(a.get("published", ""))
 
     # 全サイト・全キーワード（紐づけドロップダウン用）
     all_sites    = db.load_sites_with_company(user_id)
