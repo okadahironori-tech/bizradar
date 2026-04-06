@@ -572,10 +572,19 @@ _DIFF_DATE_RE = re.compile(
     r"|^\d{1,2}[月/]\d{1,2}日?$"              # 4月7日
 )
 
+# ナビゲーション・カテゴリ文字列判定：以下のいずれも含まない行は除外
+# （全角スペース・読点・句点・中黒・半角スペース・半角数字・半角英字）
+_DIFF_NAV_RE = re.compile(r"[　、。・ \da-zA-Z]")
+
+
+def _is_nav(text: str) -> bool:
+    """True = ナビゲーション/カテゴリ文字列（有意義な区切り文字を含まない）"""
+    return not bool(_DIFF_NAV_RE.search(text))
+
 
 def compute_diff_summary(old_content: str, new_content: str) -> list:
     """変更箇所のサマリーを生成する（追加 最大20件・削除 最大5件）
-    保存段階で日付行・5文字未満の行を除外し、有意義な行で枠を埋める。
+    保存段階で日付行・ナビゲーション行・5文字未満の行を除外し、有意義な行で枠を埋める。
     """
     old_lines = old_content.splitlines()
     new_lines = new_content.splitlines()
@@ -585,11 +594,11 @@ def compute_diff_summary(old_content: str, new_content: str) -> list:
     for line in diff:
         if line.startswith("+") and not line.startswith("+++"):
             text = line[1:].strip()
-            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and len(added) < 20:
+            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and not _is_nav(text) and len(added) < 20:
                 added.append({"type": "added", "text": text})
         elif line.startswith("-") and not line.startswith("---"):
             text = line[1:].strip()
-            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and len(removed) < 5:
+            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and not _is_nav(text) and len(removed) < 5:
                 removed.append({"type": "removed", "text": text})
         if len(added) >= 20 and len(removed) >= 5:
             break
