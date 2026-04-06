@@ -910,6 +910,8 @@ def add_company():
     website_url = request.form.get("website_url", "").strip()
     memo        = request.form.get("memo", "").strip()
     db.create_company(user_id, name, name_kana, website_url, memo)
+    if request.form.get("add_as_keyword"):
+        db.add_keyword_if_not_exists(user_id, name)
     flash(f"「{name}」を登録しました", "success")
     return redirect(url_for("companies"))
 
