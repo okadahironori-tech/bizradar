@@ -216,6 +216,27 @@
     }
     .alert-kw-tag:hover { background: #fee2e2; }
 
+    /* モーダル */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 300;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 14px;
+      padding: 24px 28px; width: 100%; max-width: 520px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22); position: relative;
+      margin: 16px;
+    }
+    .modal-title { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+    .modal-close {
+      position: absolute; top: 14px; right: 16px;
+      background: none; border: none; font-size: 1.3rem; color: #9ca3af;
+      cursor: pointer; line-height: 1;
+    }
+    .modal-close:hover { color: #1a1a2e; }
+
     @media (max-width: 600px) {
       header { padding: 12px 14px; }
       main { margin: 16px auto; }
@@ -429,6 +450,7 @@
     <div class="section-title">
       企業
       <span class="count">{{ companies | length }} 社</span>
+      <button type="button" class="btn btn-add btn-sm" style="margin-left:auto; font-size:0.78rem;" onclick="openAddCompanyModal()">+ 企業を追加</button>
     </div>
 
     {% if companies %}
@@ -471,38 +493,43 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty-state">企業がまだ登録されていません。下のフォームから追加してください。</div>
+    <div class="empty-state">企業がまだ登録されていません。「+ 企業を追加」から追加してください。</div>
     {% endif %}
-
-    <!-- 企業追加フォーム -->
-    <div class="add-card">
-      <h3>企業を追加</h3>
-      <form method="POST" action="/companies/add">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>企業名 <span style="color:#dc2626">*</span></label>
-            <input type="text" name="name" placeholder="例: トヨタ自動車" required maxlength="100">
-          </div>
-          <div class="form-group">
-            <label>企業名（かな）</label>
-            <input type="text" name="name_kana" placeholder="例: とよたじどうしゃ" maxlength="200">
-          </div>
-          <div class="form-group">
-            <label>WebサイトURL</label>
-            <input type="url" name="website_url" placeholder="https://example.com" maxlength="500">
-          </div>
-          <div class="form-group">
-            <label>メモ</label>
-            <input type="text" name="memo" placeholder="任意のメモ" maxlength="500">
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary">追加</button>
-      </form>
-    </div>
   </section>
 
-
 </main>
+
+<!-- 企業追加モーダル -->
+<div class="modal-overlay" id="add-company-modal" onclick="closeAddCompanyModalOnOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeAddCompanyModal()" aria-label="閉じる">×</button>
+    <div class="modal-title">企業を追加</div>
+    <form method="POST" action="/companies/add">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>企業名 <span style="color:#dc2626">*</span></label>
+          <input type="text" name="name" placeholder="例: トヨタ自動車" required maxlength="100">
+        </div>
+        <div class="form-group">
+          <label>企業名（かな）</label>
+          <input type="text" name="name_kana" placeholder="例: とよたじどうしゃ" maxlength="200">
+        </div>
+        <div class="form-group">
+          <label>WebサイトURL</label>
+          <input type="url" name="website_url" placeholder="https://example.com" maxlength="500">
+        </div>
+        <div class="form-group">
+          <label>メモ</label>
+          <input type="text" name="memo" placeholder="任意のメモ" maxlength="500">
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button type="submit" class="btn btn-primary">追加</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAddCompanyModal()">キャンセル</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
@@ -526,6 +553,18 @@
 })();
 </script>
 <script>
+function openAddCompanyModal() {
+  document.getElementById('add-company-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAddCompanyModal() {
+  document.getElementById('add-company-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeAddCompanyModalOnOverlay(e) {
+  if (e.target === document.getElementById('add-company-modal')) closeAddCompanyModal();
+}
+
 function openSiteEdit(idx) {
   document.getElementById('site-name-view-' + idx).style.display = 'none';
   var form = document.getElementById('site-name-form-' + idx);
