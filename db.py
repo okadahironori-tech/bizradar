@@ -847,10 +847,24 @@ def get_user_notify_timing(user_id: int) -> str:
             return row[0] if row else "immediate"
 
 
+_VALID_TIMINGS = {
+    "immediate", "digest_05", "digest_06", "digest_07", "digest_08",
+    "digest_09", "digest_16", "digest_17", "digest_18",
+}
+
+
 def set_user_notify_timing(user_id: int, timing: str) -> bool:
-    """ユーザーの通知タイミング設定を更新する"""
-    if timing not in ("immediate", "digest_08", "digest_18"):
+    """ユーザーの通知タイミング設定を更新する。
+    timing はカンマ区切り文字列（例: "digest_05,digest_18"）。
+    "immediate" が含まれる場合は単独のみ有効。
+    """
+    values = [v.strip() for v in timing.split(",") if v.strip()]
+    if not values:
         return False
+    if any(v not in _VALID_TIMINGS for v in values):
+        return False
+    if "immediate" in values:
+        timing = "immediate"
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -860,13 +874,16 @@ def set_user_notify_timing(user_id: int, timing: str) -> bool:
             return cur.rowcount > 0
 
 
-def get_users_by_notify_timing(timing: str) -> list:
-    """指定タイミングのユーザー ID 一覧を返す"""
+def get_users_for_digest_hour(hour: int) -> list:
+    """指定時刻（整数）のダイジェスト対象ユーザー ID 一覧を返す。
+    notify_timing カラムに "digest_HH" 形式の文字列が含まれるユーザーを返す。
+    """
+    key = f"digest_{hour:02d}"
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id FROM users WHERE notify_timing = %s",
-                (timing,),
+                "SELECT id FROM users WHERE STRPOS(notify_timing, %s) > 0",
+                (key,),
             )
             return [row[0] for row in cur.fetchall()]
 
