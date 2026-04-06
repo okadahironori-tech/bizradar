@@ -447,18 +447,6 @@
     </div>
   </section>
 
-  <!-- ニュース記事（JS再描画） -->
-  {% if keywords %}
-  <section id="dash-news-section">
-    <div class="section-title">
-      ニュース記事
-      <span class="count" id="dash-news-count"></span>
-      <span style="font-size:0.74rem; color:#9ca3af; font-weight:400; margin-left:4px;">チェック済み記事はニュース一覧で確認できます</span>
-    </div>
-    <div class="card" id="dash-news-container"></div>
-  </section>
-  {% endif %}
-
   <!-- 変更検知履歴（最新5件） -->
   <section>
     {% set hist_ns = namespace(shown=0) %}
@@ -525,6 +513,18 @@
       {% endif %}
     </div>
   </section>
+
+  <!-- ニュース記事（JS再描画） -->
+  {% if keywords %}
+  <section id="dash-news-section">
+    <div class="section-title">
+      ニュース記事
+      <span class="count" id="dash-news-count"></span>
+      <span style="font-size:0.74rem; color:#9ca3af; font-weight:400; margin-left:4px;">チェック済み記事はニュース一覧で確認できます</span>
+    </div>
+    <div class="card" id="dash-news-container"></div>
+  </section>
+  {% endif %}
 
 
 </main>
