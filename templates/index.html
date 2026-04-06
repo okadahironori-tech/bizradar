@@ -455,9 +455,10 @@
     {% for event in change_history %}
       {% set ns = namespace(count=0) %}
       {% for d in event.diff %}
-        {% set clean = d.text | replace('\t', '') %}
+        {% set clean = d.text | replace('\t', '') | trim %}
         {% if d.type == 'added' and clean | length >= 10
-              and not ('年' in clean and '月' in clean and '日' in clean and clean | length <= 11) %}
+              and not (('年' in clean and '月' in clean and clean | length <= 15)
+                       or ('月' in clean and '日' in clean and clean | length <= 8)) %}
           {% set ns.count = ns.count + 1 %}
         {% endif %}
       {% endfor %}
