@@ -294,6 +294,32 @@ def _run_migrations():
                 "company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
             )
 
+            # keywords: 重複行を削除してUNIQUE制約を確実に追加
+            cur.execute("""
+                DELETE FROM keywords k1
+                USING keywords k2
+                WHERE k1.id < k2.id
+                  AND k1.user_id IS NOT DISTINCT FROM k2.user_id
+                  AND k1.keyword = k2.keyword;
+            """)
+            cur.execute("""
+                ALTER TABLE keywords
+                    ADD COLUMN IF NOT EXISTS notify_enabled BOOLEAN DEFAULT TRUE;
+            """)
+            cur.execute("""
+                DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints
+                        WHERE table_name = 'keywords'
+                          AND constraint_name = 'keywords_user_keyword_unique'
+                    ) THEN
+                        ALTER TABLE keywords
+                            ADD CONSTRAINT keywords_user_keyword_unique
+                            UNIQUE (user_id, keyword);
+                    END IF;
+                END $$;
+            """)
+
             # companies: 並び順カラム追加
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
