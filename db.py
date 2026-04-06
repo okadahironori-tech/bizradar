@@ -1336,7 +1336,7 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
 
 
 def load_company_change_history(user_id: int, company_id: int, limit: int = 10) -> list:
-    """企業に紐づくサイトの変更検知履歴"""
+    """企業に紐づくサイトの更新検知履歴"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
