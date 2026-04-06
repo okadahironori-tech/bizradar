@@ -350,9 +350,9 @@
   </a>
   <div class="header-nav">
     <div class="updated-at">表示時刻: {{ now }}</div>
-    <a href="/companies" class="nav-link">企業</a>
+    <a href="/company" class="nav-link">企業</a>
     <a href="/news" class="nav-link">ニュース</a>
-    <a href="/companies" class="nav-link">モニター管理</a>
+    <a href="/management" class="nav-link">モニター管理</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
@@ -367,7 +367,8 @@
     <span style="display:block;padding:10px 18px 6px;font-size:0.75rem;color:#6b7280;border-bottom:1px solid #2a2a4e;">{{ user_email }}</span>
     <a href="/" class="active">ダッシュボード</a>
     <a href="/news">ニュース</a>
-    <a href="/companies">モニター管理</a>
+    <a href="/company">企業</a>
+    <a href="/management">モニター管理</a>
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
@@ -443,7 +444,7 @@
         </div>
         {% endif %}
       </div>
-      <a href="/companies" class="view-all-link" style="flex-shrink:0;">一覧を見る →</a>
+      <a href="/company" class="view-all-link" style="flex-shrink:0;">一覧を見る →</a>
     </div>
   </section>
 

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>企業 — BizRadar</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+      position: relative;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    .hamburger-btn {
+      display: block; background: none; border: 1px solid #3a3a5c;
+      border-radius: 7px; color: #8892b0; font-size: 1.2rem;
+      padding: 4px 10px; cursor: pointer; line-height: 1;
+    }
+    .hamburger-menu {
+      display: none; position: absolute; top: 100%; right: 16px;
+      background: #1a1a2e; border: 1px solid #3a3a5c; border-radius: 10px;
+      min-width: 160px; z-index: 200; overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .hamburger-menu.open { display: block; }
+    .hamburger-menu a, .hamburger-menu .hm-btn {
+      display: block; width: 100%; text-align: left;
+      padding: 12px 18px; font-size: 0.88rem; color: #ccd6f6;
+      text-decoration: none; background: none; border: none;
+      border-bottom: 1px solid #2a2a4e; cursor: pointer; font-family: inherit;
+    }
+    .hamburger-menu a:last-child, .hamburger-menu .hm-btn:last-child { border-bottom: none; }
+    .hamburger-menu a:hover, .hamburger-menu .hm-btn:hover { background: #2d2d4e; color: #fff; }
+    .hamburger-menu a.active { color: #818cf8; font-weight: 700; }
+
+    main { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
+
+    /* Flash */
+    .flash { padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 16px; }
+    .flash.success, .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash.error,   .flash-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    .section-title {
+      font-size: 1rem; font-weight: 700; color: #4a4a6a;
+      display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+    }
+    .count {
+      font-size: 0.78rem; font-weight: 600; color: #6b7280;
+      background: #f3f4f6; border-radius: 10px; padding: 2px 10px;
+    }
+
+    /* ── 企業カード ── */
+    .company-grid { display: grid; gap: 12px; }
+    .company-card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 16px;
+      text-decoration: none; color: inherit;
+      transition: box-shadow 0.15s, transform 0.1s;
+      border-left: 4px solid transparent;
+    }
+    .company-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.11); transform: translateY(-1px); }
+    .company-card.has-alert { border-left-color: #dc2626; }
+    .company-avatar {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: #e8eaf6; color: #3949ab;
+      font-size: 1.1rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .company-main { flex: 1; min-width: 0; }
+    .company-name { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
+    .company-kana { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
+    .company-url  { font-size: 0.75rem; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .company-stats { display: flex; gap: 16px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
+    .stat-item { text-align: center; }
+    .stat-val  { font-size: 1rem; font-weight: 700; color: #1a1a2e; }
+    .stat-val.alert  { color: #dc2626; }
+    .stat-val.unread { color: #3949ab; }
+    .stat-label { font-size: 0.68rem; color: #9ca3af; margin-top: 1px; }
+    .badge-alert {
+      background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5;
+      font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+    }
+    .drag-handle {
+      cursor: grab; color: #d1d5db; font-size: 1.1rem;
+      padding: 0 4px; flex-shrink: 0; user-select: none;
+      display: flex; align-items: center;
+    }
+    .drag-handle:active { cursor: grabbing; }
+    .sortable-ghost { opacity: 0.4; }
+
+    .empty-state { text-align: center; color: #9ca3af; font-size: 0.88rem; padding: 28px 0; }
+
+    /* ── ボタン共通 ── */
+    .btn { border: none; border-radius: 7px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #1a1a2e; color: #fff; }
+    .btn-primary:hover { background: #2d2d4e; }
+    .btn-ghost { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+    .btn-ghost:hover { background: #e5e7eb; }
+    .btn-add { background: #1a1a2e; color: #fff; }
+    .btn-add:hover { background: #2d2d4e; }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 300;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 14px;
+      padding: 24px 28px; width: 100%; max-width: 520px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22); position: relative;
+      margin: 16px;
+    }
+    .modal-title { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+    .modal-close {
+      position: absolute; top: 14px; right: 16px;
+      background: none; border: none; font-size: 1.3rem; color: #9ca3af;
+      cursor: pointer; line-height: 1;
+    }
+    .modal-close:hover { color: #1a1a2e; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: 0.78rem; font-weight: 600; color: #4a4a6a; }
+    .form-group input, .form-group textarea {
+      padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
+      font-size: 0.88rem; outline: none; transition: border-color 0.15s; font-family: inherit;
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: #3949ab; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+
+    @media (max-width: 600px) {
+      header { padding: 12px 14px; }
+      main { margin: 16px auto; }
+      .form-grid { grid-template-columns: 1fr; }
+      .company-card { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
+      .company-main { min-width: 0; flex: 1 1 0; }
+      .company-stats { width: 100%; justify-content: flex-start; gap: 16px; margin-top: 0; }
+      .stat-val { font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <a href="/" style="text-decoration:none;color:inherit;">
+    <h1>BizRadar</h1>
+    <div class="subtitle">企業</div>
+  </a>
+  <button class="hamburger-btn" id="hamburger-btn" aria-label="メニュー">&#9776;</button>
+  <div class="hamburger-menu" id="hamburger-menu">
+    <span style="display:block;padding:10px 18px 6px;font-size:0.75rem;color:#6b7280;border-bottom:1px solid #2a2a4e;">{{ user_email }}</span>
+    <a href="/">ダッシュボード</a>
+    <a href="/news">ニュース</a>
+    <a href="/company" class="active">企業</a>
+    <a href="/management">モニター管理</a>
+    <a href="/settings">設定</a>
+    {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
+    <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <button type="submit" class="hm-btn">ログアウト</button>
+    </form>
+  </div>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <section>
+    <div class="section-title">
+      企業
+      <span class="count">{{ companies | length }} 社</span>
+      <button type="button" class="btn btn-add" style="margin-left:auto; font-size:0.78rem;" onclick="openAddCompanyModal()">企業を追加</button>
+    </div>
+
+    {% if companies %}
+    <div class="company-grid">
+      {% for c in companies %}
+      <a href="/companies/{{ c.id }}" class="company-card {% if c.alert_count > 0 %}has-alert{% endif %}" data-id="{{ c.id }}">
+        <div class="drag-handle" title="ドラッグして並び替え">⠿</div>
+        <div class="company-avatar">{{ c.name[0] }}</div>
+        <div class="company-main">
+          <div class="company-name">
+            {{ c.name }}
+            {% if c.alert_count > 0 %}
+            <span class="badge-alert">重要 {{ c.alert_count }}</span>
+            {% endif %}
+          </div>
+          {% if c.name_kana %}<div class="company-kana">{{ c.name_kana }}</div>{% endif %}
+          {% if c.website_url %}<div class="company-url">{{ c.website_url }}</div>{% endif %}
+        </div>
+        <div class="company-stats">
+          <div class="stat-item">
+            <div class="stat-val {% if c.unread_count > 0 %}unread{% endif %}">{{ c.unread_count }}</div>
+            <div class="stat-label">未読記事</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val">{{ c.site_count }}</div>
+            <div class="stat-label">サイト</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val">{{ c.keyword_count }}</div>
+            <div class="stat-label">キーワード</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" style="font-size:0.72rem;color:#9ca3af;">
+              {% if c.latest_article %}{{ c.latest_article[:10] }}{% else %}—{% endif %}
+            </div>
+            <div class="stat-label">最終記事</div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">企業がまだ登録されていません。「企業を追加」から追加してください。</div>
+    {% endif %}
+  </section>
+</main>
+
+<!-- 企業追加モーダル -->
+<div class="modal-overlay" id="add-company-modal" onclick="closeAddCompanyModalOnOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeAddCompanyModal()" aria-label="閉じる">×</button>
+    <div class="modal-title">企業を追加</div>
+    <form method="POST" action="/companies/add">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>企業名 <span style="color:#dc2626">*</span></label>
+          <input type="text" name="name" placeholder="例: トヨタ自動車" required maxlength="100">
+        </div>
+        <div class="form-group full">
+          <label style="display:flex; align-items:center; gap:8px; font-weight:400; cursor:pointer;">
+            <input type="checkbox" name="add_as_keyword" value="1" checked>
+            企業名をキーワードとして登録する
+          </label>
+        </div>
+        <div class="form-group">
+          <label>企業名（かな）</label>
+          <input type="text" name="name_kana" placeholder="例: とよたじどうしゃ" maxlength="200">
+        </div>
+        <div class="form-group">
+          <label>WebサイトURL</label>
+          <input type="url" name="website_url" placeholder="https://example.com" maxlength="500">
+        </div>
+        <div class="form-group">
+          <label>メモ</label>
+          <input type="text" name="memo" placeholder="任意のメモ" maxlength="500">
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button type="submit" class="btn btn-primary">追加</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAddCompanyModal()">キャンセル</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function () {
+  var grid = document.querySelector('.company-grid');
+  if (!grid) return;
+  Sortable.create(grid, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: function () {
+      var ids = Array.from(grid.querySelectorAll('.company-card[data-id]'))
+                     .map(function (el) { return parseInt(el.dataset.id, 10); });
+      fetch('/companies/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+      });
+    }
+  });
+})();
+</script>
+<script>
+function openAddCompanyModal() {
+  document.getElementById('add-company-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAddCompanyModal() {
+  document.getElementById('add-company-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeAddCompanyModalOnOverlay(e) {
+  if (e.target === document.getElementById('add-company-modal')) closeAddCompanyModal();
+}
+</script>
+<script>
+(function () {
+  var btn = document.getElementById('hamburger-btn');
+  var menu = document.getElementById('hamburger-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function (e) { e.stopPropagation(); menu.classList.toggle('open'); });
+  document.addEventListener('click', function () { menu.classList.remove('open'); });
+  menu.addEventListener('click', function (e) { e.stopPropagation(); });
+})();
+</script>
+</body>
+</html>

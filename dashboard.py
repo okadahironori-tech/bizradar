@@ -288,7 +288,7 @@ def add_site():
 
     if not url:
         flash("URLを入力してください", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("management"))
 
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
@@ -296,12 +296,12 @@ def add_site():
     sites = db.load_sites(user_id)
     if any(s["url"] == url for s in sites):
         flash(f"すでに登録済みです: {url}", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("management"))
 
     sites.append({"url": url, "name": name})
     db.save_sites(sites, user_id)
     flash(f"追加しました: {name if name else url}", "success")
-    return redirect(url_for("companies"))
+    return redirect(url_for("management"))
 
 
 @app.route("/remove_site", methods=["POST"])
@@ -313,10 +313,10 @@ def remove_site():
     new_sites = [s for s in sites if s["url"] != url]
     if len(new_sites) == len(sites):
         flash("該当URLが見つかりません", "error")
-        return redirect(request.referrer or url_for("companies"))
+        return redirect(request.referrer or url_for("management"))
     db.save_sites(new_sites, user_id)
     flash(f"削除しました: {url}", "success")
-    return redirect(request.referrer or url_for("companies"))
+    return redirect(request.referrer or url_for("management"))
 
 
 @app.route("/update_site_name", methods=["POST"])
@@ -331,20 +331,20 @@ def update_site_name():
 
     if not url:
         flash("URLが不正です", "error")
-        return redirect(request.referrer or url_for("companies"))
+        return redirect(request.referrer or url_for("management"))
 
     # そのユーザーが登録しているURLか確認（URL固定の保証）
     if not any(s["url"] == url for s in db.load_sites(user_id)):
         flash("該当URLが見つかりません", "error")
-        return redirect(request.referrer or url_for("companies"))
+        return redirect(request.referrer or url_for("management"))
 
     ok = db.update_site_name(user_id=user_id, url=url, name=name)
     if not ok:
         flash("会社名の更新に失敗しました", "error")
-        return redirect(request.referrer or url_for("companies"))
+        return redirect(request.referrer or url_for("management"))
 
     flash(f"会社名を更新しました: {name if name else url}", "success")
-    return redirect(request.referrer or url_for("companies"))
+    return redirect(request.referrer or url_for("management"))
 
 
 @app.route("/check_site", methods=["POST"])
@@ -353,7 +353,7 @@ def check_site():
     url = request.form.get("url", "").strip()
     if url in db.get_all_running_tasks().get("site_check", set()):
         flash(f"チェック実行中です: {url}", "error")
-        return redirect(request.referrer or url_for("companies"))
+        return redirect(request.referrer or url_for("management"))
 
     user_id = session["user_id"]
     sites = db.load_sites(user_id)
@@ -371,7 +371,7 @@ def check_site():
 
     threading.Thread(target=run, daemon=True).start()
     flash(f"チェックを開始しました: {site_name if site_name else url}", "success")
-    return redirect(request.referrer or url_for("companies"))
+    return redirect(request.referrer or url_for("management"))
 
 
 @app.route("/collect_keyword", methods=["POST"])
@@ -498,15 +498,15 @@ def add_alert_keyword():
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
         flash("キーワードを入力してください", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("management"))
     if len(keyword) > 50:
         flash("キーワードは50文字以内で入力してください", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("management"))
     if db.add_alert_keyword(user_id, keyword):
         flash(f"アラートキーワード「{keyword}」を追加しました", "success")
     else:
         flash(f"「{keyword}」はすでに登録済みです", "error")
-    return redirect(url_for("companies"))
+    return redirect(url_for("management"))
 
 
 @app.route("/delete_alert_keyword", methods=["POST"])
@@ -517,9 +517,9 @@ def delete_alert_keyword():
         keyword_id = int(request.form.get("keyword_id", "0"))
     except ValueError:
         flash("不正なリクエストです", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("management"))
     db.delete_alert_keyword(user_id, keyword_id)
-    return redirect(url_for("companies"))
+    return redirect(url_for("management"))
 
 
 @app.route("/mark_read/<int:article_id>", methods=["POST"])
@@ -829,9 +829,24 @@ def api_status():
 # Companies
 # ============================================================
 
-@app.route("/companies")
+@app.route("/company")
 @login_required
-def companies():
+def company_list():
+    user_id = session["user_id"]
+    alert_kws = db.get_alert_keywords_set(user_id)
+    companies = db.load_companies(user_id)
+    for c in companies:
+        summary = db.get_company_summary(user_id, c["id"], alert_kws)
+        c.update(summary)
+    return render_template("company_list.html",
+                           companies=companies,
+                           user_email=session.get("email", ""),
+                           is_admin=session.get("is_admin", False))
+
+
+@app.route("/management")
+@login_required
+def management():
     user_id = session["user_id"]
     alert_kws = db.get_alert_keywords_set(user_id)
     company_list = db.load_companies(user_id)
@@ -905,7 +920,7 @@ def add_company():
     name = request.form.get("name", "").strip()
     if not name:
         flash("企業名を入力してください", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("management"))
     name_kana   = request.form.get("name_kana", "").strip()
     website_url = request.form.get("website_url", "").strip()
     memo        = request.form.get("memo", "").strip()
@@ -915,7 +930,7 @@ def add_company():
         if created:
             db.set_keyword_company(user_id, name, company_id)
     flash(f"「{name}」を登録しました", "success")
-    return redirect(url_for("companies"))
+    return redirect(url_for("company_list"))
 
 
 @app.route("/companies/<int:company_id>")
@@ -925,7 +940,7 @@ def company_detail(company_id):
     company = db.get_company(user_id, company_id)
     if not company:
         flash("企業が見つかりません", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("management"))
 
     alert_kws = db.get_alert_keywords_set(user_id)
 
@@ -981,7 +996,7 @@ def delete_company(company_id):
     company = db.get_company(user_id, company_id)
     if company and db.delete_company(user_id, company_id):
         flash(f"「{company['name']}」を削除しました", "success")
-    return redirect(url_for("companies"))
+    return redirect(url_for("company_list"))
 
 
 @app.route("/companies/<int:company_id>/link_site", methods=["POST"])
