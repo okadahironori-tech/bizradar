@@ -43,12 +43,15 @@ def init_db():
         with conn.cursor() as cur:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id            SERIAL PRIMARY KEY,
-                    email         TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    salt          TEXT NOT NULL,
-                    is_admin      BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    id                 SERIAL PRIMARY KEY,
+                    email              TEXT UNIQUE NOT NULL,
+                    password_hash      TEXT NOT NULL,
+                    salt               TEXT NOT NULL,
+                    is_admin           BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    -- 課金プラン: 'free' / 'pro' / 'corporate'
+                    plan               TEXT NOT NULL DEFAULT 'free',
+                    stripe_customer_id TEXT
                 );
                 CREATE TABLE IF NOT EXISTS sites (
                     id      SERIAL PRIMARY KEY,
@@ -319,6 +322,16 @@ def _run_migrations():
                     END IF;
                 END $$;
             """)
+
+            # users: 課金プラン ('free' / 'pro' / 'corporate') と Stripe 顧客 ID
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "plan TEXT NOT NULL DEFAULT 'free';"
+            )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "stripe_customer_id TEXT;"
+            )
 
             # companies: 並び順カラム追加
             cur.execute(
