@@ -515,64 +515,6 @@
     </div>
   </section>
 
-  <!-- モニターサイト（最新5件、ステータスのみ） -->
-  <section>
-    <div class="section-title">
-      モニターサイト
-      <span class="count">{{ sites | length }} サイト</span>
-      <a href="/companies" style="margin-left:auto; font-size:0.78rem; color:#3949ab; text-decoration:none; font-weight:600;">管理する →</a>
-    </div>
-    <div class="card">
-      {% if sites %}
-      <table>
-        <thead>
-          <tr>
-            <th>会社名 / URL</th>
-            <th>ステータス</th>
-            <th>最終チェック</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for site in sites[:5] %}
-          <tr>
-            <td>
-              {% if site.company_id %}
-              <a href="/companies/{{ site.company_id }}" class="site-name" style="text-decoration:none;">{{ site.name if site.name else "—" }}</a>
-              {% else %}
-              <div class="site-name">{{ site.name if site.name else "—" }}</div>
-              {% endif %}
-              <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
-            </td>
-            <td>
-              {% if site.checking %}
-                <span class="badge badge-checking">チェック中...</span>
-              {% elif site.status == "ok" %}
-                <span class="badge badge-ok">正常</span>
-              {% elif site.status == "changed" %}
-                <span class="badge badge-changed">変更あり</span>
-              {% elif site.status == "error" %}
-                <span class="badge {{ site.error_cls }}">{{ site.error_label }}</span>
-              {% elif site.status == "new" %}
-                <span class="badge badge-new">初回記録</span>
-              {% else %}
-                <span class="badge badge-unknown">未チェック</span>
-              {% endif %}
-            </td>
-            <td style="font-size:0.82rem; color:#6b7280;">{{ site.last_check }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% if sites | length > 5 %}
-      <div class="view-all-bar">
-        <a href="/companies" class="view-all-link">すべて管理する（{{ sites | length }} サイト） →</a>
-      </div>
-      {% endif %}
-      {% else %}
-        <div class="empty-state">モニターサイトが登録されていません</div>
-      {% endif %}
-    </div>
-  </section>
 
 </main>
 
