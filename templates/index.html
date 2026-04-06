@@ -185,8 +185,7 @@
     .today-companies-card {
       background: #fff; border-radius: 12px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      padding: 20px 24px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 20px 24px 0;
     }
     .today-companies-num {
       font-size: 2rem; font-weight: 700; color: #1a1a2e; line-height: 1;
@@ -329,7 +328,7 @@
       .site-name { font-size: 0.88rem; }
       .url-link { font-size: 0.78rem; }
 
-      .today-companies-card { padding: 16px; }
+      .today-companies-card { padding: 16px 16px 0; }
 
       .timeline-item { padding: 11px 14px; gap: 10px; }
       .timeline-meta { font-size: 0.72rem; }
@@ -420,7 +419,7 @@
   <section>
     <div class="section-title">本日の更新企業</div>
     <div class="today-companies-card">
-      <div style="flex:1; min-width:0;">
+      <div>
         <div class="today-companies-num">{{ summary_today_companies }}</div>
         <div class="today-companies-label">企業が本日活動</div>
         {% if today_company_list %}
@@ -444,7 +443,7 @@
         </div>
         {% endif %}
       </div>
-      <a href="/company" class="view-all-link" style="flex-shrink:0;">一覧を見る →</a>
+      <div class="view-all-bar"><a href="/company" class="view-all-link">一覧を見る →</a></div>
     </div>
   </section>
 
