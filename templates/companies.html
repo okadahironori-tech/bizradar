@@ -402,6 +402,33 @@
     </div>
   </section>
 
+  <!-- ── 重要アラートキーワード ── -->
+  <section>
+    <div class="section-title">重要アラートキーワード</div>
+    <div class="card">
+      <div class="settings-panel" style="flex-direction:column; align-items:flex-start; gap:12px;">
+        <p style="font-size:0.82rem;color:#6b7280;margin:0;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
+        {% if alert_kw_entries %}
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          {% for ak in alert_kw_entries %}
+          <form method="POST" action="/delete_alert_keyword" style="margin:0;" onsubmit="return confirm('「{{ ak.keyword }}」を削除しますか？')">
+            <input type="hidden" name="keyword_id" value="{{ ak.id }}">
+            <button type="submit" class="alert-kw-tag">{{ ak.keyword }} ×</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:0.82rem;color:#9ca3af;margin:0;">アラートキーワードが登録されていません</p>
+        {% endif %}
+        <form method="POST" action="/add_alert_keyword" style="display:flex; gap:8px; flex-wrap:wrap; width:100%;">
+          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
+            style="flex:1; min-width:160px; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; outline:none;">
+          <button type="submit" class="btn btn-save">追加</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <!-- ── 企業一覧 ── -->
   <section>
     <div class="section-title">
@@ -511,29 +538,6 @@
         </div>
         <button type="submit" class="btn btn-save">保存</button>
       </form>
-      <hr class="settings-divider">
-
-      <div class="settings-panel" style="flex-direction:column; align-items:flex-start; gap:12px;">
-        <label>重要アラートキーワード</label>
-        <p style="font-size:0.82rem;color:#6b7280;margin:0;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
-        {% if alert_kw_entries %}
-        <div style="display:flex; flex-wrap:wrap; gap:8px;">
-          {% for ak in alert_kw_entries %}
-          <form method="POST" action="/delete_alert_keyword" style="margin:0;" onsubmit="return confirm('「{{ ak.keyword }}」を削除しますか？')">
-            <input type="hidden" name="keyword_id" value="{{ ak.id }}">
-            <button type="submit" class="alert-kw-tag">{{ ak.keyword }} ×</button>
-          </form>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p style="font-size:0.82rem;color:#9ca3af;margin:0;">アラートキーワードが登録されていません</p>
-        {% endif %}
-        <form method="POST" action="/add_alert_keyword" style="display:flex; gap:8px; flex-wrap:wrap; width:100%;">
-          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
-            style="flex:1; min-width:160px; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; outline:none;">
-          <button type="submit" class="btn btn-save">追加</button>
-        </form>
-      </div>
       <hr class="settings-divider">
 
       <form class="settings-panel" method="POST" action="/change_password">
