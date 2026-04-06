@@ -1074,16 +1074,21 @@ def count_active_companies_today(user_id: int) -> int:
 
 
 def load_active_companies_today(user_id: int) -> list:
-    """当日 JST 0:00 以降に活動のあった企業を {id, name} のリストで返す。"""
+    """当日 JST 0:00 以降に活動のあった企業を返す。
+    各企業に changes（最大3件）と news_count を付与する。
+    """
     from datetime import datetime, timezone, timedelta
     jst = timezone(timedelta(hours=9))
     now_jst = datetime.now(jst)
     jst_midnight = now_jst.replace(hour=0, minute=0, second=0, microsecond=0)
-    utc_midnight = jst_midnight.astimezone(timezone.utc)
-    today_utc_str = utc_midnight.strftime("%Y-%m-%d %H:%M:%S")
+    # change_history.timestamp は JST 文字列で保存されているため JST 基準で比較
+    jst_midnight_str = jst_midnight.strftime("%Y-%m-%d %H:%M:%S")
+    # articles.found_at は UTC 基準のため UTC 変換
+    utc_midnight_str = jst_midnight.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # ── 1. 本日活動した企業を取得 ──
             cur.execute(
                 """
                 SELECT DISTINCT c.id, c.name
@@ -1107,9 +1112,60 @@ def load_active_companies_today(user_id: int) -> list:
                   )
                 ORDER BY c.name
                 """,
-                (user_id, user_id, today_utc_str, user_id, today_utc_str),
+                (user_id, user_id, jst_midnight_str, user_id, utc_midnight_str),
             )
-            return [dict(row) for row in cur.fetchall()]
+            companies = [dict(row) for row in cur.fetchall()]
+
+        if not companies:
+            return []
+
+        company_ids = [c["id"] for c in companies]
+
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # ── 2. 企業ごとの変更検知（最大3件）を取得 ──
+            cur.execute(
+                """
+                SELECT s.company_id, ch.timestamp
+                FROM change_history ch
+                JOIN sites s ON s.url = ch.url
+                WHERE s.user_id = %s
+                  AND s.company_id = ANY(%s)
+                  AND ch.timestamp >= %s
+                ORDER BY ch.timestamp DESC
+                """,
+                (user_id, company_ids, jst_midnight_str),
+            )
+            changes_map: dict = {}
+            for row in cur.fetchall():
+                cid = row["company_id"]
+                if cid not in changes_map:
+                    changes_map[cid] = []
+                if len(changes_map[cid]) < 3:
+                    ts = row["timestamp"]
+                    # "YYYY-MM-DD HH:MM:SS" → "HH:MM"
+                    hhmm = ts[11:16] if len(ts) >= 16 else ts
+                    changes_map[cid].append({"timestamp": hhmm})
+
+            # ── 3. 企業ごとの本日ニュース記事数を取得 ──
+            cur.execute(
+                """
+                SELECT k.company_id, COUNT(*) AS cnt
+                FROM articles a
+                JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword
+                WHERE k.user_id = %s
+                  AND k.company_id = ANY(%s)
+                  AND a.found_at >= %s
+                GROUP BY k.company_id
+                """,
+                (user_id, company_ids, utc_midnight_str),
+            )
+            news_map = {row["company_id"]: row["cnt"] for row in cur.fetchall()}
+
+    for c in companies:
+        c["changes"]    = changes_map.get(c["id"], [])
+        c["news_count"] = news_map.get(c["id"], 0)
+
+    return companies
 
 
 def load_companies(user_id: int) -> list:

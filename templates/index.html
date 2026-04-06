@@ -425,7 +425,17 @@
         {% if today_company_list %}
         <div class="today-company-names">
           {% for c in today_company_list[:5] %}
-          <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
+          <div style="margin-bottom:6px;">
+            <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
+            {% if c.changes %}
+              {% for ch in c.changes %}
+              <span style="display:inline-block; font-size:0.74rem; color:#6b7280; margin-left:6px;">{{ ch.timestamp }} サイト変更あり</span>
+              {% endfor %}
+            {% endif %}
+            {% if c.news_count > 0 %}
+            <span style="display:inline-block; font-size:0.74rem; color:#3949ab; margin-left:6px;">ニュース {{ c.news_count }} 件</span>
+            {% endif %}
+          </div>
           {% endfor %}
           {% if today_company_list | length > 5 %}
           <span class="today-company-sep">他 {{ today_company_list | length - 5 }} 社</span>
