@@ -566,7 +566,7 @@ def set_notify_timing():
         flash(f"通知タイミングを「{labels.get(timing, timing)}」に変更しました", "success")
     else:
         flash("通知タイミングの更新に失敗しました", "error")
-    return redirect(url_for("companies"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/change_password", methods=["POST"])
@@ -579,19 +579,19 @@ def change_password():
 
     if new_pass != confirm:
         flash("新しいパスワードが一致しません", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("settings"))
     if len(new_pass) < 6:
         flash("パスワードは6文字以上で入力してください", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("settings"))
 
     user = db.get_user_by_id(user_id)
     if not user or not db.verify_user_password(user, current):
         flash("現在のパスワードが正しくありません", "error")
-        return redirect(url_for("companies"))
+        return redirect(url_for("settings"))
 
     db.update_user_password(user_id, new_pass)
     flash("パスワードを変更しました", "success")
-    return redirect(url_for("companies"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/set_interval", methods=["POST"])
@@ -607,7 +607,7 @@ def set_interval():
     config["check_interval_seconds"] = seconds
     db.save_config(config)
     flash(f"チェック間隔を {seconds // 60} 分に変更しました", "success")
-    return redirect(url_for("companies"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/news")
@@ -636,7 +636,13 @@ def news():
 @app.route("/settings")
 @login_required
 def settings():
-    return redirect(url_for("companies"))
+    user_id = session["user_id"]
+    config = db.load_config()
+    return render_template("settings.html",
+                           check_interval=config.get("check_interval_seconds", 3600),
+                           notify_timing=db.get_user_notify_timing(user_id),
+                           user_email=session.get("email", ""),
+                           is_admin=session.get("is_admin", False))
 
 
 @app.route("/admin")

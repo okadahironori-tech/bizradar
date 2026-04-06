@@ -243,6 +243,7 @@
     <a href="/">ダッシュボード</a>
     <a href="/news">ニュース</a>
     <a href="/companies" class="active">モニター管理</a>
+    <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
       <button type="submit" class="hm-btn">ログアウト</button>
@@ -500,51 +501,6 @@
     </div>
   </section>
 
-  <!-- ── アカウント設定 ── -->
-  <section>
-    <div class="section-title">アカウント設定</div>
-    <div class="card">
-      {% if is_admin %}
-      <form class="settings-panel" method="POST" action="/set_interval">
-        <label>チェック間隔（管理者）</label>
-        <div class="interval-options">
-          {% for lbl, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
-          <label>
-            <input type="radio" name="seconds" value="{{ val }}" {% if check_interval == val %}checked{% endif %}>
-            <span>{{ lbl }}</span>
-          </label>
-          {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-save">保存</button>
-      </form>
-      <hr class="settings-divider">
-      {% endif %}
-
-      <form class="settings-panel" method="POST" action="/set_notify_timing">
-        <label>ニュース通知タイミング</label>
-        <div class="interval-options">
-          {% for lbl, val in [("即時通知", "immediate"), ("毎朝8時にまとめて通知", "digest_08"), ("毎日18時にまとめて通知", "digest_18")] %}
-          <label>
-            <input type="radio" name="notify_timing" value="{{ val }}" {% if notify_timing == val %}checked{% endif %}>
-            <span>{{ lbl }}</span>
-          </label>
-          {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-save">保存</button>
-      </form>
-      <hr class="settings-divider">
-
-      <form class="settings-panel" method="POST" action="/change_password">
-        <label>パスワード変更</label>
-        <div class="pw-change-fields">
-          <input type="password" name="current_password" placeholder="現在のパスワード" required>
-          <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required>
-          <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required>
-        </div>
-        <button type="submit" class="btn btn-save">変更する</button>
-      </form>
-    </div>
-  </section>
 
 </main>
 
