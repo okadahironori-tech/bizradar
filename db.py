@@ -332,6 +332,10 @@ def _run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "stripe_customer_id TEXT;"
             )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "last_login_at TIMESTAMP WITH TIME ZONE;"
+            )
 
             # companies: 並び順カラム追加
             cur.execute(
@@ -401,6 +405,28 @@ def get_user_by_id(user_id: int):
 def verify_user_password(user: dict, password: str) -> bool:
     h = _hash_pw(password, user["salt"])
     return _hmac.compare_digest(h, user["password_hash"])
+
+
+def get_user_last_login(user_id: int):
+    """last_login_at を返す（datetime or None）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT last_login_at FROM users WHERE id = %s",
+                (user_id,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def update_last_login(user_id: int):
+    """ログイン成功時に last_login_at を現在時刻で更新する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET last_login_at = NOW() WHERE id = %s",
+                (user_id,)
+            )
 
 
 def update_user_password(user_id: int, new_password: str):
@@ -1197,6 +1223,96 @@ def load_active_companies_today(user_id: int) -> list:
                 GROUP BY k.company_id
                 """,
                 (user_id, company_ids, utc_midnight_str),
+            )
+            news_map = {row["company_id"]: row["cnt"] for row in cur.fetchall()}
+
+    for c in companies:
+        c["changes"]    = changes_map.get(c["id"], [])
+        c["news_count"] = news_map.get(c["id"], 0)
+
+    return companies
+
+
+def load_active_companies_since(user_id: int, since_dt) -> list:
+    """since_dt 以降にサイト変更またはニュース記事があった企業を返す。
+    since_dt は timezone-aware な datetime オブジェクト。
+    load_active_companies_today() と同じ構造で since_dt を起点にする。
+    """
+    from datetime import timezone, timedelta
+    jst = timezone(timedelta(hours=9))
+    # change_history.timestamp は JST 文字列
+    since_jst_str = since_dt.astimezone(jst).strftime("%Y-%m-%d %H:%M:%S")
+    # articles.found_at は UTC
+    since_utc_str = since_dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT c.id, c.name
+                FROM companies c
+                WHERE c.user_id = %s
+                  AND c.id IN (
+                    SELECT s.company_id
+                    FROM sites s
+                    JOIN change_history ch ON ch.url = s.url
+                    WHERE s.user_id = %s
+                      AND s.company_id IS NOT NULL
+                      AND ch.timestamp >= %s
+                    UNION
+                    SELECT k.company_id
+                    FROM keywords k
+                    JOIN articles a
+                      ON a.user_id = k.user_id AND a.keyword = k.keyword
+                    WHERE k.user_id = %s
+                      AND k.company_id IS NOT NULL
+                      AND a.found_at >= %s
+                  )
+                ORDER BY c.name
+                """,
+                (user_id, user_id, since_jst_str, user_id, since_utc_str),
+            )
+            companies = [dict(row) for row in cur.fetchall()]
+
+        if not companies:
+            return []
+
+        company_ids = [c["id"] for c in companies]
+
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT s.company_id, ch.timestamp
+                FROM change_history ch
+                JOIN sites s ON s.url = ch.url
+                WHERE s.user_id = %s
+                  AND s.company_id = ANY(%s)
+                  AND ch.timestamp >= %s
+                ORDER BY ch.timestamp DESC
+                """,
+                (user_id, company_ids, since_jst_str),
+            )
+            changes_map: dict = {}
+            for row in cur.fetchall():
+                cid = row["company_id"]
+                if cid not in changes_map:
+                    changes_map[cid] = []
+                if len(changes_map[cid]) < 3:
+                    ts = row["timestamp"]
+                    hhmm = ts[11:16] if len(ts) >= 16 else ts
+                    changes_map[cid].append({"timestamp": hhmm})
+
+            cur.execute(
+                """
+                SELECT k.company_id, COUNT(*) AS cnt
+                FROM articles a
+                JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword
+                WHERE k.user_id = %s
+                  AND k.company_id = ANY(%s)
+                  AND a.found_at >= %s
+                GROUP BY k.company_id
+                """,
+                (user_id, company_ids, since_utc_str),
             )
             news_map = {row["company_id"]: row["cnt"] for row in cur.fetchall()}
 

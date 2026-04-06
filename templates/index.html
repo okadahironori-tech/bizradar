@@ -447,6 +447,38 @@
     </div>
   </section>
 
+  <!-- 前回ログイン以降の更新企業 -->
+  {% if prev_login_company_list %}
+  <section>
+    <div class="section-title">前回確認時（{{ prev_login_at.strftime('%m月%d日') }}）以降の更新企業</div>
+    <div class="today-companies-card">
+      <div>
+        <div class="today-companies-num">{{ prev_login_company_list | length }}</div>
+        <div class="today-companies-label">企業に動きがありました</div>
+        <div class="today-company-names">
+          {% for c in prev_login_company_list[:5] %}
+          <div style="margin-bottom:6px;">
+            <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
+            {% if c.changes %}
+              {% for ch in c.changes %}
+              <span style="display:inline-block; font-size:0.74rem; color:#6b7280; margin-left:6px;">{{ ch.timestamp }} サイト変更あり</span>
+              {% endfor %}
+            {% endif %}
+            {% if c.news_count > 0 %}
+            <span style="display:inline-block; font-size:0.74rem; color:#3949ab; margin-left:6px;">ニュース {{ c.news_count }} 件</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% if prev_login_company_list | length > 5 %}
+          <span class="today-company-sep">他 {{ prev_login_company_list | length - 5 }} 社</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="view-all-bar"><a href="/company" class="view-all-link">一覧を見る →</a></div>
+    </div>
+  </section>
+  {% endif %}
+
   <!-- 更新検知履歴（最新5件） -->
   <section>
     {% set hist_ns = namespace(shown=0) %}

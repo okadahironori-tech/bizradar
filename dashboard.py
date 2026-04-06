@@ -146,6 +146,7 @@ def login():
             session["user_id"] = user["id"]
             session["email"] = user["email"]
             session["is_admin"] = user["is_admin"]
+            db.update_last_login(user["id"])
             next_url = request.form.get("next", "")
             return redirect(next_url if next_url.startswith("/") else url_for("index"))
         error = "メールアドレスまたはパスワードが正しくありません"
@@ -255,6 +256,17 @@ def index():
     today_company_list = db.load_active_companies_today(user_id)
     today_companies    = len(today_company_list)
 
+    # ---- 前回ログイン以降の更新企業（今日0:00より前が対象） ----
+    from datetime import datetime, timezone, timedelta
+    jst = timezone(timedelta(hours=9))
+    today_jst_midnight = datetime.now(jst).replace(hour=0, minute=0, second=0, microsecond=0)
+    last_login_at = db.get_user_last_login(user_id)
+    if last_login_at and last_login_at < today_jst_midnight:
+        prev_login_company_list = db.load_active_companies_since(user_id, last_login_at)
+    else:
+        prev_login_company_list = []
+    prev_login_at = last_login_at
+
     return render_template(
         "index.html",
         sites=sites,
@@ -276,6 +288,8 @@ def index():
         summary_error_sites=error_site_count,
         summary_today_companies=today_companies,
         today_company_list=today_company_list,
+        prev_login_company_list=prev_login_company_list,
+        prev_login_at=prev_login_at,
     )
 
 
