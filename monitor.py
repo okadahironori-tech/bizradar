@@ -582,26 +582,74 @@ def _is_nav(text: str) -> bool:
     return not bool(_DIFF_NAV_RE.search(text))
 
 
-def compute_diff_summary(old_content: str, new_content: str) -> list:
+def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "") -> list:
     """変更箇所のサマリーを生成する（追加 最大20件・削除 最大5件）
     保存段階で日付行・ナビゲーション行・5文字未満の行を除外し、有意義な行で枠を埋める。
     """
     old_lines = old_content.splitlines()
     new_lines = new_content.splitlines()
     diff = difflib.unified_diff(old_lines, new_lines, lineterm="", n=0)
+
+    # --- デバッグ用カウンター ---
+    raw_added = 0
+    raw_removed = 0
+    skip_short_a = 0
+    skip_short_r = 0
+    skip_date_a = 0
+    skip_date_r = 0
+    skip_nav_a = 0
+    skip_nav_r = 0
+    skip_nav_examples = []
+    # ----------------------------
+
     added = []
     removed = []
     for line in diff:
         if line.startswith("+") and not line.startswith("+++"):
             text = line[1:].strip()
-            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and not _is_nav(text) and len(added) < 20:
+            if not text:
+                continue
+            raw_added += 1
+            if len(text) < 5:
+                skip_short_a += 1; continue
+            if _DIFF_DATE_RE.match(text):
+                skip_date_a += 1; continue
+            if _is_nav(text):
+                skip_nav_a += 1
+                if len(skip_nav_examples) < 5:
+                    skip_nav_examples.append(f"+{text}")
+                continue
+            if len(added) < 20:
                 added.append({"type": "added", "text": text})
         elif line.startswith("-") and not line.startswith("---"):
             text = line[1:].strip()
-            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and not _is_nav(text) and len(removed) < 5:
+            if not text:
+                continue
+            raw_removed += 1
+            if len(text) < 5:
+                skip_short_r += 1; continue
+            if _DIFF_DATE_RE.match(text):
+                skip_date_r += 1; continue
+            if _is_nav(text):
+                skip_nav_r += 1
+                if len(skip_nav_examples) < 5:
+                    skip_nav_examples.append(f"-{text}")
+                continue
+            if len(removed) < 5:
                 removed.append({"type": "removed", "text": text})
         if len(added) >= 20 and len(removed) >= 5:
             break
+
+    # --- デバッグログ出力 ---
+    label = f"[diff:{_debug_url}]" if _debug_url else "[diff]"
+    print(f"{label} 生diff: added={raw_added}, removed={raw_removed}")
+    print(f"{label} 除外(added):  短い={skip_short_a}, 日付={skip_date_a}, nav={skip_nav_a}")
+    print(f"{label} 除外(removed): 短い={skip_short_r}, 日付={skip_date_r}, nav={skip_nav_r}")
+    print(f"{label} 保存: added={len(added)}, removed={len(removed)}")
+    if skip_nav_examples:
+        print(f"{label} nav除外サンプル: {skip_nav_examples}")
+    # -----------------------
+
     return added + removed
 
 
@@ -660,7 +708,7 @@ def check_single_site(url: str, site_name: str = ""):
         elif previous_hashes[url] != new_hash:
             print(f"  → 変更を検出しました！: {url}")
             old_content  = _normalize_lines(content_store.get(url, ""))
-            diff_summary = compute_diff_summary(old_content, content) if old_content else []
+            diff_summary = compute_diff_summary(old_content, content, _debug_url=url) if old_content else []
             send_email(url, site_name)
             log["last_checks"][url] = {"timestamp": now_str, "status": "changed"}
             log["change_history"].insert(0, {
