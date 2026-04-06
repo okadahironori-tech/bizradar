@@ -189,6 +189,24 @@
     }
     .history-item:last-child { border-bottom: none; }
     .history-ts { color: #9ca3af; font-size: 0.72rem; margin-top: 2px; }
+    .history-url { margin-top: 2px; }
+    .history-url a { color: #3949ab; text-decoration: none; font-size: 0.78rem; word-break: break-all; }
+    .history-url a:hover { text-decoration: underline; }
+    .diff-toggle {
+      margin-top: 6px; font-size: 0.75rem; color: #6b7280;
+      cursor: pointer; text-decoration: underline;
+      background: none; border: none; padding: 0;
+    }
+    .diff-block {
+      margin-top: 6px; display: none;
+      border-radius: 6px; overflow: hidden;
+      border: 1px solid #e5e7eb; font-size: 0.78rem;
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+    .diff-block.open { display: block; }
+    .diff-line { padding: 3px 10px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+    .diff-added         { background: #f0fdf4; color: #166534; }
+    .diff-added::before { content: "+ "; }
 
     /* 編集フォーム（折りたたみ） */
     .edit-section {
@@ -378,8 +396,28 @@
       {% if history %}
         {% for h in history %}
         <div class="history-item">
-          <div><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
           <div class="history-ts">{{ h.timestamp }}</div>
+          <div class="history-url"><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
+          {% set ns = namespace(count=0) %}
+          {% set visible = [] %}
+          {% for d in h.diff %}
+            {% set clean = d.text | replace('\t', '') | trim %}
+            {% set is_date = (('年' in clean and '月' in clean and clean | length <= 15)
+                              or ('月' in clean and '日' in clean and clean | length <= 8)
+                              or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
+            {% if d.type == 'added' and clean | length >= 10 and not is_date %}
+              {% if visible.append(d) %}{% endif %}
+              {% set ns.count = ns.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.count > 0 %}
+          <button class="diff-toggle" onclick="toggleDiff(this)">差分を表示（{{ ns.count }} 件）</button>
+          <div class="diff-block">
+            {% for d in visible %}
+            <div class="diff-line diff-added">{{ d.text }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
         </div>
         {% endfor %}
       {% else %}
@@ -520,6 +558,14 @@
   document.addEventListener('click', function () { menu.classList.remove('open'); });
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 })();
+
+function toggleDiff(btn) {
+  var block = btn.nextElementSibling;
+  block.classList.toggle('open');
+  btn.textContent = block.classList.contains('open')
+    ? '差分を隠す'
+    : btn.textContent.replace('隠す', '表示（' + block.children.length + ' 件）');
+}
 </script>
 </body>
 </html>
