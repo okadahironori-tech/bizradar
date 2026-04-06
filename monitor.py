@@ -567,8 +567,16 @@ def compute_hash(content: str) -> str:
     return hashlib.md5(content.encode("utf-8")).hexdigest()
 
 
+_DIFF_DATE_RE = re.compile(
+    r"^\d{4}[年./\-]\d{1,2}[月./\-]\d{1,2}"  # 2024年4月7日 / 2024-04-07
+    r"|^\d{1,2}[月/]\d{1,2}日?$"              # 4月7日
+)
+
+
 def compute_diff_summary(old_content: str, new_content: str) -> list:
-    """変更箇所のサマリーを生成する（追加・削除それぞれ最大5件、合計最大10件）"""
+    """変更箇所のサマリーを生成する（追加 最大20件・削除 最大5件）
+    保存段階で日付行・5文字未満の行を除外し、有意義な行で枠を埋める。
+    """
     old_lines = old_content.splitlines()
     new_lines = new_content.splitlines()
     diff = difflib.unified_diff(old_lines, new_lines, lineterm="", n=0)
@@ -577,13 +585,13 @@ def compute_diff_summary(old_content: str, new_content: str) -> list:
     for line in diff:
         if line.startswith("+") and not line.startswith("+++"):
             text = line[1:].strip()
-            if text and len(added) < 5:
+            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and len(added) < 20:
                 added.append({"type": "added", "text": text})
         elif line.startswith("-") and not line.startswith("---"):
             text = line[1:].strip()
-            if text and len(removed) < 5:
+            if text and len(text) >= 5 and not _DIFF_DATE_RE.match(text) and len(removed) < 5:
                 removed.append({"type": "removed", "text": text})
-        if len(added) >= 5 and len(removed) >= 5:
+        if len(added) >= 20 and len(removed) >= 5:
             break
     return added + removed
 

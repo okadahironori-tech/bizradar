@@ -491,10 +491,10 @@
       {% set ns = namespace(count=0) %}
       {% for d in event.diff %}
         {% set clean = d.text | replace('\t', '') | trim %}
-        {% set is_date = (('年' in clean and '月' in clean and clean | length <= 15)
+        {% set is_date = (('年' in clean and '月' in clean and clean | length <= 12)
                           or ('月' in clean and '日' in clean and clean | length <= 8)
                           or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
-        {% if d.type == 'added' and clean | length >= 10 and not is_date %}
+        {% if (d.type == 'added' or d.type == 'removed') and clean | length >= 10 and not is_date %}
           {% set ns.count = ns.count + 1 %}
         {% endif %}
       {% endfor %}
@@ -525,9 +525,11 @@
               {% set ns = namespace(count=0) %}
               {% set visible = [] %}
               {% for d in event.diff %}
-                {% set clean = d.text | replace('\t', '') %}
-                {% if d.type == 'added' and clean | length >= 10
-                      and not ('年' in clean and '月' in clean and '日' in clean and clean | length <= 11) %}
+                {% set clean = d.text | replace('\t', '') | trim %}
+                {% set is_date = (('年' in clean and '月' in clean and clean | length <= 12)
+                                  or ('月' in clean and '日' in clean and clean | length <= 8)
+                                  or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
+                {% if (d.type == 'added' or d.type == 'removed') and clean | length >= 10 and not is_date %}
                   {% if visible.append(d) %}{% endif %}
                   {% set ns.count = ns.count + 1 %}
                 {% endif %}
@@ -537,7 +539,7 @@
               </button>
               <div class="diff-block">
                 {% for d in visible %}
-                <div class="diff-line diff-added">{{ d.text }}</div>
+                <div class="diff-line {% if d.type == 'removed' %}diff-removed{% else %}diff-added{% endif %}">{{ d.text }}</div>
                 {% endfor %}
               </div>
             </div>

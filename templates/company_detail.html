@@ -205,8 +205,10 @@
     }
     .diff-block.open { display: block; }
     .diff-line { padding: 3px 10px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
-    .diff-added         { background: #f0fdf4; color: #166534; }
-    .diff-added::before { content: "+ "; }
+    .diff-added           { background: #f0fdf4; color: #166534; }
+    .diff-added::before   { content: "+ "; }
+    .diff-removed         { background: #fef2f2; color: #991b1b; }
+    .diff-removed::before { content: "- "; }
 
     /* 編集フォーム */
     .btn-edit { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
@@ -419,10 +421,10 @@
           {% set visible = [] %}
           {% for d in h.diff %}
             {% set clean = d.text | replace('\t', '') | trim %}
-            {% set is_date = (('年' in clean and '月' in clean and clean | length <= 15)
+            {% set is_date = (('年' in clean and '月' in clean and clean | length <= 12)
                               or ('月' in clean and '日' in clean and clean | length <= 8)
                               or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
-            {% if d.type == 'added' and clean | length >= 10 and not is_date %}
+            {% if (d.type == 'added' or d.type == 'removed') and clean | length >= 10 and not is_date %}
               {% if visible.append(d) %}{% endif %}
               {% set ns.count = ns.count + 1 %}
             {% endif %}
@@ -431,7 +433,7 @@
           <button class="diff-toggle" onclick="toggleDiff(this)">差分を表示（{{ ns.count }} 件）</button>
           <div class="diff-block">
             {% for d in visible %}
-            <div class="diff-line diff-added">{{ d.text }}</div>
+            <div class="diff-line {% if d.type == 'removed' %}diff-removed{% else %}diff-added{% endif %}">{{ d.text }}</div>
             {% endfor %}
           </div>
           {% endif %}
