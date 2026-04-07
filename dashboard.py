@@ -303,7 +303,7 @@ def add_site():
 
     if not url:
         flash("URLを入力してください", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
 
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
@@ -311,12 +311,12 @@ def add_site():
     sites = db.load_sites(user_id)
     if any(s["url"] == url for s in sites):
         flash(f"すでに登録済みです: {url}", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
 
     sites.append({"url": url, "name": name})
     db.save_sites(sites, user_id)
     flash(f"追加しました: {name if name else url}", "success")
-    return redirect(url_for("management"))
+    return redirect(url_for("management", _anchor="keywords-section"))
 
 
 @app.route("/remove_site", methods=["POST"])
@@ -441,11 +441,11 @@ def remove_keyword():
     new_keywords = [k for k in keywords if k["keyword"] != keyword]
     if len(new_keywords) == len(keywords):
         flash("該当キーワードが見つかりません", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
     db.save_keywords(new_keywords, user_id)
     db.delete_articles_by_keyword(user_id, keyword)
     flash(f"キーワードを削除しました: {keyword}", "success")
-    return redirect(url_for("management"))
+    return redirect(url_for("management", _anchor="keywords-section"))
 
 
 @app.route("/toggle_keyword_notify", methods=["POST"])
@@ -513,15 +513,15 @@ def add_alert_keyword():
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
         flash("キーワードを入力してください", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
     if len(keyword) > 50:
         flash("キーワードは50文字以内で入力してください", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
     if db.add_alert_keyword(user_id, keyword):
         flash(f"アラートキーワード「{keyword}」を追加しました", "success")
     else:
         flash(f"「{keyword}」はすでに登録済みです", "error")
-    return redirect(url_for("management"))
+    return redirect(url_for("management", _anchor="keywords-section"))
 
 
 @app.route("/delete_alert_keyword", methods=["POST"])
@@ -532,9 +532,9 @@ def delete_alert_keyword():
         keyword_id = int(request.form.get("keyword_id", "0"))
     except ValueError:
         flash("不正なリクエストです", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
     db.delete_alert_keyword(user_id, keyword_id)
-    return redirect(url_for("management"))
+    return redirect(url_for("management", _anchor="keywords-section"))
 
 
 @app.route("/mark_read/<int:article_id>", methods=["POST"])
@@ -1184,7 +1184,7 @@ def add_company():
     name = request.form.get("name", "").strip()
     if not name:
         flash("企業名を入力してください", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
     name_kana   = request.form.get("name_kana", "").strip()
     website_url = request.form.get("website_url", "").strip()
     memo        = request.form.get("memo", "").strip()
@@ -1204,7 +1204,7 @@ def company_detail(company_id):
     company = db.get_company(user_id, company_id)
     if not company:
         flash("企業が見つかりません", "error")
-        return redirect(url_for("management"))
+        return redirect(url_for("management", _anchor="keywords-section"))
 
     alert_kws = db.get_alert_keywords_set(user_id)
 
