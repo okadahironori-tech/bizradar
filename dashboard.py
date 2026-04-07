@@ -5,6 +5,7 @@ monitor.py の監視データをブラウザで確認できるWebアプリ（マ
 
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -566,6 +567,62 @@ def api_articles():
     if unread_only:
         articles = [a for a in articles if not a.get("is_read")]
     return jsonify(articles)
+
+
+@app.route("/api/suggest_url")
+@login_required
+def api_suggest_url():
+    """入力URLを受け取り、より適切な登録候補URLを返す。
+    優先順位: sitemap.xml → /feed → /rss → パターンマッチ（keizai.biz等）
+    """
+    import requests as _requests
+    from urllib.parse import urlparse, urljoin
+
+    raw = request.args.get("url", "").strip()
+    if not raw:
+        return jsonify({"suggested": None})
+
+    # ベースURL（スキーム＋ホスト）を取得
+    try:
+        parsed = urlparse(raw)
+        if not parsed.scheme or not parsed.netloc:
+            return jsonify({"suggested": None})
+        base = f"{parsed.scheme}://{parsed.netloc}"
+    except Exception:
+        return jsonify({"suggested": None})
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; BizRadar/1.0)",
+        "Accept": "*/*",
+    }
+
+    # 1. sitemap.xml → 2. /feed → 3. /rss の順に HEAD リクエストで存在確認
+    PROBE_PATHS = ["/sitemap.xml", "/feed", "/rss"]
+    for path in PROBE_PATHS:
+        candidate = base + path
+        try:
+            resp = _requests.head(candidate, headers=headers, timeout=3,
+                                  allow_redirects=True, verify=False)
+            if resp.status_code == 200:
+                return jsonify({"suggested": candidate})
+        except Exception:
+            pass
+
+    # 4. パターンマッチ（keizai.biz など）にフォールバック
+    # ─ 将来のパターンは SITE_URL_RULES リストに追加する ─
+    SITE_URL_RULES = [
+        {
+            # keizai.biz: サブドメインのトップページ → 記事一覧ページ
+            "pattern": re.compile(r"^https?://([a-z0-9-]+)\.keizai\.biz/?$", re.I),
+            "suggest": lambda m: f"https://{m.group(1)}.keizai.biz/headline/archives/1/",
+        },
+    ]
+    for rule in SITE_URL_RULES:
+        m = rule["pattern"].match(raw)
+        if m:
+            return jsonify({"suggested": rule["suggest"](m)})
+
+    return jsonify({"suggested": None})
 
 
 @app.route("/set_notify_timing", methods=["POST"])

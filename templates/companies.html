@@ -598,47 +598,46 @@ function closeSiteEdit(idx) {
 })();
 </script>
 <script>
-// ── URL入力ヒント ──────────────────────────────────────────
-// パターンをここにまとめる。将来的に他のサイトを追加しやすくするためリスト管理。
-var URL_HINT_RULES = [
-  {
-    // keizai.biz: サブドメインのトップページ → 記事一覧ページを提案
-    test: function (url) {
-      return /^https?:\/\/([a-z0-9-]+)\.keizai\.biz\/?$/i.exec(url);
-    },
-    suggest: function (url, m) {
-      return 'https://' + m[1] + '.keizai.biz/headline/archives/1/';
-    },
-    message: function (suggested) {
-      return 'このサイトは記事一覧ページの登録をお勧めします：' + suggested;
-    },
-  },
-];
+// ── URL入力ヒント（バックエンド経由で推奨URL検出）──────────────
+var _urlHintTimers = {};
 
 function checkUrlHint(input, hintId) {
+  // デバウンス: 500ms 入力が止まってから API 呼び出し
+  clearTimeout(_urlHintTimers[hintId]);
+  var url = input.value.trim();
   var hintEl = document.getElementById(hintId);
   if (!hintEl) return;
-  var url = input.value.trim();
-  hintEl.innerHTML = '';
-  for (var i = 0; i < URL_HINT_RULES.length; i++) {
-    var rule = URL_HINT_RULES[i];
-    var m = rule.test(url);
-    if (!m) continue;
-    var suggested = rule.suggest(url, m);
-    var msg = rule.message(suggested);
-    hintEl.innerHTML =
-      '<div style="margin-top:6px; padding:8px 12px; background:#fffbeb; border:1px solid #fcd34d;' +
-      ' border-radius:8px; font-size:0.82rem; color:#92400e; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
-      '<span>⚠️ ' + msg + '</span>' +
-      '<button type="button" onclick="applyUrlHint(\'' + hintId.replace(/'/g,"\\'" ) + '\',\'' + suggested.replace(/'/g,"\\'") + '\')"' +
-      ' style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;margin-left:auto;">' +
-      'このURLに変更する</button></div>';
-    return;
-  }
+  if (!url || !url.startsWith('http')) { hintEl.innerHTML = ''; return; }
+  _urlHintTimers[hintId] = setTimeout(function () {
+    fetch('/api/suggest_url?url=' + encodeURIComponent(url))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.suggested && data.suggested !== url) {
+          _showUrlHint(hintId, data.suggested);
+        } else {
+          hintEl.innerHTML = '';
+        }
+      })
+      .catch(function () { hintEl.innerHTML = ''; });
+  }, 500);
+}
+
+function _showUrlHint(hintId, suggested) {
+  var hintEl = document.getElementById(hintId);
+  if (!hintEl) return;
+  var msg = 'このサイトは記事一覧ページの登録をお勧めします：' + suggested;
+  var safeHintId = hintId.replace(/'/g, "\\'");
+  var safeSuggested = suggested.replace(/'/g, "\\'");
+  hintEl.innerHTML =
+    '<div style="margin-top:6px; padding:8px 12px; background:#fffbeb; border:1px solid #fcd34d;' +
+    ' border-radius:8px; font-size:0.82rem; color:#92400e; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
+    '<span>⚠️ ' + msg + '</span>' +
+    '<button type="button" onclick="applyUrlHint(\'' + safeHintId + '\',\'' + safeSuggested + '\')"' +
+    ' style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;margin-left:auto;">' +
+    'このURLに変更する</button></div>';
 }
 
 function applyUrlHint(hintId, suggested) {
-  // hintId から対応する input を探す（oninput 属性で紐づけ）
   var inputs = document.querySelectorAll('[oninput*="' + hintId + '"]');
   if (inputs.length) inputs[0].value = suggested;
   document.getElementById(hintId).innerHTML = '';
