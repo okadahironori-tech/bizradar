@@ -3,6 +3,7 @@
 monitor.py のモニターデータをブラウザで確認できるWebアプリ（マルチユーザー対応）
 """
 
+import difflib
 import logging
 import os
 import re
@@ -58,6 +59,43 @@ import db
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+def _deduplicate_articles(articles, threshold=0.80):
+    """同一キーワード内でタイトル類似度が threshold 以上の記事を重複排除する。
+    最も古い記事を残し、同日付の場合はソース名に Yahoo を含むものを優先する。"""
+    from collections import defaultdict
+
+    def _sim(a, b):
+        return difflib.SequenceMatcher(None, a, b).ratio()
+
+    def _sort_key(art):
+        published = art.get("published", "") or ""
+        # Yahoo含むソースを優先（0）、それ以外（1）
+        is_yahoo = 0 if "yahoo" in (art.get("source", "") or "").lower() else 1
+        return (published, is_yahoo)
+
+    by_kw = defaultdict(list)
+    for idx, art in enumerate(articles):
+        by_kw[art.get("keyword", "")].append(idx)
+
+    keep = set()
+    for kw, indices in by_kw.items():
+        group = sorted([(idx, articles[idx]) for idx in indices], key=lambda x: _sort_key(x[1]))
+        removed = set()
+        for i, (idx_a, art_a) in enumerate(group):
+            if idx_a in removed:
+                continue
+            keep.add(idx_a)
+            title_a = art_a.get("title", "") or ""
+            for idx_b, art_b in group[i + 1:]:
+                if idx_b in removed or idx_b in keep:
+                    continue
+                title_b = art_b.get("title", "") or ""
+                if _sim(title_a, title_b) >= threshold:
+                    removed.add(idx_b)
+
+    return [art for idx, art in enumerate(articles) if idx in keep]
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -968,6 +1006,7 @@ def news():
     for a in all_articles:
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws_set)
         a["published"] = a.get("published", "")
+    all_articles = _deduplicate_articles(all_articles)
     return render_template(
         "news.html",
         articles=all_articles,
