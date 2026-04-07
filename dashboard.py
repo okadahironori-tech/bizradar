@@ -916,6 +916,7 @@ def api_suggest_url():
         "www.city.nabari.lg.jp":       "https://www.city.nabari.lg.jp/news.html/",
         "www.chubu.meti.go.jp":        "https://www.chubu.meti.go.jp/rss",
         "www.nta.go.jp":               "https://www.nta.go.jp/information/news/index.htm/",
+        "global.toyota":               "https://global.toyota/jp/newsroom/",
     }
     if parsed.netloc in _DOMAIN_OVERRIDES:
         return jsonify({"suggested": _DOMAIN_OVERRIDES[parsed.netloc]})
