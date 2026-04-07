@@ -620,16 +620,34 @@ def api_suggest_url():
         except Exception:
             return None
 
+    # 個別記事ページ判定: パスに6桁以上の連続数字（日付・ID）を含む
+    _DATE_DIGITS = re.compile(r"\d{6,}")
+
+    def _path_depth(url):
+        """パスのスラッシュ数（階層の深さ）を返す"""
+        from urllib.parse import urlparse as _up
+        return _up(url).path.rstrip("/").count("/")
+
+    def _best_from(candidates):
+        """候補URLリストから一覧ページらしい最良の1件を選ぶ。
+        1. 日付らしき6桁以上の数字を含むURLを除外
+        2. 残ったものをパス階層の浅い順にソートして先頭を返す
+        3. 全件除外された場合は階層の浅い順の先頭（日付URLも許容）を返す
+        """
+        non_dated = [u for u in candidates if not _DATE_DIGITS.search(u)]
+        pool = non_dated if non_dated else candidates
+        return min(pool, key=_path_depth) if pool else None
+
     def _extract_news_url_from_sitemap(xml_text):
         """sitemap XML からニュース系URLを優先度付きで抽出する。
-        優先度高 → 中 の順に最初の1件を返す。
+        優先度高 → 中 の順に候補を収集し、階層が浅く日付数字を含まない
+        一覧ページらしいURLを選んで返す。
         除外キーワードのみを含むURLはスキップする。
         """
-        locs = re.findall(r"<loc>\s*(https?://[^\s<]+)\s*</loc>", xml_text)
-        # パスのみで判定（ホスト部分のキーワードに引っ張られないよう分離）
         from urllib.parse import urlparse as _up
-        high_match = None
-        mid_match = None
+        locs = re.findall(r"<loc>\s*(https?://[^\s<]+)\s*</loc>", xml_text)
+        high_candidates = []
+        mid_candidates  = []
         for loc in locs:
             path = _up(loc).path
             has_exclude = bool(_KW_EXCLUDE.search(path))
@@ -638,14 +656,12 @@ def api_suggest_url():
             # 除外キーワードのみ → スキップ（高・中キーワードも含む場合は通す）
             if has_exclude and not has_high and not has_mid:
                 continue
-            if has_high and high_match is None:
-                high_match = loc.rstrip("/") + "/"
-            elif has_mid and mid_match is None:
-                mid_match = loc.rstrip("/") + "/"
-            # 両方見つかったら打ち切り
-            if high_match and mid_match:
-                break
-        return high_match or mid_match
+            if has_high:
+                high_candidates.append(loc.rstrip("/") + "/")
+            elif has_mid:
+                mid_candidates.append(loc.rstrip("/") + "/")
+        # 高優先候補から一覧ページを選び、なければ中優先候補で選ぶ
+        return _best_from(high_candidates) or _best_from(mid_candidates)
 
     raw = request.args.get("url", "").strip()
     if not raw:
