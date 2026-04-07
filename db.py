@@ -508,10 +508,10 @@ def toggle_site_enabled(user_id: int, url: str):
 
 def load_sites_for_monitor() -> list:
     """
-    monitor.py 用: user_id が設定済みのサイトだけ監視する。
+    monitor.py 用: user_id が設定済みのサイトだけモニターする。
 
     以前の JSON 移行（sites.json）由来で `user_id` が NULL になっている行がある場合、
-    それらを監視対象から除外してダッシュボード登録分だけを監視できるようにする。
+    それらをモニター対象から除外してダッシュボード登録分だけをモニターできるようにする。
     """
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

@@ -91,10 +91,10 @@
       <h3>第1条（取得する情報）</h3>
       <p>本サービスでは、利用にあたり以下の情報を取得・保存します。</p>
       <ul>
-        <li>監視対象として登録されたウェブサイトのURL・サイト名</li>
+        <li>モニター対象として登録されたウェブサイトのURL・サイト名</li>
         <li>ニュース収集のために登録されたキーワード</li>
         <li>メール通知のために設定された送受信メールアドレス</li>
-        <li>監視対象サイトから取得したページ内容（変更検知のためのハッシュ値・テキスト）</li>
+        <li>モニター対象サイトから取得したページ内容（変更検知のためのハッシュ値・テキスト）</li>
         <li>Google News RSSから取得したニュースの情報（タイトル、URL、日時、出典）</li>
       </ul>
 
@@ -113,7 +113,7 @@
       <p>本サービスは、以下の外部サービスを利用します。</p>
       <ul>
         <li><strong>Google News RSS</strong>：キーワード検索による記事取得に使用します。Google のプライバシーポリシーが適用されます。</li>
-        <li><strong>監視対象ウェブサイト</strong>：変更検知のためにHTTPリクエストを送信します。</li>
+        <li><strong>モニター対象ウェブサイト</strong>：変更検知のためにHTTPリクエストを送信します。</li>
       </ul>
 
       <h3>第5条（データの保管）</h3>
@@ -132,7 +132,7 @@
   </footer>
 
 <!-- ── ページトップへ戻るボタン ── -->
-<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;right:24px;z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
+<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>

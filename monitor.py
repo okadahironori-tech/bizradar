@@ -1,5 +1,5 @@
 """
-ウェブサイト監視スクリプト
+ウェブサイトモニタースクリプト
 機能: サイトの内容が変わったらメールで通知する
 """
 
@@ -675,7 +675,7 @@ def send_email(url: str, site_name: str = ""):
 {url}
 
 ---
-このメールはウェブサイト監視スクリプトにより自動送信されました。
+このメールはウェブサイトモニタースクリプトにより自動送信されました。
 """
     msg = MIMEMultipart()
     msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
@@ -747,9 +747,9 @@ def check_all_sites():
 
 def main():
     print("=" * 50)
-    print("ウェブサイト監視スクリプト 起動")
+    print("ウェブサイトモニタースクリプト 起動")
     sites = db.load_sites_for_monitor()
-    print(f"監視対象: {[s['url'] for s in sites]}")
+    print(f"モニター対象: {[s['url'] for s in sites]}")
     config   = db.load_config()
     interval = config.get("check_interval_seconds", DEFAULT_CHECK_INTERVAL)
     print(f"チェック間隔: {interval // 60} 分ごと")

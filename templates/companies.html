@@ -184,8 +184,8 @@
       padding: 0; font-size: 0; cursor: pointer; flex-shrink: 0;
       transition: background 0.2s;
     }
-    .site-card .btn-notify-toggle.on  { background: #1a1a2e; }
-    .site-card .btn-notify-toggle.off { background: #bfc2cc; }
+    .site-card .btn-notify-toggle.on  { background: #34C759; }
+    .site-card .btn-notify-toggle.off { background: #ccc; }
     .site-card .btn-notify-toggle::after {
       content: ''; position: absolute;
       width: 18px; height: 18px; border-radius: 50%; background: #fff;
@@ -296,7 +296,7 @@
             {% set is_enabled = site.enabled if site.enabled is defined else true %}
             <button type="button" class="btn-notify-toggle {% if is_enabled %}on{% else %}off{% endif %}"
                     onclick="toggleSite(this, '{{ site.url | e }}')"
-                    title="{% if is_enabled %}監視ON{% else %}監視OFF{% endif %}">
+                    title="{% if is_enabled %}モニターON{% else %}モニターOFF{% endif %}">
             </button>
             <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
                     style="padding:6px 12px;font-size:0.8rem;">編集</button>
@@ -441,7 +441,7 @@ function toggleSite(btn, url) {
         if (tb) {
           tb.classList.toggle('on', on);
           tb.classList.toggle('off', !on);
-          tb.title = on ? '監視ON' : '監視OFF';
+          tb.title = on ? 'モニターON' : 'モニターOFF';
         }
       }
     })
