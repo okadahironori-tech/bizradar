@@ -5,6 +5,7 @@ monitor.py のモニターデータをブラウザで確認できるWebアプリ
 
 import difflib
 import logging
+from urllib.parse import urlparse as _urlparse
 import os
 import re
 import sys
@@ -59,6 +60,14 @@ import db
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_domain(url: str) -> str:
+    """URL からドメイン（netloc）を返す。"""
+    try:
+        return _urlparse(url).netloc.lower()
+    except Exception:
+        return ""
 
 
 def _deduplicate_articles(articles, threshold=0.80):
@@ -350,6 +359,13 @@ def add_site():
     if any(s["url"] == url for s in sites):
         flash(f"すでに登録済みです: {url}", "error")
         return redirect(url_for("management", _anchor="keywords-section"))
+
+    # 同一ドメインの既存サイトがあれば警告（登録はブロックしない）
+    new_domain = _extract_domain(url)
+    if new_domain:
+        same_domain = [s for s in sites if _extract_domain(s["url"]) == new_domain]
+        for s in same_domain:
+            flash(f"このドメインはすでに登録されています：{s['url']}", "warning")
 
     sites.append({"url": url, "name": name})
     db.save_sites(sites, user_id)
