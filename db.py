@@ -1015,16 +1015,17 @@ def load_alert_keywords(user_id: int) -> list:
             return [dict(row) for row in cur.fetchall()]
 
 
-def add_alert_keyword(user_id: int, keyword: str) -> bool:
-    """アラートキーワードを追加する。重複時は False を返す"""
+def add_alert_keyword(user_id: int, keyword: str):
+    """アラートキーワードを追加する。成功時は新規ID(int)、重複時は False を返す"""
     try:
         with _conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO alert_keywords (user_id, keyword) VALUES (%s, %s)",
+                    "INSERT INTO alert_keywords (user_id, keyword) VALUES (%s, %s) RETURNING id",
                     (user_id, keyword),
                 )
-        return True
+                row = cur.fetchone()
+        return row[0] if row else True
     except psycopg2.errors.UniqueViolation:
         return False
 

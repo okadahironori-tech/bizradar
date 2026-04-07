@@ -441,11 +441,12 @@
         {% else %}
         <p style="font-size:0.82rem;color:#9ca3af;margin:0 0 12px;">アラートキーワードが登録されていません</p>
         {% endif %}
-        <form method="POST" action="/add_alert_keyword" style="display:flex; gap:8px; flex-wrap:wrap;">
-          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
+        <form id="alert-kw-add-form" style="display:flex; gap:8px; flex-wrap:wrap;" onsubmit="addAlertKeyword(event)">
+          <input id="alert-kw-input" type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
             style="flex:1; min-width:160px; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; outline:none;">
           <button type="submit" class="btn btn-save">追加</button>
         </form>
+        <div id="alert-kw-error" style="display:none; margin-top:6px; font-size:0.82rem; color:#dc2626;"></div>
       </div>
     </div>
   </section>
@@ -465,6 +466,55 @@ function closeSiteEdit(idx) {
   document.getElementById('site-name-form-' + idx).classList.remove('open');
 }
 // ── キーワードAJAX削除 ──────────────────────────────────────────
+// ── アラートキーワードAJAX追加 ──────────────────────────────────
+function addAlertKeyword(e) {
+  e.preventDefault();
+  var input = document.getElementById('alert-kw-input');
+  var errEl = document.getElementById('alert-kw-error');
+  var keyword = input.value.trim();
+  if (!keyword) return;
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/add_alert_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) {
+        errEl.textContent = data.message || '追加に失敗しました';
+        errEl.style.display = 'block';
+        return;
+      }
+      errEl.style.display = 'none';
+      input.value = '';
+      // タグをDOMに追加
+      var list = document.getElementById('alert-kw-list');
+      if (!list) {
+        // リストが存在しない（0件状態）場合は要素を作って挿入
+        var form = document.getElementById('alert-kw-add-form');
+        list = document.createElement('div');
+        list.id = 'alert-kw-list';
+        list.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;';
+        form.parentNode.insertBefore(list, form);
+        // 「登録されていません」メッセージを削除
+        var emptyMsg = form.previousElementSibling;
+        if (emptyMsg && emptyMsg.tagName === 'P') emptyMsg.remove();
+      }
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'alert-kw-tag';
+      btn.dataset.alertKwId = data.keyword_id;
+      btn.textContent = data.keyword + ' ×';
+      btn.style.opacity = '0';
+      btn.style.transition = 'opacity 0.3s';
+      btn.onclick = function() { deleteAlertKeyword(btn, data.keyword_id, data.keyword); };
+      list.appendChild(btn);
+      requestAnimationFrame(function() { btn.style.opacity = '1'; });
+    })
+    .catch(function() {
+      errEl.textContent = '追加に失敗しました';
+      errEl.style.display = 'block';
+    });
+}
+
 function deleteKeyword(btn, keyword) {
   if (!confirm('「' + keyword + '」を削除しますか？')) return;
   btn.disabled = true;

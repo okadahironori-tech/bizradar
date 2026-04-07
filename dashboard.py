@@ -524,6 +524,21 @@ def add_alert_keyword():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
+@app.route("/api/add_alert_keyword", methods=["POST"])
+@login_required
+def api_add_alert_keyword():
+    user_id = session["user_id"]
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        return jsonify({"success": False, "message": "キーワードを入力してください"})
+    if len(keyword) > 50:
+        return jsonify({"success": False, "message": "キーワードは50文字以内で入力してください"})
+    result = db.add_alert_keyword(user_id, keyword)
+    if result is False:
+        return jsonify({"success": False, "message": f"「{keyword}」はすでに登録済みです"})
+    return jsonify({"success": True, "keyword": keyword, "keyword_id": result})
+
+
 @app.route("/delete_alert_keyword", methods=["POST"])
 @login_required
 def delete_alert_keyword():
