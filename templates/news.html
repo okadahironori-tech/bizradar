@@ -47,18 +47,26 @@
 
     .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
 
-    /* 記事スタイル */
-    .article-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #f0f2f5; }
-    .article-item:last-child { border-bottom: none; }
-    .article-item.article-read { opacity: 0.55; }
-    .article-item.article-alert { background: #fffbeb; border-left: 3px solid #f59e0b; }
-    .article-alert-badge { font-size: 0.68rem; font-weight: 700; background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; border-radius: 4px; padding: 1px 6px; white-space: nowrap; flex-shrink: 0; }
-    .article-kw { font-size: 0.72rem; background: #e8eaf6; color: #3949ab; border-radius: 4px; padding: 2px 8px; white-space: nowrap; flex-shrink: 0; }
-    .article-body { flex: 1; min-width: 0; }
-    .article-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; text-decoration: none; display: block; }
+    /* 記事カード */
+    #articles-container { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+    .article-item {
+      background: #fff; border-radius: 10px; border: 1px solid #e8eaf0;
+      border-left: 3px solid #3949ab;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 11px 14px;
+    }
+    .article-item.article-read { opacity: 0.55; border-left-color: #e8eaf0; }
+    .article-item.article-alert { background: #fffbeb; border-left-color: #f59e0b; }
+    .article-alert-badge { font-size: 0.68rem; font-weight: 700; background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .article-kw { font-size: 0.72rem; background: #e8eaf6; color: #3949ab; border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
+    .article-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .article-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .article-date { font-size: 0.72rem; color: #9ca3af; white-space: nowrap; flex-shrink: 0; }
+    .article-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; text-decoration: none; display: block; line-height: 1.45; margin-bottom: 8px; }
     .article-title:hover { color: #3949ab; text-decoration: underline; }
-    .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
-    .article-read-mark { font-size: 0.78rem; color: #059669; font-weight: 700; flex-shrink: 0; }
+    .article-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .article-source { font-size: 0.72rem; color: #9ca3af; }
+    .article-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .article-read-mark { font-size: 0.78rem; color: #059669; font-weight: 700; }
     .btn-check-done { font-size: 0.72rem; background: #3949ab; color: #fff; border: 1px solid #3949ab; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .btn-check-done:hover { background: #2d3a8c; border-color: #2d3a8c; }
     .btn-unread { font-size: 0.72rem; background: #f3f4f6; color: #555; border: 1px solid #999; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
@@ -90,7 +98,7 @@
     @media (max-width: 600px) {
       header { padding: 12px 14px; }
       main { margin: 16px auto; padding: 0 10px; }
-      .article-item { flex-wrap: wrap; gap: 6px; }
+      #articles-container { padding: 8px 8px; gap: 6px; }
     }
   </style>
 </head>
@@ -168,19 +176,25 @@
         <div id="articles-container">
           {% for article in articles %}
           <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %}>
-            <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
-            {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
-            <span class="article-kw">{{ article.keyword }}</span>
-            <div class="article-body">
-              <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
-              <div class="article-meta">
-                {% if article.source %}{{ article.source }}{% endif %}
-                {% if article.source and article.published %} · {% endif %}
-                {% if article.published %}{{ article.published }}{% endif %}
+            <!-- 上段：キーワードバッジ（左）＋日時（右） -->
+            <div class="article-card-top">
+              <div class="article-card-top-left">
+                {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
+                <span class="article-kw">{{ article.keyword }}</span>
+              </div>
+              <span class="article-date">{{ article.published }}</span>
+            </div>
+            <!-- 中段：記事タイトル -->
+            <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
+            <!-- 下段：ソース名（左）＋ボタン（右） -->
+            <div class="article-card-bottom">
+              <span class="article-source">{{ article.source if article.source else '' }}</span>
+              <div class="article-card-actions">
+                <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
+                <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
+                <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
               </div>
             </div>
-            <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
-            <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
           </div>
           {% endfor %}
         </div>
