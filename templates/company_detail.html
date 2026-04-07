@@ -638,9 +638,13 @@ function _showUrlHint(hintId, suggested) {
     '<div style="margin-top:6px; padding:8px 12px; background:#fffbeb; border:1px solid #fcd34d;' +
     ' border-radius:8px; font-size:0.82rem; color:#92400e; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
     '<span>⚠️ ' + msg + '</span>' +
+    '<div style="margin-left:auto; display:flex; gap:8px; align-items:center;">' +
+    '<button type="button" onclick="document.getElementById(\'' + safeHintId + '\').innerHTML=\'\'"' +
+    ' style="background:none;border:none;color:#9ca3af;font-size:0.78rem;cursor:pointer;white-space:nowrap;padding:4px 6px;">' +
+    'キャンセル</button>' +
     '<button type="button" onclick="applyUrlHint(\'' + safeHintId + '\',\'' + safeSuggested + '\')"' +
-    ' style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;margin-left:auto;">' +
-    'このURLに変更する</button></div>';
+    ' style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">' +
+    'このURLに変更する</button></div></div>';
 }
 
 function applyUrlHint(hintId, suggested) {
