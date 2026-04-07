@@ -917,6 +917,18 @@ def api_suggest_url():
         "www.chubu.meti.go.jp":        "https://www.chubu.meti.go.jp/rss",
         "www.nta.go.jp":               "https://www.nta.go.jp/information/news/index.htm/",
         "global.toyota":               "https://global.toyota/jp/newsroom/",
+        # ── 民間企業・業界団体（追加分2）──────────────────────────────
+        "www.sala.jp":                 "https://www.sala.jp/ja/news.html",
+        "miraini-gr.com":              "https://miraini-gr.com/news/",
+        "www.hagiwara.co.jp":          "https://www.hagiwara.co.jp/news/info/",
+        "www.cjqca.com":               "https://www.cjqca.com/cqca_news/",
+        "www.chukei-news.co.jp":       "https://www.chukei-news.co.jp/news/",
+        "www.nagoya-cci.or.jp":        "https://www.nagoya-cci.or.jp/koho/news-release/index.html",
+        "www.chukeiren.or.jp":         "https://www.chukeiren.or.jp/news/",
+        "www.jimin.jp":                "https://www.jimin.jp/news/",
+        "meieki.keizai.biz":           "https://meieki.keizai.biz/headline/archives/1/",
+        "kk-matsuo-ss.co.jp":          "https://kk-matsuo-ss.co.jp/news/",
+        "www.yamaichi-hagane.jp":      "https://www.yamaichi-hagane.jp/news/",
     }
     if parsed.netloc in _DOMAIN_OVERRIDES:
         return jsonify({"suggested": _DOMAIN_OVERRIDES[parsed.netloc]})
