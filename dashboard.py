@@ -693,6 +693,13 @@ def api_suggest_url():
     except Exception:
         return jsonify({"suggested": None})
 
+    # 0. ドメイン固有の特例ルール（サイトマップ検索より優先）
+    _DOMAIN_OVERRIDES = {
+        "www.tohogas.co.jp": "https://www.tohogas.co.jp/corporate-n/press/",
+    }
+    if parsed.netloc in _DOMAIN_OVERRIDES:
+        return jsonify({"suggested": _DOMAIN_OVERRIDES[parsed.netloc]})
+
     # 1. sitemap.xml を取得して解析
     sitemap_resp = _fetch_get(base + "/sitemap.xml")
     if sitemap_resp and sitemap_resp.status_code == 200:
