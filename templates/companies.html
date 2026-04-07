@@ -175,7 +175,25 @@
     }
     .site-card-url a { color: #3949ab; text-decoration: none; }
     .site-card-lastcheck { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
-    .site-card-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+    .site-card-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+
+    /* ── サイトカード内 ON/OFF トグルスイッチ ── */
+    .site-card .btn-notify-toggle {
+      position: relative; display: inline-block;
+      width: 44px; height: 24px; border-radius: 12px; border: none;
+      padding: 0; font-size: 0; cursor: pointer; flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .site-card .btn-notify-toggle.on  { background: #1a1a2e; }
+    .site-card .btn-notify-toggle.off { background: #bfc2cc; }
+    .site-card .btn-notify-toggle::after {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; border-radius: 50%; background: #fff;
+      top: 3px; transition: left 0.18s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+    }
+    .site-card .btn-notify-toggle.on::after  { left: 23px; }
+    .site-card .btn-notify-toggle.off::after { left: 3px; }
 
     @media (max-width: 768px) {
       header { padding: 12px 14px; }
@@ -278,8 +296,7 @@
             {% set is_enabled = site.enabled if site.enabled is defined else true %}
             <button type="button" class="btn-notify-toggle {% if is_enabled %}on{% else %}off{% endif %}"
                     onclick="toggleSite(this, '{{ site.url | e }}')"
-                    style="border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;border:none;">
-              {% if is_enabled %}ON{% else %}OFF{% endif %}
+                    title="{% if is_enabled %}監視ON{% else %}監視OFF{% endif %}">
             </button>
             <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
                     style="padding:6px 12px;font-size:0.8rem;">編集</button>
@@ -421,7 +438,11 @@ function toggleSite(btn, url) {
       var card = document.querySelector('.site-card[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
       if (card) {
         var tb = card.querySelector('.btn-notify-toggle');
-        if (tb) { tb.textContent = on ? 'ON' : 'OFF'; tb.classList.toggle('on', on); tb.classList.toggle('off', !on); }
+        if (tb) {
+          tb.classList.toggle('on', on);
+          tb.classList.toggle('off', !on);
+          tb.title = on ? '監視ON' : '監視OFF';
+        }
       }
     })
     .catch(function() { alert('切り替えに失敗しました'); btn.disabled = false; });
