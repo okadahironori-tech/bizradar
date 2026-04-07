@@ -157,8 +157,8 @@
     }
     .alert-kw-tag:hover { background: #fee2e2; }
 
-    /* ── サイト管理カード（SP用） ── */
-    .site-cards { display: none; flex-direction: column; gap: 10px; padding: 12px; }
+    /* ── サイト管理カード（全画面幅共通） ── */
+    .site-cards { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
     .site-card {
       background: #fff; border-radius: 10px;
       box-shadow: 0 1px 6px rgba(0,0,0,0.08); padding: 13px 14px 11px;
@@ -166,32 +166,26 @@
     }
     .site-card-header {
       display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 8px; margin-bottom: 7px;
+      gap: 8px; margin-bottom: 6px;
     }
+    .site-card-meta { margin-bottom: 10px; }
     .site-card-url {
       font-size: 0.78rem; white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis; margin-bottom: 10px;
+      overflow: hidden; text-overflow: ellipsis;
     }
     .site-card-url a { color: #3949ab; text-decoration: none; }
-    .site-card-actions { display: flex; gap: 6px; justify-content: flex-end; }
+    .site-card-lastcheck { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
+    .site-card-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 
     @media (max-width: 768px) {
       header { padding: 12px 14px; }
       main { margin: 16px auto; }
       .add-form { flex-direction: column; }
       .input-name, .input-url { flex: none; width: 100%; }
-      /* サイト管理：テーブル非表示→カード表示 */
-      table.site-table { display: none; }
-      .site-cards { display: flex; }
       /* キーワード管理テーブル：余白縮小 */
       th, td { padding: 7px 8px; font-size: 0.78rem; }
       .btn { padding: 5px 8px; font-size: 0.75rem; }
       .row-actions { gap: 4px; flex-wrap: nowrap; }
-      .btn-label-pc { display: none; }
-      .btn-label-sp { display: inline; }
-    }
-    @media (min-width: 769px) {
-      .btn-label-sp { display: none; }
     }
   </style>
 </head>
@@ -233,79 +227,10 @@
     </div>
     <div class="card">
       {% if sites %}
-      <table class="site-table">
-        <thead>
-          <tr>
-            <th>会社名 / URL</th>
-            <th>ステータス</th>
-            <th class="col-lastcheck">最終チェック</th>
-            <th style="text-align:right">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for site in sites %}
-          <tr data-site-url="{{ site.url | e }}">
-            <td>
-              <div id="site-name-view-{{ loop.index0 }}">
-                <span class="site-name">{{ site.name if site.name else '—' }}</span>
-              </div>
-              <form id="site-name-form-{{ loop.index0 }}" class="site-name-edit-wrap" method="POST" action="/update_site_name">
-                <input type="hidden" name="url" value="{{ site.url }}">
-                <input type="text" name="name" value="{{ site.name }}" class="input-site-name" placeholder="会社名">
-                <button type="submit" class="btn btn-save">保存</button>
-                <button type="button" class="btn btn-cancel-edit" onclick="closeSiteEdit({{ loop.index0 }})">キャンセル</button>
-              </form>
-              <a class="url-link" href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
-            </td>
-            <td>
-              {% if site.checking %}
-                <span class="badge badge-checking">チェック中...</span>
-              {% elif site.status == "ok" %}
-                <span class="badge badge-ok">正常</span>
-              {% elif site.status == "changed" %}
-                <span class="badge badge-changed">変更あり</span>
-              {% elif site.status == "error" %}
-                <span class="badge {{ site.error_cls }}">{{ site.error_label }}</span>
-              {% elif site.status == "new" %}
-                <span class="badge badge-new">初回記録</span>
-              {% else %}
-                <span class="badge badge-unknown">未チェック</span>
-              {% endif %}
-            </td>
-            <td class="col-lastcheck" style="font-size:0.8rem; color:#6b7280; white-space:nowrap;">{{ site.last_check }}</td>
-            <td>
-              <div class="row-actions" style="justify-content:flex-end;">
-                <form method="POST" action="/check_site">
-                  <input type="hidden" name="url" value="{{ site.url }}">
-                  <button type="submit" class="btn btn-check" {% if site.checking %}disabled{% endif %}>
-                    {% if site.checking %}
-                      <span class="btn-label-pc">チェック中</span><span class="btn-label-sp">…</span>
-                    {% else %}
-                      <span class="btn-label-pc">今すぐチェック</span><span class="btn-label-sp">↺</span>
-                    {% endif %}
-                  </button>
-                </form>
-                <button type="button" class="btn {% if site.enabled %}btn-notify-toggle on{% else %}btn-notify-toggle off{% endif %}"
-                        onclick="toggleSite(this, '{{ site.url | e }}')"
-                        style="border-radius:20px;">
-                  {% if site.enabled %}ON{% else %}OFF{% endif %}
-                </button>
-                <button type="button" class="btn btn-edit" onclick="openSiteEdit({{ loop.index0 }})">編集</button>
-                <button type="button" class="btn btn-remove"
-                        onclick="deleteSite(this, '{{ site.url | e }}', '{{ (site.name if site.name else site.url) | e }}')">
-                  <span class="btn-label-pc">削除</span><span class="btn-label-sp">×</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <!-- ── SP用カードリスト ── -->
       <div class="site-cards">
         {% for site in sites %}
         <div class="site-card" data-site-url="{{ site.url | e }}">
+          <!-- 上段：会社名（左）＋ステータスバッジ（右） -->
           <div class="site-card-header">
             <div style="flex:1; min-width:0;">
               <div id="card-name-view-{{ loop.index0 }}">
@@ -334,9 +259,14 @@
               {% endif %}
             </div>
           </div>
-          <div class="site-card-url">
-            <a href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
+          <!-- 中段：URL省略表示＋最終チェック日時 -->
+          <div class="site-card-meta">
+            <div class="site-card-url">
+              <a href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
+            </div>
+            <div class="site-card-lastcheck">最終チェック：{{ site.last_check }}</div>
           </div>
+          <!-- 下段：操作ボタン -->
           <div class="site-card-actions">
             <form method="POST" action="/check_site">
               <input type="hidden" name="url" value="{{ site.url }}">
@@ -347,7 +277,7 @@
             </form>
             <button type="button" class="btn-notify-toggle {% if site.enabled %}on{% else %}off{% endif %}"
                     onclick="toggleSite(this, '{{ site.url | e }}')"
-                    style="border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700;">
+                    style="border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;">
               {% if site.enabled %}ON{% else %}OFF{% endif %}
             </button>
             <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
@@ -460,18 +390,6 @@
 </main>
 
 <script>
-function openSiteEdit(idx) {
-  document.getElementById('site-name-view-' + idx).style.display = 'none';
-  var form = document.getElementById('site-name-form-' + idx);
-  form.classList.add('open');
-  var input = form.querySelector('input[name="name"]');
-  if (input) { input.focus(); input.select(); }
-}
-function closeSiteEdit(idx) {
-  document.getElementById('site-name-view-' + idx).style.display = '';
-  document.getElementById('site-name-form-' + idx).classList.remove('open');
-}
-// ── キーワードAJAX削除 ──────────────────────────────────────────
 // ── モニターサイトAJAX削除・トグル ──────────────────────────────
 function deleteSite(btn, url, name) {
   if (!confirm('「' + name + '」を削除しますか？')) return;
@@ -482,10 +400,6 @@ function deleteSite(btn, url, name) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
-      // テーブル行
-      var tr = document.querySelector('tr[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
-      if (tr) { tr.style.transition = 'opacity 0.3s'; tr.style.opacity = '0'; setTimeout(function(){ tr.remove(); }, 310); }
-      // SPカード
       var card = document.querySelector('.site-card[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
       if (card) { card.style.transition = 'opacity 0.3s'; card.style.opacity = '0'; setTimeout(function(){ card.remove(); }, 310); }
     })
@@ -502,16 +416,12 @@ function toggleSite(btn, url) {
       btn.disabled = false;
       if (!data.success) { alert(data.message || '切り替えに失敗しました'); return; }
       var on = data.enabled;
-      // 同じURLのトグルボタンを全て更新（テーブル・カード両方）
-      document.querySelectorAll('[data-site-url="' + url.replace(/"/g, '\\"') + '"] .btn-notify-toggle, ' +
-        'tr[data-site-url="' + url.replace(/"/g, '\\"') + '"] .btn-notify-toggle').forEach(function(b) {
-        b.textContent = on ? 'ON' : 'OFF';
-        b.classList.toggle('on', on);
-        b.classList.toggle('off', !on);
-      });
-      // テーブル行内のトグルボタン（セレクタが拾えない場合の保険）
-      var tr = document.querySelector('tr[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
-      if (tr) { var tb = tr.querySelector('.btn-notify-toggle'); if (tb) { tb.textContent = on ? 'ON' : 'OFF'; tb.classList.toggle('on', on); tb.classList.toggle('off', !on); } }
+      // カード内のトグルボタンを更新
+      var card = document.querySelector('.site-card[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
+      if (card) {
+        var tb = card.querySelector('.btn-notify-toggle');
+        if (tb) { tb.textContent = on ? 'ON' : 'OFF'; tb.classList.toggle('on', on); tb.classList.toggle('off', !on); }
+      }
     })
     .catch(function() { alert('切り替えに失敗しました'); btn.disabled = false; });
 }
