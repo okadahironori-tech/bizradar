@@ -356,9 +356,12 @@
       <form class="add-form" method="POST" action="/add_site"
             onsubmit="return confirm('「' + this.url.value + '」を追加しますか？')">
         <input class="input-name" type="text" name="name" placeholder="会社名（任意）">
-        <input class="input-url" type="url" name="url" placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required>
+        <input class="input-url" type="url" name="url" id="site-url-input-mgmt"
+               placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required
+               oninput="checkUrlHint(this, 'url-hint-mgmt')">
         <button type="submit" class="btn btn-add">+ 追加</button>
       </form>
+      <div id="url-hint-mgmt"></div>
     </div>
   </section>
 
@@ -593,6 +596,53 @@ function closeSiteEdit(idx) {
   document.addEventListener('click', function () { menu.classList.remove('open'); });
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 })();
+</script>
+<script>
+// ── URL入力ヒント ──────────────────────────────────────────
+// パターンをここにまとめる。将来的に他のサイトを追加しやすくするためリスト管理。
+var URL_HINT_RULES = [
+  {
+    // keizai.biz: サブドメインのトップページ → 記事一覧ページを提案
+    test: function (url) {
+      return /^https?:\/\/([a-z0-9-]+)\.keizai\.biz\/?$/i.exec(url);
+    },
+    suggest: function (url, m) {
+      return 'https://' + m[1] + '.keizai.biz/headline/archives/1/';
+    },
+    message: function (suggested) {
+      return '記事一覧ページの登録をお勧めします：' + suggested;
+    },
+  },
+];
+
+function checkUrlHint(input, hintId) {
+  var hintEl = document.getElementById(hintId);
+  if (!hintEl) return;
+  var url = input.value.trim();
+  hintEl.innerHTML = '';
+  for (var i = 0; i < URL_HINT_RULES.length; i++) {
+    var rule = URL_HINT_RULES[i];
+    var m = rule.test(url);
+    if (!m) continue;
+    var suggested = rule.suggest(url, m);
+    var msg = rule.message(suggested);
+    hintEl.innerHTML =
+      '<div style="margin-top:6px; padding:8px 12px; background:#fffbeb; border:1px solid #fcd34d;' +
+      ' border-radius:8px; font-size:0.82rem; color:#92400e; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
+      '<span>⚠️ ' + msg + '</span>' +
+      '<button type="button" onclick="applyUrlHint(\'' + hintId.replace(/'/g,"\\'" ) + '\',\'' + suggested.replace(/'/g,"\\'") + '\')"' +
+      ' style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">' +
+      'このURLに変更する</button></div>';
+    return;
+  }
+}
+
+function applyUrlHint(hintId, suggested) {
+  // hintId から対応する input を探す（oninput 属性で紐づけ）
+  var inputs = document.querySelectorAll('[oninput*="' + hintId + '"]');
+  if (inputs.length) inputs[0].value = suggested;
+  document.getElementById(hintId).innerHTML = '';
+}
 </script>
 </body>
 </html>

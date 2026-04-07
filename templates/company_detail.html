@@ -383,9 +383,11 @@
       <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_site">
         <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
-        <input type="url" name="url" placeholder="https://example.com/news" maxlength="500" required>
+        <input type="url" name="url" id="site-url-input-detail" placeholder="https://example.com/news" maxlength="500" required
+               oninput="checkUrlHint(this, 'url-hint-detail')">
         <button type="submit" class="btn btn-primary">登録する</button>
       </form>
+      <div id="url-hint-detail"></div>
 
       {# 未紐づきサイトのみドロップダウンに表示 #}
       {% set unlinked_sites = all_sites | selectattr("company_id", "none") | list %}
@@ -600,6 +602,50 @@ function closeEditModal() {
 }
 function closeEditModalOnOverlay(e) {
   if (e.target === document.getElementById('edit-modal')) closeEditModal();
+}
+
+// ── URL入力ヒント ──────────────────────────────────────────
+var URL_HINT_RULES = [
+  {
+    // keizai.biz: サブドメインのトップページ → 記事一覧ページを提案
+    test: function (url) {
+      return /^https?:\/\/([a-z0-9-]+)\.keizai\.biz\/?$/i.exec(url);
+    },
+    suggest: function (url, m) {
+      return 'https://' + m[1] + '.keizai.biz/headline/archives/1/';
+    },
+    message: function (suggested) {
+      return '記事一覧ページの登録をお勧めします：' + suggested;
+    },
+  },
+];
+
+function checkUrlHint(input, hintId) {
+  var hintEl = document.getElementById(hintId);
+  if (!hintEl) return;
+  var url = input.value.trim();
+  hintEl.innerHTML = '';
+  for (var i = 0; i < URL_HINT_RULES.length; i++) {
+    var rule = URL_HINT_RULES[i];
+    var m = rule.test(url);
+    if (!m) continue;
+    var suggested = rule.suggest(url, m);
+    var msg = rule.message(suggested);
+    hintEl.innerHTML =
+      '<div style="margin-top:6px; padding:8px 12px; background:#fffbeb; border:1px solid #fcd34d;' +
+      ' border-radius:8px; font-size:0.82rem; color:#92400e; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
+      '<span>⚠️ ' + msg + '</span>' +
+      '<button type="button" onclick="applyUrlHint(\'' + hintId.replace(/'/g,"\\'" ) + '\',\'' + suggested.replace(/'/g,"\\'") + '\')"' +
+      ' style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">' +
+      'このURLに変更する</button></div>';
+    return;
+  }
+}
+
+function applyUrlHint(hintId, suggested) {
+  var inputs = document.querySelectorAll('[oninput*="' + hintId + '"]');
+  if (inputs.length) inputs[0].value = suggested;
+  document.getElementById(hintId).innerHTML = '';
 }
 </script>
 </body>
