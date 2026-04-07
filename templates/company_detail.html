@@ -323,7 +323,7 @@
     <div class="company-header-actions">
       <button type="button" class="btn btn-edit btn-sm" onclick="openEditModal()">編集</button>
       <form method="POST" action="/companies/{{ company.id }}/delete"
-            onsubmit="return confirm('「{{ company.name }}」を削除しますか？紐づけは解除されますが、サイト・キーワード・記事は削除されません。')">
+            onsubmit="return confirm('「{{ company.name }}」の企業情報を削除します。紐づいたモニターサイトやキーワードの紐づけは解除されますが、サイト・キーワード・記事のデータ自体は削除されません。')">
         <button type="submit" class="btn btn-danger btn-sm">削除</button>
       </form>
     </div>
