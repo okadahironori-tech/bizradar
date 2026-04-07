@@ -504,6 +504,33 @@ def check_site():
     return redirect(request.referrer or url_for("management"))
 
 
+@app.route("/api/check_site", methods=["POST"])
+@login_required
+def api_check_site():
+    url = request.form.get("url", "").strip()
+    if not url:
+        return jsonify({"success": False, "message": "URLが不正です"})
+    if url in db.get_all_running_tasks().get("site_check", set()):
+        return jsonify({"success": False, "message": "チェック実行中です"})
+
+    user_id = session["user_id"]
+    sites = db.load_sites(user_id)
+    site_name = next((s.get("name", "") for s in sites if s["url"] == url), "")
+
+    import monitor as monitor_module
+
+    db.add_running_task("site_check", url)
+
+    def run():
+        try:
+            monitor_module.check_single_site(url, site_name)
+        finally:
+            db.remove_running_task("site_check", url)
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"success": True, "message": f"収集を開始しました: {site_name if site_name else url}"})
+
+
 @app.route("/collect_keyword", methods=["POST"])
 @login_required
 def collect_keyword():

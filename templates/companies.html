@@ -303,13 +303,12 @@
                     onclick="toggleSite(this, '{{ site.url | e }}')"
                     title="{% if is_enabled %}モニターON{% else %}モニターOFF{% endif %}">
             </button>
-            <form method="POST" action="/check_site">
-              <input type="hidden" name="url" value="{{ site.url }}">
-              <button type="submit" class="btn btn-check" {% if site.checking %}disabled{% endif %}
-                      style="padding:6px 12px;font-size:0.8rem;">
-                {% if site.checking %}収集中...{% else %}今すぐ収集{% endif %}
-              </button>
-            </form>
+            <button type="button" class="btn btn-check"
+                    onclick="checkSite(this, '{{ site.url | e }}')"
+                    {% if site.checking %}disabled{% endif %}
+                    style="padding:6px 12px;font-size:0.8rem;">
+              {% if site.checking %}収集中...{% else %}今すぐ収集{% endif %}
+            </button>
             <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
                     style="padding:6px 12px;font-size:0.8rem;">編集</button>
             <button type="button" class="btn btn-remove"
@@ -501,7 +500,7 @@ function addSite(e) {
         '</div>' +
         '<div class="site-card-actions">' +
           '<button type="button" class="btn-notify-toggle on" onclick="toggleSite(this, \'' + safeUrlJs + '\')" title="モニターON"></button>' +
-          '<form method="POST" action="/check_site"><input type="hidden" name="url" value="' + safeUrl + '"><button type="submit" class="btn btn-check" style="padding:6px 12px;font-size:0.8rem;">今すぐ収集</button></form>' +
+          '<button type="button" class="btn btn-check" onclick="checkSite(this, \'' + safeUrlJs + '\')" style="padding:6px 12px;font-size:0.8rem;">今すぐ収集</button>' +
           '<button type="button" class="btn btn-edit" onclick="openCardEdit(' + idx + ')" style="padding:6px 12px;font-size:0.8rem;">編集</button>' +
           '<button type="button" class="btn btn-remove" onclick="deleteSite(this, \'' + safeUrlJs + '\', \'' + safeNameJs + '\')" style="padding:6px 12px;font-size:0.8rem;">削除</button>' +
         '</div>';
@@ -521,6 +520,37 @@ function addSite(e) {
     });
 }
 
+// ── 今すぐ収集 AJAX ──────────────────────────────────────────────
+function checkSite(btn, url) {
+  btn.disabled = true;
+  var origText = btn.textContent;
+  btn.textContent = '収集中...';
+  var fd = new FormData();
+  fd.append('url', url);
+  fetch('/api/check_site', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) {
+        btn.textContent = origText;
+        btn.disabled = false;
+        alert(data.message || '収集に失敗しました');
+        return;
+      }
+      // 成功トースト表示
+      var card = btn.closest('.site-card');
+      if (card) {
+        var toast = document.createElement('div');
+        toast.textContent = '収集を開始しました';
+        toast.style.cssText = 'color:#16a34a;font-size:0.78rem;margin-top:4px;';
+        card.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 3000);
+      }
+      // ボタンを3秒後に復元
+      setTimeout(function() { btn.textContent = origText; btn.disabled = false; }, 3000);
+    })
+    .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
+}
+
 // ── モニターサイトAJAX削除・トグル ──────────────────────────────
 function deleteSite(btn, url, name) {
   if (!confirm('「' + name + '」を削除しますか？')) return;
@@ -532,7 +562,14 @@ function deleteSite(btn, url, name) {
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
       var card = document.querySelector('.site-card[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
-      if (card) { card.style.transition = 'opacity 0.3s'; card.style.opacity = '0'; setTimeout(function(){ card.remove(); }, 310); }
+      if (card) {
+        card.style.transition = 'opacity 0.3s'; card.style.opacity = '0';
+        setTimeout(function(){
+          card.remove();
+          var badge = document.querySelector('.section-title .count-badge');
+          if (badge) { var cur = parseInt(badge.textContent) || 0; badge.textContent = Math.max(0, cur - 1) + ' サイト'; }
+        }, 310);
+      }
     })
     .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
 }
