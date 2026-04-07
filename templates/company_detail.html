@@ -653,5 +653,15 @@ function applyUrlHint(hintId, suggested) {
   document.getElementById(hintId).innerHTML = '';
 }
 </script>
+
+<div style="text-align:center; padding: 40px 0 24px;">
+  <form method="POST" action="/companies/{{ company.id }}/delete"
+        onsubmit="return confirm('「{{ company.name }}」の企業情報を削除します。紐づいたモニターサイトやキーワードの紐づけは解除されますが、サイト・キーワード・記事のデータ自体は削除されません。')">
+    <button type="submit"
+            style="background:none; border:none; color:#dc2626; font-size:0.85rem; cursor:pointer; text-decoration:underline; padding:4px 8px;">
+      このページを削除する
+    </button>
+  </form>
+</div>
 </body>
 </html>
