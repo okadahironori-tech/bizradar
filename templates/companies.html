@@ -625,7 +625,7 @@ function checkUrlHint(input, hintId) {
 function _showUrlHint(hintId, suggested) {
   var hintEl = document.getElementById(hintId);
   if (!hintEl) return;
-  var msg = 'このサイトは記事一覧ページの登録をお勧めします：' + suggested;
+  var msg = 'このサイトはこちらのページの登録をお勧めします：' + suggested;
   var safeHintId = hintId.replace(/'/g, "\\'");
   var safeSuggested = suggested.replace(/'/g, "\\'");
   hintEl.innerHTML =
