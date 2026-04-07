@@ -292,6 +292,11 @@ def _run_migrations():
                 "ALTER TABLE sites ADD COLUMN IF NOT EXISTS "
                 "company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
             )
+            # sites: enabled カラム追加
+            cur.execute(
+                "ALTER TABLE sites ADD COLUMN IF NOT EXISTS "
+                "enabled BOOLEAN NOT NULL DEFAULT TRUE;"
+            )
             cur.execute(
                 "ALTER TABLE keywords ADD COLUMN IF NOT EXISTS "
                 "company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
@@ -464,10 +469,41 @@ def load_sites(user_id=None) -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
-                cur.execute("SELECT url, name FROM sites WHERE user_id = %s ORDER BY id", (user_id,))
+                cur.execute(
+                    "SELECT id, url, name, COALESCE(enabled, TRUE) AS enabled "
+                    "FROM sites WHERE user_id = %s ORDER BY id",
+                    (user_id,),
+                )
             else:
-                cur.execute("SELECT url, name FROM sites ORDER BY id")
+                cur.execute(
+                    "SELECT id, url, name, COALESCE(enabled, TRUE) AS enabled "
+                    "FROM sites ORDER BY id"
+                )
             return [dict(row) for row in cur.fetchall()]
+
+
+def delete_site_by_url(user_id: int, url: str) -> bool:
+    """URLで指定したサイトを削除する。削除できた場合 True を返す。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM sites WHERE user_id = %s AND url = %s",
+                (user_id, url),
+            )
+            return cur.rowcount > 0
+
+
+def toggle_site_enabled(user_id: int, url: str):
+    """サイトの enabled を反転して、更新後の値を返す。該当なし時は None。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE sites SET enabled = NOT COALESCE(enabled, TRUE) "
+                "WHERE user_id = %s AND url = %s RETURNING enabled",
+                (user_id, url),
+            )
+            row = cur.fetchone()
+            return bool(row[0]) if row else None
 
 
 def load_sites_for_monitor() -> list:

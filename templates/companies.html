@@ -244,7 +244,7 @@
         </thead>
         <tbody>
           {% for site in sites %}
-          <tr>
+          <tr data-site-url="{{ site.url | e }}">
             <td>
               <div id="site-name-view-{{ loop.index0 }}">
                 <span class="site-name">{{ site.name if site.name else '—' }}</span>
@@ -285,14 +285,16 @@
                     {% endif %}
                   </button>
                 </form>
+                <button type="button" class="btn {% if site.enabled %}btn-notify-toggle on{% else %}btn-notify-toggle off{% endif %}"
+                        onclick="toggleSite(this, '{{ site.url | e }}')"
+                        style="border-radius:20px;">
+                  {% if site.enabled %}ON{% else %}OFF{% endif %}
+                </button>
                 <button type="button" class="btn btn-edit" onclick="openSiteEdit({{ loop.index0 }})">編集</button>
-                <form method="POST" action="/remove_site"
-                      onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
-                  <input type="hidden" name="url" value="{{ site.url }}">
-                  <button type="submit" class="btn btn-remove">
-                    <span class="btn-label-pc">削除</span><span class="btn-label-sp">×</span>
-                  </button>
-                </form>
+                <button type="button" class="btn btn-remove"
+                        onclick="deleteSite(this, '{{ site.url | e }}', '{{ (site.name if site.name else site.url) | e }}')">
+                  <span class="btn-label-pc">削除</span><span class="btn-label-sp">×</span>
+                </button>
               </div>
             </td>
           </tr>
@@ -303,7 +305,7 @@
       <!-- ── SP用カードリスト ── -->
       <div class="site-cards">
         {% for site in sites %}
-        <div class="site-card">
+        <div class="site-card" data-site-url="{{ site.url | e }}">
           <div class="site-card-header">
             <div style="flex:1; min-width:0;">
               <div id="card-name-view-{{ loop.index0 }}">
@@ -343,13 +345,16 @@
                 {% if site.checking %}収集中...{% else %}今すぐ収集{% endif %}
               </button>
             </form>
+            <button type="button" class="btn-notify-toggle {% if site.enabled %}on{% else %}off{% endif %}"
+                    onclick="toggleSite(this, '{{ site.url | e }}')"
+                    style="border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700;">
+              {% if site.enabled %}ON{% else %}OFF{% endif %}
+            </button>
             <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
                     style="padding:6px 12px;font-size:0.8rem;">編集</button>
-            <form method="POST" action="/remove_site"
-                  onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
-              <input type="hidden" name="url" value="{{ site.url }}">
-              <button type="submit" class="btn btn-remove" style="padding:6px 12px;font-size:0.8rem;">削除</button>
-            </form>
+            <button type="button" class="btn btn-remove"
+                    onclick="deleteSite(this, '{{ site.url | e }}', '{{ (site.name if site.name else site.url) | e }}')"
+                    style="padding:6px 12px;font-size:0.8rem;">削除</button>
           </div>
         </div>
         {% endfor %}
@@ -467,6 +472,50 @@ function closeSiteEdit(idx) {
   document.getElementById('site-name-form-' + idx).classList.remove('open');
 }
 // ── キーワードAJAX削除 ──────────────────────────────────────────
+// ── モニターサイトAJAX削除・トグル ──────────────────────────────
+function deleteSite(btn, url, name) {
+  if (!confirm('「' + name + '」を削除しますか？')) return;
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('url', url);
+  fetch('/api/delete_site', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
+      // テーブル行
+      var tr = document.querySelector('tr[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
+      if (tr) { tr.style.transition = 'opacity 0.3s'; tr.style.opacity = '0'; setTimeout(function(){ tr.remove(); }, 310); }
+      // SPカード
+      var card = document.querySelector('.site-card[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
+      if (card) { card.style.transition = 'opacity 0.3s'; card.style.opacity = '0'; setTimeout(function(){ card.remove(); }, 310); }
+    })
+    .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
+}
+
+function toggleSite(btn, url) {
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('url', url);
+  fetch('/api/toggle_site', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      if (!data.success) { alert(data.message || '切り替えに失敗しました'); return; }
+      var on = data.enabled;
+      // 同じURLのトグルボタンを全て更新（テーブル・カード両方）
+      document.querySelectorAll('[data-site-url="' + url.replace(/"/g, '\\"') + '"] .btn-notify-toggle, ' +
+        'tr[data-site-url="' + url.replace(/"/g, '\\"') + '"] .btn-notify-toggle').forEach(function(b) {
+        b.textContent = on ? 'ON' : 'OFF';
+        b.classList.toggle('on', on);
+        b.classList.toggle('off', !on);
+      });
+      // テーブル行内のトグルボタン（セレクタが拾えない場合の保険）
+      var tr = document.querySelector('tr[data-site-url="' + url.replace(/"/g, '\\"') + '"]');
+      if (tr) { var tb = tr.querySelector('.btn-notify-toggle'); if (tb) { tb.textContent = on ? 'ON' : 'OFF'; tb.classList.toggle('on', on); tb.classList.toggle('off', !on); } }
+    })
+    .catch(function() { alert('切り替えに失敗しました'); btn.disabled = false; });
+}
+
 // ── 通常キーワードAJAX追加 ──────────────────────────────────────
 function addKeyword(e) {
   e.preventDefault();

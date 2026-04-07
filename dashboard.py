@@ -319,6 +319,32 @@ def add_site():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
+@app.route("/api/delete_site", methods=["POST"])
+@login_required
+def api_delete_site():
+    user_id = session["user_id"]
+    url = request.form.get("url", "").strip()
+    if not url:
+        return jsonify({"success": False, "message": "URLが不正です"})
+    deleted = db.delete_site_by_url(user_id, url)
+    if not deleted:
+        return jsonify({"success": False, "message": "該当サイトが見つかりません"})
+    return jsonify({"success": True})
+
+
+@app.route("/api/toggle_site", methods=["POST"])
+@login_required
+def api_toggle_site():
+    user_id = session["user_id"]
+    url = request.form.get("url", "").strip()
+    if not url:
+        return jsonify({"success": False, "message": "URLが不正です"})
+    new_enabled = db.toggle_site_enabled(user_id, url)
+    if new_enabled is None:
+        return jsonify({"success": False, "message": "該当サイトが見つかりません"})
+    return jsonify({"success": True, "enabled": new_enabled})
+
+
 @app.route("/remove_site", methods=["POST"])
 @login_required
 def remove_site():
@@ -1192,8 +1218,10 @@ def management():
         status = check_info.get("status", "unknown")
         error_label, error_cls = _classify_site_error(error_text) if status == "error" else ("", "")
         sites.append({
+            "id":          s.get("id"),
             "url":         url,
             "name":        s.get("name", ""),
+            "enabled":     s.get("enabled", True),
             "last_check":  check_info.get("timestamp", "未チェック"),
             "status":      status,
             "error_label": error_label,
