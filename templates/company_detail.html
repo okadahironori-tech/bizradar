@@ -166,6 +166,12 @@
     }
     .article-item:last-child { border-bottom: none; }
     .article-item.is-alert { background: #fff8f8; border-left: 3px solid #dc2626; }
+    .article-item.article-read { opacity: 0.5; }
+    .article-actions { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+    .btn-check-done { font-size: 0.7rem; background: #3949ab; color: #fff; border: 1px solid #3949ab; border-radius: 5px; padding: 2px 9px; cursor: pointer; white-space: nowrap; }
+    .btn-check-done:hover { background: #2d3a8c; }
+    .btn-unread { font-size: 0.7rem; background: #f3f4f6; color: #555; border: 1px solid #999; border-radius: 5px; padding: 2px 9px; cursor: pointer; white-space: nowrap; }
+    .btn-unread:hover { background: #e5e7eb; }
     .article-kw {
       flex-shrink: 0; padding: 2px 8px; border-radius: 10px;
       font-size: 0.7rem; font-weight: 600;
@@ -525,18 +531,21 @@
       </div>
       {% if articles %}
         {% for a in articles %}
-        <div class="article-item {% if a.is_alert %}is-alert{% endif %}">
+        <div class="article-item {% if a.is_alert %}is-alert{% endif %}{% if a.is_read %} article-read{% endif %}" data-article-id="{{ a.id }}">
           <span class="article-kw">{{ a.keyword }}</span>
           <div class="article-body">
             <a class="article-title" href="{{ a.url }}" target="_blank" rel="noopener">
               {% if a.is_alert %}<span class="badge-alert-sm">重要</span>{% endif %}
               {{ a.title }}
-              {% if a.is_read %}<span class="badge-read">✓ 既読</span>{% endif %}
             </a>
             <div class="article-meta">
               {% if a.source %}{{ a.source }}{% endif %}
               {% if a.source and a.published %} · {% endif %}
               {% if a.published %}{{ a.published }}{% endif %}
+            </div>
+            <div class="article-actions">
+              <button class="btn-check-done" onclick="markRead(this)"{% if a.is_read %} style="display:none"{% endif %}>チェック済み</button>
+              <button class="btn-unread" onclick="markUnread(this)"{% if not a.is_read %} style="display:none"{% endif %}>未読に戻す</button>
             </div>
           </div>
         </div>
@@ -582,6 +591,34 @@
     </form>
   </div>
 </div>
+<script>
+async function markRead(btn) {
+  const item = btn.closest('.article-item');
+  const id = item.dataset.articleId;
+  try {
+    const res = await fetch(`/mark_read/${id}`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    item.classList.add('article-read');
+    btn.style.display = 'none';
+    item.querySelector('.btn-unread').style.display = '';
+  } catch (_) {}
+}
+async function markUnread(btn) {
+  const item = btn.closest('.article-item');
+  const id = item.dataset.articleId;
+  try {
+    const res = await fetch(`/mark_unread/${id}`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    item.classList.remove('article-read');
+    btn.style.display = 'none';
+    item.querySelector('.btn-check-done').style.display = '';
+  } catch (_) {}
+}
+</script>
 <script>
 (function () {
   var btn = document.getElementById('hamburger-btn');

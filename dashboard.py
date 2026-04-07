@@ -1561,6 +1561,9 @@ def company_detail(company_id):
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws)
         a["published"] = a.get("published", "")
 
+    # 重複記事除去
+    articles = _deduplicate_articles(articles)
+
     # 全サイト・全キーワード（紐づけドロップダウン用）
     all_sites    = db.load_sites_with_company(user_id)
     all_keywords = db.load_keywords_with_company(user_id)
