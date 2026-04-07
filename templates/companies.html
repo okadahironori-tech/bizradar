@@ -323,15 +323,16 @@
       {% else %}
       <div class="empty-state">モニターサイトが登録されていません</div>
       {% endif %}
-      <form class="add-form" method="POST" action="/add_site"
-            onsubmit="return confirm('「' + this.url.value + '」を追加しますか？')">
-        <input class="input-name" type="text" name="name" placeholder="会社名（任意）">
+      <form class="add-form" id="site-add-form" onsubmit="addSite(event)">
+        <input class="input-name" type="text" name="name" id="site-add-name" placeholder="会社名（任意）">
         <input class="input-url" type="url" name="url" id="site-url-input-mgmt"
                placeholder="https://example.com/news（ニュース・お知らせページのURLを推奨）" required
                oninput="checkUrlHint(this, 'url-hint-mgmt')">
         <button type="submit" class="btn btn-add">+ 追加</button>
       </form>
       <div id="url-hint-mgmt"></div>
+      <div id="site-add-error" style="display:none; color:#dc2626; font-size:0.82rem; padding:6px 12px;"></div>
+      <div id="site-add-warning" style="display:none; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; font-size:0.82rem; padding:6px 12px; margin-top:4px;"></div>
     </div>
   </section>
 
@@ -419,6 +420,107 @@
 </main>
 
 <script>
+// ── モニターサイトAJAX追加 ──────────────────────────────────────
+function addSite(e) {
+  e.preventDefault();
+  var urlInput  = document.getElementById('site-url-input-mgmt');
+  var nameInput = document.getElementById('site-add-name');
+  var errEl     = document.getElementById('site-add-error');
+  var warnEl    = document.getElementById('site-add-warning');
+  var url  = urlInput.value.trim();
+  var name = nameInput.value.trim();
+  if (!url) return;
+
+  errEl.style.display = 'none';
+  warnEl.style.display = 'none';
+
+  var fd = new FormData();
+  fd.append('url', url);
+  fd.append('name', name);
+  fetch('/api/add_site', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) {
+        errEl.textContent = data.message || '追加に失敗しました';
+        errEl.style.display = 'block';
+        return;
+      }
+      // 警告表示
+      if (data.warnings && data.warnings.length > 0) {
+        warnEl.textContent = data.warnings.join(' / ');
+        warnEl.style.display = 'block';
+      }
+      // フォームクリア
+      urlInput.value = '';
+      nameInput.value = '';
+      document.getElementById('url-hint-mgmt').innerHTML = '';
+
+      // 「登録されていません」の empty-state を除去
+      var emptyState = document.querySelector('.card .empty-state');
+      if (emptyState) emptyState.remove();
+
+      // site-cards コンテナを取得（なければ作成）
+      var siteCards = document.querySelector('.site-cards');
+      if (!siteCards) {
+        siteCards = document.createElement('div');
+        siteCards.className = 'site-cards';
+        var form = document.getElementById('site-add-form');
+        form.closest('.card').insertBefore(siteCards, form);
+      }
+
+      // 新カードを生成
+      var safeUrl  = data.url.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      var safeName = (data.name || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      var safeUrlJs = data.url.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var safeNameJs = (data.name || data.url).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var idx = document.querySelectorAll('.site-card').length;
+
+      var card = document.createElement('div');
+      card.className = 'site-card';
+      card.dataset.siteUrl = data.url;
+      card.style.opacity = '0';
+      card.style.transition = 'opacity 0.3s';
+      card.innerHTML =
+        '<div class="site-card-header">' +
+          '<div style="flex:1; min-width:0;">' +
+            '<div id="card-name-view-' + idx + '">' +
+              '<span class="site-name">' + safeName + '</span>' +
+            '</div>' +
+            '<form id="card-name-form-' + idx + '" class="site-name-edit-wrap" method="POST" action="/update_site_name" style="display:none">' +
+              '<input type="hidden" name="url" value="' + safeUrl + '">' +
+              '<input type="text" name="name" value="' + safeName + '" class="input-site-name" placeholder="会社名">' +
+              '<button type="submit" class="btn btn-save">保存</button>' +
+              '<button type="button" class="btn btn-cancel-edit" onclick="closeCardEdit(' + idx + ')">キャンセル</button>' +
+            '</form>' +
+          '</div>' +
+          '<div style="flex-shrink:0;"><span class="badge badge-unknown">未チェック</span></div>' +
+        '</div>' +
+        '<div class="site-card-meta">' +
+          '<div class="site-card-url"><a href="' + safeUrl + '" target="_blank" rel="noopener">' + safeUrl + '</a></div>' +
+          '<div class="site-card-lastcheck">最終チェック：—</div>' +
+        '</div>' +
+        '<div class="site-card-actions">' +
+          '<button type="button" class="btn-notify-toggle on" onclick="toggleSite(this, \'' + safeUrlJs + '\')" title="モニターON"></button>' +
+          '<form method="POST" action="/check_site"><input type="hidden" name="url" value="' + safeUrl + '"><button type="submit" class="btn btn-check" style="padding:6px 12px;font-size:0.8rem;">今すぐ収集</button></form>' +
+          '<button type="button" class="btn btn-edit" onclick="openCardEdit(' + idx + ')" style="padding:6px 12px;font-size:0.8rem;">編集</button>' +
+          '<button type="button" class="btn btn-remove" onclick="deleteSite(this, \'' + safeUrlJs + '\', \'' + safeNameJs + '\')" style="padding:6px 12px;font-size:0.8rem;">削除</button>' +
+        '</div>';
+      siteCards.appendChild(card);
+      requestAnimationFrame(function() { card.style.opacity = '1'; });
+
+      // カウントバッジ更新
+      var badge = document.querySelector('.section-title .count-badge');
+      if (badge) {
+        var cur = parseInt(badge.textContent) || 0;
+        badge.textContent = (cur + 1) + ' サイト';
+      }
+    })
+    .catch(function() {
+      errEl.textContent = '通信エラーが発生しました';
+      errEl.style.display = 'block';
+    });
+}
+
 // ── モニターサイトAJAX削除・トグル ──────────────────────────────
 function deleteSite(btn, url, name) {
   if (!confirm('「' + name + '」を削除しますか？')) return;

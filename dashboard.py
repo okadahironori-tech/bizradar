@@ -373,6 +373,41 @@ def add_site():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
+@app.route("/api/add_site", methods=["POST"])
+@login_required
+def api_add_site():
+    user_id = session["user_id"]
+    url  = request.form.get("url", "").strip()
+    name = request.form.get("name", "").strip()
+
+    if not url:
+        return jsonify({"success": False, "message": "URLを入力してください"})
+
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    sites = db.load_sites(user_id)
+    if any(s["url"] == url for s in sites):
+        return jsonify({"success": False, "message": f"すでに登録済みです: {url}"})
+
+    # 同一ドメインの警告（登録はブロックしない）
+    warnings = []
+    new_domain = _extract_domain(url)
+    if new_domain:
+        same_domain = [s for s in sites if _extract_domain(s["url"]) == new_domain]
+        for s in same_domain:
+            warnings.append(f"このドメインはすでに登録されています：{s['url']}")
+
+    sites.append({"url": url, "name": name})
+    db.save_sites(sites, user_id)
+    return jsonify({
+        "success": True,
+        "url": url,
+        "name": name,
+        "warnings": warnings,
+    })
+
+
 @app.route("/api/delete_site", methods=["POST"])
 @login_required
 def api_delete_site():
