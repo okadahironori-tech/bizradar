@@ -100,6 +100,11 @@
       main { margin: 16px auto; padding: 0 10px; }
       #articles-container { padding: 8px 8px; gap: 6px; }
     }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #6b7280; padding: 8px 12px 4px; flex-wrap: wrap; }
+    .breadcrumb a { color: #6b7280; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
+    .bc-sep { color: #9ca3af; font-size: 0.75rem; }
+    .bc-current { color: #1a1a2e; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -141,6 +146,12 @@
     {% endfor %}
   {% endif %}
   {% endwith %}
+
+  <nav class="breadcrumb">
+    <a href="{{ url_for('index') }}">ホーム</a>
+    <span class="bc-sep">›</span>
+    <span class="bc-current">ニュース</span>
+  </nav>
 
   <section id="articles-section">
     <div class="section-title">

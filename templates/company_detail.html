@@ -259,6 +259,11 @@
       .summary-val { font-size: 1.2rem; }
       .form-grid { grid-template-columns: 1fr; }
     }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #6b7280; padding: 8px 12px 4px; flex-wrap: wrap; }
+    .breadcrumb a { color: #6b7280; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
+    .bc-sep { color: #9ca3af; font-size: 0.75rem; }
+    .bc-current { color: #1a1a2e; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -304,10 +309,13 @@
   {% endif %}
   {% endwith %}
 
-  <!-- 戻るリンク -->
-  <div style="margin-bottom:12px;">
-    <a href="/company" class="btn btn-ghost btn-sm">← 一覧</a>
-  </div>
+  <nav class="breadcrumb">
+    <a href="{{ url_for('index') }}">ホーム</a>
+    <span class="bc-sep">›</span>
+    <a href="{{ url_for('company_list') }}">企業</a>
+    <span class="bc-sep">›</span>
+    <span class="bc-current">{{ company.name }}</span>
+  </nav>
 
   <!-- 企業ヘッダー -->
   <div class="company-header">
@@ -665,7 +673,7 @@ function applyUrlHint(hintId, suggested) {
 </div>
 
 <!-- ── ページトップへ戻るボタン ── -->
-<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;right:24px;z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
+<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>
