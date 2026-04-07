@@ -424,12 +424,12 @@ def add_keyword():
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
         flash("キーワードを入力してください", "error")
-        return redirect(url_for("index", _anchor="keywords-section"))
+        return redirect(url_for("management", _anchor="keywords-section"))
     if db.add_keyword_if_not_exists(user_id, keyword):
         flash(f"キーワードを追加しました: {keyword}", "success")
     else:
         flash(f"すでに登録済みです: {keyword}", "error")
-    return redirect(url_for("index", _anchor="keywords-section"))
+    return redirect(url_for("management", _anchor="keywords-section"))
 
 
 @app.route("/remove_keyword", methods=["POST"])
