@@ -162,6 +162,18 @@
       main { margin: 16px auto; }
       .add-form { flex-direction: column; }
       .input-name, .input-url { flex: none; width: 100%; }
+      /* テーブル：余白縮小・最終チェック列非表示 */
+      th, td { padding: 7px 8px; font-size: 0.78rem; }
+      .col-lastcheck { display: none; }
+      /* ボタン：コンパクト化 */
+      .btn { padding: 5px 8px; font-size: 0.75rem; }
+      .row-actions { gap: 4px; flex-wrap: nowrap; }
+      /* ボタンラベル切り替え */
+      .btn-label-pc { display: none; }
+      .btn-label-sp { display: inline; }
+    }
+    @media (min-width: 601px) {
+      .btn-label-sp { display: none; }
     }
   </style>
 </head>
@@ -208,7 +220,7 @@
           <tr>
             <th>会社名 / URL</th>
             <th>ステータス</th>
-            <th>最終チェック</th>
+            <th class="col-lastcheck">最終チェック</th>
             <th style="text-align:right">操作</th>
           </tr>
         </thead>
@@ -242,20 +254,26 @@
                 <span class="badge badge-unknown">未チェック</span>
               {% endif %}
             </td>
-            <td style="font-size:0.8rem; color:#6b7280; white-space:nowrap;">{{ site.last_check }}</td>
+            <td class="col-lastcheck" style="font-size:0.8rem; color:#6b7280; white-space:nowrap;">{{ site.last_check }}</td>
             <td>
-              <div class="row-actions" style="justify-content:flex-end; flex-wrap:wrap;">
+              <div class="row-actions" style="justify-content:flex-end;">
                 <form method="POST" action="/check_site">
                   <input type="hidden" name="url" value="{{ site.url }}">
                   <button type="submit" class="btn btn-check" {% if site.checking %}disabled{% endif %}>
-                    {% if site.checking %}チェック中{% else %}今すぐチェック{% endif %}
+                    {% if site.checking %}
+                      <span class="btn-label-pc">チェック中</span><span class="btn-label-sp">…</span>
+                    {% else %}
+                      <span class="btn-label-pc">今すぐチェック</span><span class="btn-label-sp">↺</span>
+                    {% endif %}
                   </button>
                 </form>
                 <button type="button" class="btn btn-edit" onclick="openSiteEdit({{ loop.index0 }})">編集</button>
                 <form method="POST" action="/remove_site"
                       onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
                   <input type="hidden" name="url" value="{{ site.url }}">
-                  <button type="submit" class="btn btn-remove">削除</button>
+                  <button type="submit" class="btn btn-remove">
+                    <span class="btn-label-pc">削除</span><span class="btn-label-sp">×</span>
+                  </button>
                 </form>
               </div>
             </td>
@@ -439,7 +457,7 @@ function applyUrlHint(hintId, suggested) {
 </script>
 
 <!-- ── ページトップへ戻るボタン ── -->
-<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;right:24px;z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
+<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>
