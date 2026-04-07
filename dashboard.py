@@ -582,11 +582,15 @@ def api_suggest_url():
     import requests as _requests
     from urllib.parse import urlparse
 
-    # sitemap から抽出する際に優先するキーワード（URLパスに含まれるもの）
-    _NEWS_KEYWORDS = re.compile(
-        r"news|press|release|topics|information|info|"
-        r"お知らせ|ニュース|プレス|リリース|トピックス",
-        re.I,
+    # sitemap URL の優先度別キーワード
+    _KW_HIGH = re.compile(
+        r"news|press|release|newsroom|お知らせ|ニュース|プレスリリース", re.I
+    )
+    _KW_MID = re.compile(
+        r"topics|information|info|announce", re.I
+    )
+    _KW_EXCLUDE = re.compile(
+        r"customer|support|product|service|recruit|campaign|energy", re.I
     )
 
     def _fetch_get(url):
@@ -617,15 +621,31 @@ def api_suggest_url():
             return None
 
     def _extract_news_url_from_sitemap(xml_text):
-        """sitemap XML からニュース系URLを抽出する。
-        <loc> タグのURLを全件取得し、_NEWS_KEYWORDS に合致するものを優先して返す。
-        合致するものが複数あれば最初の1件を返す。なければ None。
+        """sitemap XML からニュース系URLを優先度付きで抽出する。
+        優先度高 → 中 の順に最初の1件を返す。
+        除外キーワードのみを含むURLはスキップする。
         """
         locs = re.findall(r"<loc>\s*(https?://[^\s<]+)\s*</loc>", xml_text)
+        # パスのみで判定（ホスト部分のキーワードに引っ張られないよう分離）
+        from urllib.parse import urlparse as _up
+        high_match = None
+        mid_match = None
         for loc in locs:
-            if _NEWS_KEYWORDS.search(loc):
-                return loc.rstrip("/") + "/"
-        return None
+            path = _up(loc).path
+            has_exclude = bool(_KW_EXCLUDE.search(path))
+            has_high    = bool(_KW_HIGH.search(path))
+            has_mid     = bool(_KW_MID.search(path))
+            # 除外キーワードのみ → スキップ（高・中キーワードも含む場合は通す）
+            if has_exclude and not has_high and not has_mid:
+                continue
+            if has_high and high_match is None:
+                high_match = loc.rstrip("/") + "/"
+            elif has_mid and mid_match is None:
+                mid_match = loc.rstrip("/") + "/"
+            # 両方見つかったら打ち切り
+            if high_match and mid_match:
+                break
+        return high_match or mid_match
 
     raw = request.args.get("url", "").strip()
     if not raw:
