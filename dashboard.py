@@ -1606,43 +1606,51 @@ def add_company():
 @login_required
 def company_detail(company_id):
     user_id = session["user_id"]
-    company = db.get_company(user_id, company_id)
-    if not company:
-        flash("企業が見つかりません", "error")
-        return redirect(url_for("management", _anchor="keywords-section"))
+    try:
+        company = db.get_company(user_id, company_id)
+        if not company:
+            flash("企業が見つかりません", "error")
+            return redirect(url_for("management", _anchor="keywords-section"))
 
-    alert_kws = db.get_alert_keywords_set(user_id)
+        alert_kws = db.get_alert_keywords_set(user_id)
 
-    sites_linked    = db.load_company_sites(user_id, company_id)
-    keywords_linked = db.load_company_keywords(user_id, company_id)
-    articles        = db.load_company_articles(user_id, company_id, limit=30)
-    history         = db.load_company_change_history(user_id, company_id, limit=10)
+        sites_linked    = db.load_company_sites(user_id, company_id)
+        keywords_linked = db.load_company_keywords(user_id, company_id)
+        articles        = db.load_company_articles(user_id, company_id, limit=30)
+        history         = db.load_company_change_history(user_id, company_id, limit=10)
 
-    # 記事に重要フラグ付与
-    for a in articles:
-        a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws)
-        a["published"] = a.get("published", "")
+        # 記事に重要フラグ付与
+        for a in articles:
+            a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws)
+            a["published"] = a.get("published", "")
 
-    # 重複記事除去
-    articles = _deduplicate_articles(articles)
+        # 重複記事除去
+        articles = _deduplicate_articles(articles)
 
-    # 全サイト・全キーワード（紐づけドロップダウン用）
-    all_sites    = db.load_sites_with_company(user_id)
-    all_keywords = db.load_keywords_with_company(user_id)
+        # 全サイト・全キーワード（紐づけドロップダウン用）
+        all_sites    = db.load_sites_with_company(user_id)
+        all_keywords = db.load_keywords_with_company(user_id)
 
-    summary = db.get_company_summary(user_id, company_id, alert_kws)
+        summary = db.get_company_summary(user_id, company_id, alert_kws)
 
-    return render_template("company_detail.html",
-                           company=company,
-                           sites_linked=sites_linked,
-                           keywords_linked=keywords_linked,
-                           articles=articles,
-                           history=history,
-                           all_sites=all_sites,
-                           all_keywords=all_keywords,
-                           summary=summary,
-                           user_email=session.get("email", ""),
-                           is_admin=session.get("is_admin", False))
+        return render_template("company_detail.html",
+                               company=company,
+                               sites_linked=sites_linked,
+                               keywords_linked=keywords_linked,
+                               articles=articles,
+                               history=history,
+                               all_sites=all_sites,
+                               all_keywords=all_keywords,
+                               summary=summary,
+                               user_email=session.get("email", ""),
+                               is_admin=session.get("is_admin", False))
+    except Exception:
+        logger.exception(
+            "company_detail: DB エラー発生 company_id=%s user_id=%s",
+            company_id, user_id
+        )
+        flash("ページの読み込み中にエラーが発生しました。しばらくしてから再度お試しください。", "error")
+        return redirect(url_for("company_list"))
 
 
 @app.route("/companies/<int:company_id>/edit", methods=["POST"])

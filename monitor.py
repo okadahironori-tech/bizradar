@@ -125,6 +125,57 @@ def fetch_news_articles(keyword: str) -> list:
     return articles
 
 
+def fetch_yahoo_news_articles(keyword: str) -> list:
+    """Yahoo!ニュース RSSからキーワード関連記事を取得する（最新20件）
+
+    Google News がサーバー環境でブロックされる場合の補助ソースとして使用する。
+    失敗しても例外を上位に伝播せず空リストを返す（Google News に影響を与えない）。
+    """
+    rss_url = f"https://news.yahoo.co.jp/rss/search?p={quote(keyword)}&ei=UTF-8"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
+    }
+    print(f"  [Yahoo News] 取得開始: keyword={keyword!r}")
+    try:
+        response = requests.get(rss_url, headers=headers, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"  [Yahoo News] 取得失敗（スキップ）: keyword={keyword!r} error={e}")
+        return []
+
+    feed = feedparser.parse(response.content)
+    if feed.bozo and getattr(feed, "bozo_exception", None):
+        print(f"  [Yahoo News][警告] RSSの解析に問題があります: {feed.bozo_exception}")
+    if not feed.entries:
+        print(f"  [Yahoo News][警告] RSSの記事が0件です (HTTP {response.status_code}, keyword={keyword!r})")
+    else:
+        print(f"  [Yahoo News] 取得完了: keyword={keyword!r} HTTP={response.status_code} 件数={len(feed.entries)}")
+
+    articles = []
+    for entry in feed.entries[:20]:
+        title = _sanitize_text(entry.get("title", ""))
+        url = _sanitize_text(_rss_entry_link(entry))
+        source = "Yahoo!ニュース"
+        published = ""
+        if entry.get("published_parsed"):
+            dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed), tz=timezone.utc).astimezone(JST)
+            published = dt.strftime("%Y-%m-%d %H:%M")
+        else:
+            published = entry.get("published", "")
+        published = _sanitize_text(published)
+        if title and url:
+            articles.append({
+                "keyword":   keyword,
+                "title":     title,
+                "url":       url,
+                "source":    source,
+                "published": published,
+            })
+    return articles
+
+
 def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set = None):
     """ダイジェストメールを送信する。
     articles_by_keyword: {keyword: [article, ...], ...}
@@ -384,11 +435,13 @@ def check_single_keyword(keyword: str, user_id=None):
     seen_urls   = db.load_article_seen_urls(user_id)
     seen_titles = db.load_article_seen_titles(user_id)
     try:
-        articles = fetch_news_articles(keyword)
+        google_articles = fetch_news_articles(keyword)
     except Exception as e:
-        print(f"  [エラー] 取得失敗: {e}")
+        print(f"  [エラー] Google News 取得失敗: {e}")
         db.fail_running_task("keyword_check", keyword, str(e))
         return
+    yahoo_articles = fetch_yahoo_news_articles(keyword)
+    articles = google_articles + yahoo_articles
 
     now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
     new_articles = []
@@ -446,11 +499,13 @@ def check_all_keywords():
             print(f"  キーワード: {keyword} (user_id={user_id})")
             db.add_running_task("keyword_check", keyword)
             try:
-                articles = fetch_news_articles(keyword)
+                google_articles = fetch_news_articles(keyword)
             except Exception as e:
-                print(f"  [エラー] 取得失敗: {e}")
+                print(f"  [エラー] Google News 取得失敗: {e}")
                 db.fail_running_task("keyword_check", keyword, str(e))
                 continue
+            yahoo_articles = fetch_yahoo_news_articles(keyword)
+            articles = google_articles + yahoo_articles
 
             now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
             new_articles = []
