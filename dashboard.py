@@ -573,10 +573,59 @@ def api_articles():
 @login_required
 def api_suggest_url():
     """入力URLを受け取り、より適切な登録候補URLを返す。
-    優先順位: sitemap.xml → /feed → /rss → パターンマッチ（keizai.biz等）
+    優先順位:
+      1. sitemap.xml を取得・解析 → ニュース系URLを抽出して提案
+      2. /feed が 200 なら提案
+      3. /rss  が 200 なら提案
+      4. パターンマッチ（keizai.biz 等）にフォールバック
     """
     import requests as _requests
-    from urllib.parse import urlparse, urljoin
+    from urllib.parse import urlparse
+
+    # sitemap から抽出する際に優先するキーワード（URLパスに含まれるもの）
+    _NEWS_KEYWORDS = re.compile(
+        r"news|press|release|topics|information|info|"
+        r"お知らせ|ニュース|プレス|リリース|トピックス",
+        re.I,
+    )
+
+    def _fetch_get(url):
+        """GET リクエストを試み、(Response or None) を返す"""
+        try:
+            return _requests.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; BizRadar/1.0)"},
+                timeout=3,
+                allow_redirects=True,
+                verify=False,
+            )
+        except Exception:
+            return None
+
+    def _fetch_head(url):
+        """HEAD リクエストを試み、ステータスコード (int or None) を返す"""
+        try:
+            r = _requests.head(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; BizRadar/1.0)"},
+                timeout=3,
+                allow_redirects=True,
+                verify=False,
+            )
+            return r.status_code
+        except Exception:
+            return None
+
+    def _extract_news_url_from_sitemap(xml_text):
+        """sitemap XML からニュース系URLを抽出する。
+        <loc> タグのURLを全件取得し、_NEWS_KEYWORDS に合致するものを優先して返す。
+        合致するものが複数あれば最初の1件を返す。なければ None。
+        """
+        locs = re.findall(r"<loc>\s*(https?://[^\s<]+)\s*</loc>", xml_text)
+        for loc in locs:
+            if _NEWS_KEYWORDS.search(loc):
+                return loc.rstrip("/") + "/"
+        return None
 
     raw = request.args.get("url", "").strip()
     if not raw:
@@ -591,22 +640,18 @@ def api_suggest_url():
     except Exception:
         return jsonify({"suggested": None})
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; BizRadar/1.0)",
-        "Accept": "*/*",
-    }
+    # 1. sitemap.xml を取得して解析
+    sitemap_resp = _fetch_get(base + "/sitemap.xml")
+    if sitemap_resp and sitemap_resp.status_code == 200:
+        news_url = _extract_news_url_from_sitemap(sitemap_resp.text)
+        if news_url:
+            return jsonify({"suggested": news_url})
+        # sitemap は存在したがニュース系URLが見つからなかった → 次へ進む
 
-    # 1. sitemap.xml → 2. /feed → 3. /rss の順に HEAD リクエストで存在確認
-    PROBE_PATHS = ["/sitemap.xml", "/feed", "/rss"]
-    for path in PROBE_PATHS:
-        candidate = base + path
-        try:
-            resp = _requests.head(candidate, headers=headers, timeout=3,
-                                  allow_redirects=True, verify=False)
-            if resp.status_code == 200:
-                return jsonify({"suggested": candidate})
-        except Exception:
-            pass
+    # 2. /feed → 3. /rss の順に HEAD で確認
+    for path in ("/feed", "/rss"):
+        if _fetch_head(base + path) == 200:
+            return jsonify({"suggested": base + path})
 
     # 4. パターンマッチ（keizai.biz など）にフォールバック
     # ─ 将来のパターンは SITE_URL_RULES リストに追加する ─
