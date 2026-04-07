@@ -1324,7 +1324,7 @@ def add_company():
     website_url = request.form.get("website_url", "").strip()
     memo        = request.form.get("memo", "").strip()
 
-    # 同一ドメインの既存企業があれば警告（登録はブロックしない）
+    # 同一ドメインの既存企業があれば登録をブロック
     if website_url:
         new_domain = _extract_domain(website_url)
         if new_domain:
@@ -1332,7 +1332,8 @@ def add_company():
             for c in existing:
                 c_url = c.get("website_url", "") or ""
                 if c_url and _extract_domain(c_url) == new_domain:
-                    flash(f"このドメインはすでに登録されています：{c['name']}（{c_url}）", "warning")
+                    flash(f"このドメインはすでに登録されています：{c['name']}（{c_url}）", "error")
+                    return redirect(url_for("company_list"))
 
     company_id = db.create_company(user_id, name, name_kana, website_url, memo)
     if request.form.get("add_as_keyword"):
