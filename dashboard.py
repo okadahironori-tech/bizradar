@@ -623,20 +623,37 @@ def api_suggest_url():
     # 個別記事ページ判定: パスに6桁以上の連続数字（日付・ID）を含む
     _DATE_DIGITS = re.compile(r"\d{6,}")
 
-    def _path_depth(url):
-        """パスのスラッシュ数（階層の深さ）を返す"""
-        from urllib.parse import urlparse as _up
-        return _up(url).path.rstrip("/").count("/")
-
-    def _best_from(candidates):
-        """候補URLリストから一覧ページらしい最良の1件を選ぶ。
-        1. 日付らしき6桁以上の数字を含むURLを除外
-        2. 残ったものをパス階層の浅い順にソートして先頭を返す
-        3. 全件除外された場合は階層の浅い順の先頭（日付URLも許容）を返す
+    def _kw_tier(url, kw_pattern):
+        """キーワードが現れるパスセグメントの位置でティアを返す（小さいほど優先）。
+        tier 0: 第1セグメント  例) /news/
+        tier 1: 第2セグメント  例) /corporate/press/
+        tier 2: 第3セグメント以降  例) /home/customer-support/info/
         """
-        non_dated = [u for u in candidates if not _DATE_DIGITS.search(u)]
-        pool = non_dated if non_dated else candidates
-        return min(pool, key=_path_depth) if pool else None
+        from urllib.parse import urlparse as _up
+        segments = [s for s in _up(url).path.strip("/").split("/") if s]
+        kw_idx = next(
+            (i for i, s in enumerate(segments) if kw_pattern.search(s)),
+            len(segments),
+        )
+        return min(kw_idx, 2)
+
+    def _best_from(candidates, kw_pattern):
+        """候補URLリストから一覧ページらしい最良の1件を選ぶ。
+        スコア = (tier, has_date, depth) の昇順で最小を選択。
+          tier:     キーワード位置ティア（0=最優先, 2=後回し）
+          has_date: 6桁以上の連続数字を含む場合 1（記事URLを後回し）
+          depth:    パスのスラッシュ数（浅いほど優先）
+        """
+        from urllib.parse import urlparse as _up
+
+        def _score(url):
+            path = _up(url).path
+            tier     = _kw_tier(url, kw_pattern)
+            has_date = 1 if _DATE_DIGITS.search(path) else 0
+            depth    = path.rstrip("/").count("/")
+            return (tier, has_date, depth)
+
+        return min(candidates, key=_score) if candidates else None
 
     def _extract_news_url_from_sitemap(xml_text):
         """sitemap XML からニュース系URLを優先度付きで抽出する。
@@ -661,7 +678,7 @@ def api_suggest_url():
             elif has_mid:
                 mid_candidates.append(loc.rstrip("/") + "/")
         # 高優先候補から一覧ページを選び、なければ中優先候補で選ぶ
-        return _best_from(high_candidates) or _best_from(mid_candidates)
+        return _best_from(high_candidates, _KW_HIGH) or _best_from(mid_candidates, _KW_MID)
 
     raw = request.args.get("url", "").strip()
     if not raw:
