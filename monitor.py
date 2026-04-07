@@ -81,10 +81,12 @@ def fetch_news_articles(keyword: str) -> list:
         "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
         "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
     }
+    print(f"  [Google News] 取得開始: keyword={keyword!r}")
     try:
         response = requests.get(rss_url, headers=headers, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
+        print(f"  [Google News] 取得失敗: keyword={keyword!r} error={e}")
         raise RuntimeError(f"RSSの取得に失敗しました: {e}") from e
 
     feed = feedparser.parse(response.content)
@@ -92,6 +94,8 @@ def fetch_news_articles(keyword: str) -> list:
         print(f"  [警告] RSSの解析に問題があります: {feed.bozo_exception}")
     if not feed.entries:
         print(f"  [警告] RSSの記事が0件です (HTTP {response.status_code}, keyword={keyword!r})")
+    else:
+        print(f"  [Google News] 取得完了: keyword={keyword!r} HTTP={response.status_code} 件数={len(feed.entries)}")
 
     articles = []
     for entry in feed.entries[:20]:
