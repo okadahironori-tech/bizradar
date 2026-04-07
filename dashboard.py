@@ -432,6 +432,18 @@ def add_keyword():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
+@app.route("/api/add_keyword", methods=["POST"])
+@login_required
+def api_add_keyword():
+    user_id = session["user_id"]
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        return jsonify({"success": False, "message": "キーワードを入力してください"})
+    if db.add_keyword_if_not_exists(user_id, keyword):
+        return jsonify({"success": True, "keyword": keyword})
+    return jsonify({"success": False, "message": f"すでに登録済みです: {keyword}"})
+
+
 @app.route("/remove_keyword", methods=["POST"])
 @login_required
 def remove_keyword():

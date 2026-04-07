@@ -386,7 +386,7 @@
             <th style="text-align:right">操作</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="kw-tbody">
           {% for kw in keyword_entries %}
           {% set is_collecting = kw.keyword in keyword_collecting %}
           <tr data-kw-row="{{ kw.keyword | e }}">
@@ -422,11 +422,12 @@
           {% endif %}
         </tbody>
       </table>
-      <form class="add-form" method="POST" action="/add_keyword">
-        <input class="input-url" type="text" name="keyword"
+      <form class="add-form" id="kw-add-form" onsubmit="addKeyword(event)">
+        <input class="input-url" id="kw-input" type="text" name="keyword"
                placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
         <button type="submit" class="btn btn-add">+ 追加</button>
       </form>
+      <div id="kw-add-error" style="display:none; padding:0 16px 8px; font-size:0.82rem; color:#dc2626;"></div>
       <div style="border-top:2px solid #f0f2f5; padding:16px 20px 20px;">
         <div style="font-size:0.85rem; font-weight:700; color:#4a4a6a; margin-bottom:10px;">重要アラートキーワード</div>
         <p style="font-size:0.82rem;color:#6b7280;margin:0 0 12px;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
@@ -466,6 +467,65 @@ function closeSiteEdit(idx) {
   document.getElementById('site-name-form-' + idx).classList.remove('open');
 }
 // ── キーワードAJAX削除 ──────────────────────────────────────────
+// ── 通常キーワードAJAX追加 ──────────────────────────────────────
+function addKeyword(e) {
+  e.preventDefault();
+  var input = document.getElementById('kw-input');
+  var errEl = document.getElementById('kw-add-error');
+  var keyword = input.value.trim();
+  if (!keyword) return;
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/add_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) {
+        errEl.textContent = data.message || '追加に失敗しました';
+        errEl.style.display = 'block';
+        return;
+      }
+      errEl.style.display = 'none';
+      input.value = '';
+      var tbody = document.getElementById('kw-tbody');
+      // 「登録されていません」行を除去
+      var emptyRow = tbody.querySelector('tr td[colspan]');
+      if (emptyRow) emptyRow.closest('tr').remove();
+      // 新しい行を追加
+      var kw = data.keyword;
+      var safeKw = kw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      var safeKwJs = kw.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var tr = document.createElement('tr');
+      tr.dataset.kwRow = kw;
+      tr.style.opacity = '0';
+      tr.style.transition = 'opacity 0.3s';
+      tr.innerHTML =
+        '<td style="font-weight:600">' + safeKw + '</td>' +
+        '<td style="text-align:right; color:#6b7280; font-size:0.85rem">0 件</td>' +
+        '<td style="text-align:center">' +
+          '<form method="POST" action="/toggle_keyword_notify">' +
+            '<input type="hidden" name="keyword" value="' + safeKw + '">' +
+            '<input type="hidden" name="notify_enabled" value="1">' +
+            '<button type="submit" class="btn-notify-toggle off">OFF</button>' +
+          '</form>' +
+        '</td>' +
+        '<td>' +
+          '<div class="row-actions" style="justify-content:flex-end">' +
+            '<form method="POST" action="/collect_keyword">' +
+              '<input type="hidden" name="keyword" value="' + safeKw + '">' +
+              '<button type="submit" class="btn btn-check" onclick="this.disabled=true;this.textContent=\'収集中...\'">今すぐ収集</button>' +
+            '</form>' +
+            '<button type="button" class="btn btn-remove" onclick="deleteKeyword(this,\'' + safeKwJs + '\')">削除</button>' +
+          '</div>' +
+        '</td>';
+      tbody.appendChild(tr);
+      requestAnimationFrame(function() { tr.style.opacity = '1'; });
+    })
+    .catch(function() {
+      errEl.textContent = '追加に失敗しました';
+      errEl.style.display = 'block';
+    });
+}
+
 // ── アラートキーワードAJAX追加 ──────────────────────────────────
 function addAlertKeyword(e) {
   e.preventDefault();
