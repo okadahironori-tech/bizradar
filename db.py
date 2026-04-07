@@ -139,6 +139,8 @@ def _run_migrations():
         with conn.cursor() as cur:
             # running_tasks: completed_at 追加
             cur.execute("ALTER TABLE running_tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;")
+            # running_tasks: error_message 追加
+            cur.execute("ALTER TABLE running_tasks ADD COLUMN IF NOT EXISTS error_message TEXT;")
 
             # sites: user_id 追加 + url PK → id PK + UNIQUE(user_id, url)
             cur.execute("ALTER TABLE sites ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id);")
@@ -912,8 +914,19 @@ def remove_running_task(task_type: str, key: str):
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE running_tasks SET completed_at = NOW() WHERE task_type = %s AND key = %s",
+                "UPDATE running_tasks SET completed_at = NOW(), error_message = NULL "
+                "WHERE task_type = %s AND key = %s",
                 (task_type, key)
+            )
+
+
+def fail_running_task(task_type: str, key: str, error_message: str):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE running_tasks SET completed_at = NOW(), error_message = %s "
+                "WHERE task_type = %s AND key = %s",
+                (error_message[:500], task_type, key)
             )
 
 

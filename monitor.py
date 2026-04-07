@@ -77,9 +77,9 @@ def fetch_news_articles(keyword: str) -> list:
     """
     rss_url = f"https://news.google.com/rss/search?q={quote(keyword)}&hl=ja&gl=JP&ceid=JP:ja"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
     }
     print(f"  [Google News] 取得開始: keyword={keyword!r}")
     try:
@@ -380,12 +380,14 @@ def check_single_keyword(keyword: str, user_id=None):
         print("  [エラー] user_id が必要です")
         return
 
+    db.add_running_task("keyword_check", keyword)
     seen_urls   = db.load_article_seen_urls(user_id)
     seen_titles = db.load_article_seen_titles(user_id)
     try:
         articles = fetch_news_articles(keyword)
     except Exception as e:
         print(f"  [エラー] 取得失敗: {e}")
+        db.fail_running_task("keyword_check", keyword, str(e))
         return
 
     now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
@@ -415,6 +417,7 @@ def check_single_keyword(keyword: str, user_id=None):
             print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
     else:
         print(f"  → 新着なし")
+    db.remove_running_task("keyword_check", keyword)
 
 
 def check_all_keywords():
@@ -441,10 +444,12 @@ def check_all_keywords():
             if not keyword:
                 continue
             print(f"  キーワード: {keyword} (user_id={user_id})")
+            db.add_running_task("keyword_check", keyword)
             try:
                 articles = fetch_news_articles(keyword)
             except Exception as e:
                 print(f"  [エラー] 取得失敗: {e}")
+                db.fail_running_task("keyword_check", keyword, str(e))
                 continue
 
             now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
@@ -475,6 +480,7 @@ def check_all_keywords():
                     print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
             else:
                 print(f"  → 新着なし")
+            db.remove_running_task("keyword_check", keyword)
 
     print(f"[ニュースチェック完了]")
 
