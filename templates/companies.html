@@ -157,22 +157,40 @@
     }
     .alert-kw-tag:hover { background: #fee2e2; }
 
-    @media (max-width: 600px) {
+    /* ── サイト管理カード（SP用） ── */
+    .site-cards { display: none; flex-direction: column; gap: 10px; padding: 12px; }
+    .site-card {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08); padding: 13px 14px 11px;
+      border: 1px solid #e8eaf0;
+    }
+    .site-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 8px; margin-bottom: 7px;
+    }
+    .site-card-url {
+      font-size: 0.78rem; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; margin-bottom: 10px;
+    }
+    .site-card-url a { color: #3949ab; text-decoration: none; }
+    .site-card-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+    @media (max-width: 768px) {
       header { padding: 12px 14px; }
       main { margin: 16px auto; }
       .add-form { flex-direction: column; }
       .input-name, .input-url { flex: none; width: 100%; }
-      /* テーブル：余白縮小・最終チェック列非表示 */
+      /* サイト管理：テーブル非表示→カード表示 */
+      table.site-table { display: none; }
+      .site-cards { display: flex; }
+      /* キーワード管理テーブル：余白縮小 */
       th, td { padding: 7px 8px; font-size: 0.78rem; }
-      .col-lastcheck { display: none; }
-      /* ボタン：コンパクト化 */
       .btn { padding: 5px 8px; font-size: 0.75rem; }
       .row-actions { gap: 4px; flex-wrap: nowrap; }
-      /* ボタンラベル切り替え */
       .btn-label-pc { display: none; }
       .btn-label-sp { display: inline; }
     }
-    @media (min-width: 601px) {
+    @media (min-width: 769px) {
       .btn-label-sp { display: none; }
     }
   </style>
@@ -215,7 +233,7 @@
     </div>
     <div class="card">
       {% if sites %}
-      <table>
+      <table class="site-table">
         <thead>
           <tr>
             <th>会社名 / URL</th>
@@ -281,6 +299,62 @@
           {% endfor %}
         </tbody>
       </table>
+
+      <!-- ── SP用カードリスト ── -->
+      <div class="site-cards">
+        {% for site in sites %}
+        <div class="site-card">
+          <div class="site-card-header">
+            <div style="flex:1; min-width:0;">
+              <div id="card-name-view-{{ loop.index0 }}">
+                <span class="site-name">{{ site.name if site.name else '—' }}</span>
+              </div>
+              <form id="card-name-form-{{ loop.index0 }}" class="site-name-edit-wrap" method="POST" action="/update_site_name">
+                <input type="hidden" name="url" value="{{ site.url }}">
+                <input type="text" name="name" value="{{ site.name }}" class="input-site-name" placeholder="会社名">
+                <button type="submit" class="btn btn-save">保存</button>
+                <button type="button" class="btn btn-cancel-edit" onclick="closeCardEdit({{ loop.index0 }})">キャンセル</button>
+              </form>
+            </div>
+            <div style="flex-shrink:0;">
+              {% if site.checking %}
+                <span class="badge badge-checking">チェック中...</span>
+              {% elif site.status == "ok" %}
+                <span class="badge badge-ok">正常</span>
+              {% elif site.status == "changed" %}
+                <span class="badge badge-changed">変更あり</span>
+              {% elif site.status == "error" %}
+                <span class="badge {{ site.error_cls }}">{{ site.error_label }}</span>
+              {% elif site.status == "new" %}
+                <span class="badge badge-new">初回記録</span>
+              {% else %}
+                <span class="badge badge-unknown">未チェック</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="site-card-url">
+            <a href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a>
+          </div>
+          <div class="site-card-actions">
+            <form method="POST" action="/check_site">
+              <input type="hidden" name="url" value="{{ site.url }}">
+              <button type="submit" class="btn btn-check" {% if site.checking %}disabled{% endif %}
+                      style="padding:6px 12px;font-size:0.8rem;">
+                {% if site.checking %}収集中...{% else %}今すぐ収集{% endif %}
+              </button>
+            </form>
+            <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
+                    style="padding:6px 12px;font-size:0.8rem;">編集</button>
+            <form method="POST" action="/remove_site"
+                  onsubmit="return confirm('「{{ site.name if site.name else site.url }}」を削除しますか？')">
+              <input type="hidden" name="url" value="{{ site.url }}">
+              <button type="submit" class="btn btn-remove" style="padding:6px 12px;font-size:0.8rem;">削除</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
       {% else %}
       <div class="empty-state">モニターサイトが登録されていません</div>
       {% endif %}
@@ -393,6 +467,17 @@ function openSiteEdit(idx) {
 function closeSiteEdit(idx) {
   document.getElementById('site-name-view-' + idx).style.display = '';
   document.getElementById('site-name-form-' + idx).classList.remove('open');
+}
+function openCardEdit(idx) {
+  document.getElementById('card-name-view-' + idx).style.display = 'none';
+  var form = document.getElementById('card-name-form-' + idx);
+  form.classList.add('open');
+  var input = form.querySelector('input[name="name"]');
+  if (input) { input.focus(); input.select(); }
+}
+function closeCardEdit(idx) {
+  document.getElementById('card-name-view-' + idx).style.display = '';
+  document.getElementById('card-name-form-' + idx).classList.remove('open');
 }
 </script>
 <script>
