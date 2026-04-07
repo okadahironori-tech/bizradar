@@ -214,9 +214,9 @@
 
     /* ── トースト通知 ── */
     #toast-container {
-      position: fixed; bottom: 24px; right: 24px;
+      position: fixed; top: 40%; left: 50%; transform: translateX(-50%);
       z-index: 9999; display: flex; flex-direction: column; gap: 8px;
-      align-items: flex-end;
+      align-items: center;
     }
     .toast {
       background: #1a1a2e; color: #fff;
@@ -550,7 +550,7 @@ function showToast(message) {
   setTimeout(function() {
     toast.classList.remove('show');
     setTimeout(function() { toast.remove(); }, 300);
-  }, 2000);
+  }, 5000);
 }
 
 // ── 今すぐ収集 AJAX ──────────────────────────────────────────────
