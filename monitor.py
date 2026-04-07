@@ -527,8 +527,14 @@ def extract_main_content(soup):
 
 
 def _normalize_lines(text: str) -> str:
-    """テキストの各行を正規化する（strip + 3文字以下の行を除去）"""
-    return "\n".join(ln.strip() for ln in text.splitlines() if len(ln.strip()) > 3)
+    """テキストの各行を正規化する（タブ除去・連続空白圧縮・strip + 3文字以下の行を除去）"""
+    lines = []
+    for ln in text.splitlines():
+        ln = ln.replace("\t", " ")          # タブ→スペース
+        ln = " ".join(ln.split())           # 連続空白を1つに圧縮（strip込み）
+        if len(ln) > 3:
+            lines.append(ln)
+    return "\n".join(lines)
 
 
 def get_page_content(url: str):
