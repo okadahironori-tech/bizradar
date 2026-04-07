@@ -537,6 +537,31 @@ def delete_alert_keyword():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
+@app.route("/api/delete_keyword", methods=["POST"])
+@login_required
+def api_delete_keyword():
+    user_id = session["user_id"]
+    # 通常キーワード
+    keyword = request.form.get("keyword", "").strip()
+    if keyword:
+        keywords = db.load_keywords(user_id)
+        new_keywords = [k for k in keywords if k["keyword"] != keyword]
+        if len(new_keywords) == len(keywords):
+            return jsonify({"success": False, "message": "該当キーワードが見つかりません"})
+        db.save_keywords(new_keywords, user_id)
+        db.delete_articles_by_keyword(user_id, keyword)
+        return jsonify({"success": True})
+    # 重要アラートキーワード
+    try:
+        keyword_id = int(request.form.get("keyword_id", "0"))
+    except ValueError:
+        return jsonify({"success": False, "message": "不正なリクエストです"})
+    if keyword_id <= 0:
+        return jsonify({"success": False, "message": "不正なリクエストです"})
+    db.delete_alert_keyword(user_id, keyword_id)
+    return jsonify({"success": True})
+
+
 @app.route("/mark_read/<int:article_id>", methods=["POST"])
 @login_required
 def mark_read_api(article_id):

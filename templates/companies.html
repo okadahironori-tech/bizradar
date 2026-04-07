@@ -389,7 +389,7 @@
         <tbody>
           {% for kw in keyword_entries %}
           {% set is_collecting = kw.keyword in keyword_collecting %}
-          <tr>
+          <tr data-kw-row="{{ kw.keyword | e }}">
             <td style="font-weight:600">{{ kw.keyword }}</td>
             <td style="text-align:right; color:#6b7280; font-size:0.85rem">{{ keyword_counts.get(kw.keyword, 0) }} 件</td>
             <td style="text-align:center">
@@ -411,11 +411,8 @@
                     {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
                   </button>
                 </form>
-                <form method="POST" action="/remove_keyword"
-                      onsubmit="return confirm('「{{ kw.keyword }}」を削除しますか？')">
-                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
-                  <button type="submit" class="btn btn-remove">削除</button>
-                </form>
+                <button type="button" class="btn btn-remove"
+                        onclick="deleteKeyword(this, '{{ kw.keyword | e }}')">削除</button>
               </div>
             </td>
           </tr>
@@ -434,12 +431,11 @@
         <div style="font-size:0.85rem; font-weight:700; color:#4a4a6a; margin-bottom:10px;">重要アラートキーワード</div>
         <p style="font-size:0.82rem;color:#6b7280;margin:0 0 12px;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
         {% if alert_kw_entries %}
-        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+        <div id="alert-kw-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
           {% for ak in alert_kw_entries %}
-          <form method="POST" action="/delete_alert_keyword" style="margin:0;" onsubmit="return confirm('「{{ ak.keyword }}」を削除しますか？')">
-            <input type="hidden" name="keyword_id" value="{{ ak.id }}">
-            <button type="submit" class="alert-kw-tag">{{ ak.keyword }} ×</button>
-          </form>
+          <button type="button" class="alert-kw-tag"
+                  data-alert-kw-id="{{ ak.id }}"
+                  onclick="deleteAlertKeyword(this, {{ ak.id }}, '{{ ak.keyword | e }}')">{{ ak.keyword }} ×</button>
           {% endfor %}
         </div>
         {% else %}
@@ -468,6 +464,42 @@ function closeSiteEdit(idx) {
   document.getElementById('site-name-view-' + idx).style.display = '';
   document.getElementById('site-name-form-' + idx).classList.remove('open');
 }
+// ── キーワードAJAX削除 ──────────────────────────────────────────
+function deleteKeyword(btn, keyword) {
+  if (!confirm('「' + keyword + '」を削除しますか？')) return;
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
+      var row = document.querySelector('tr[data-kw-row="' + keyword.replace(/"/g, '\\"') + '"]');
+      if (row) {
+        row.style.transition = 'opacity 0.3s';
+        row.style.opacity = '0';
+        setTimeout(function() { row.remove(); }, 310);
+      }
+    })
+    .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
+}
+
+function deleteAlertKeyword(btn, keywordId, keyword) {
+  if (!confirm('「' + keyword + '」を削除しますか？')) return;
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('keyword_id', keywordId);
+  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
+      btn.style.transition = 'opacity 0.3s';
+      btn.style.opacity = '0';
+      setTimeout(function() { btn.remove(); }, 310);
+    })
+    .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
+}
+
 function openCardEdit(idx) {
   document.getElementById('card-name-view-' + idx).style.display = 'none';
   var form = document.getElementById('card-name-form-' + idx);
