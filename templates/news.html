@@ -61,7 +61,7 @@
     .article-read-mark { font-size: 0.78rem; color: #059669; font-weight: 700; flex-shrink: 0; }
     .btn-check-done { font-size: 0.72rem; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .btn-check-done:hover { background: #d1fae5; }
-    .btn-unread { font-size: 0.72rem; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .btn-unread { font-size: 0.72rem; background: #f3f4f6; color: #555; border: 1px solid #999; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .btn-unread:hover { background: #e5e7eb; }
 
     /* アラートpinnedセクション */
@@ -81,7 +81,7 @@
     /* ページネーション */
     .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 16px; border-top: 1px solid #f0f2f5; }
     .pagination-bar.bottom { border-top: 1px solid #f0f2f5; border-bottom: none; }
-    .btn-page { font-size: 0.78rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 12px; cursor: pointer; color: #4a4a6a; }
+    .btn-page { font-size: 0.78rem; background: #f3f4f6; border: 1px solid #999; border-radius: 6px; padding: 4px 12px; cursor: pointer; color: #555; }
     .btn-page:disabled { opacity: 0.4; cursor: default; }
     .page-info { font-size: 0.78rem; color: #6b7280; }
 
@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- ── ページトップへ戻るボタン ── -->
-<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;right:24px;z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
+<button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>
