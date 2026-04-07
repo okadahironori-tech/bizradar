@@ -275,10 +275,11 @@
                 {% if site.checking %}収集中...{% else %}今すぐ収集{% endif %}
               </button>
             </form>
-            <button type="button" class="btn-notify-toggle {% if site.enabled %}on{% else %}off{% endif %}"
+            {% set is_enabled = site.enabled if site.enabled is defined else true %}
+            <button type="button" class="btn-notify-toggle {% if is_enabled %}on{% else %}off{% endif %}"
                     onclick="toggleSite(this, '{{ site.url | e }}')"
-                    style="border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;">
-              {% if site.enabled %}ON{% else %}OFF{% endif %}
+                    style="border-radius:20px;padding:4px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;border:none;">
+              {% if is_enabled %}ON{% else %}OFF{% endif %}
             </button>
             <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
                     style="padding:6px 12px;font-size:0.8rem;">編集</button>
