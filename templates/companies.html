@@ -177,23 +177,23 @@
     .site-card-lastcheck { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
     .site-card-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
 
-    /* ── サイトカード内 ON/OFF トグルスイッチ ── */
-    .site-card .btn-notify-toggle {
+    /* ── ON/OFF トグルスイッチ（全体共通） ── */
+    .btn-notify-toggle {
       position: relative; display: inline-block;
       width: 44px; height: 24px; border-radius: 12px; border: none;
       padding: 0; font-size: 0; cursor: pointer; flex-shrink: 0;
-      transition: background 0.2s;
+      transition: background 0.2s; vertical-align: middle;
     }
-    .site-card .btn-notify-toggle.on  { background: #34C759; }
-    .site-card .btn-notify-toggle.off { background: #ccc; }
-    .site-card .btn-notify-toggle::after {
+    .btn-notify-toggle.on  { background: #34C759; }
+    .btn-notify-toggle.off { background: #ccc; }
+    .btn-notify-toggle::after {
       content: ''; position: absolute;
       width: 18px; height: 18px; border-radius: 50%; background: #fff;
       top: 3px; transition: left 0.18s;
       box-shadow: 0 1px 4px rgba(0,0,0,0.22);
     }
-    .site-card .btn-notify-toggle.on::after  { left: 23px; }
-    .site-card .btn-notify-toggle.off::after { left: 3px; }
+    .btn-notify-toggle.on::after  { left: 23px; }
+    .btn-notify-toggle.off::after { left: 3px; }
 
     @media (max-width: 768px) {
       header { padding: 12px 14px; }
@@ -286,6 +286,11 @@
           </div>
           <!-- 下段：操作ボタン -->
           <div class="site-card-actions">
+            {% set is_enabled = site.enabled if site.enabled is defined else true %}
+            <button type="button" class="btn-notify-toggle {% if is_enabled %}on{% else %}off{% endif %}"
+                    onclick="toggleSite(this, '{{ site.url | e }}')"
+                    title="{% if is_enabled %}モニターON{% else %}モニターOFF{% endif %}">
+            </button>
             <form method="POST" action="/check_site">
               <input type="hidden" name="url" value="{{ site.url }}">
               <button type="submit" class="btn btn-check" {% if site.checking %}disabled{% endif %}
@@ -293,11 +298,6 @@
                 {% if site.checking %}収集中...{% else %}今すぐ収集{% endif %}
               </button>
             </form>
-            {% set is_enabled = site.enabled if site.enabled is defined else true %}
-            <button type="button" class="btn-notify-toggle {% if is_enabled %}on{% else %}off{% endif %}"
-                    onclick="toggleSite(this, '{{ site.url | e }}')"
-                    title="{% if is_enabled %}モニターON{% else %}モニターOFF{% endif %}">
-            </button>
             <button type="button" class="btn btn-edit" onclick="openCardEdit({{ loop.index0 }})"
                     style="padding:6px 12px;font-size:0.8rem;">編集</button>
             <button type="button" class="btn btn-remove"
@@ -349,9 +349,8 @@
               <form method="POST" action="/toggle_keyword_notify">
                 <input type="hidden" name="keyword" value="{{ kw.keyword }}">
                 <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
-                <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}">
-                  {% if kw.notify_enabled %}ON{% else %}OFF{% endif %}
-                </button>
+                <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}"
+                        title="{% if kw.notify_enabled %}通知ON{% else %}通知OFF{% endif %}"></button>
               </form>
             </td>
             <td>
@@ -486,7 +485,7 @@ function addKeyword(e) {
           '<form method="POST" action="/toggle_keyword_notify">' +
             '<input type="hidden" name="keyword" value="' + safeKw + '">' +
             '<input type="hidden" name="notify_enabled" value="1">' +
-            '<button type="submit" class="btn-notify-toggle off">OFF</button>' +
+            '<button type="submit" class="btn-notify-toggle off" title="通知OFF"></button>' +
           '</form>' +
         '</td>' +
         '<td>' +
