@@ -675,7 +675,7 @@ def send_email(url: str, site_name: str = ""):
 {url}
 
 ---
-このメールはウェブサイトモニタースクリプトにより自動送信されました。
+このメールはBizRadarモニタリングサービスにより自動送信されました。
 """
     msg = MIMEMultipart()
     msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
