@@ -484,9 +484,11 @@ _NOISE_RE = re.compile(
     r"pager|pagination|pagenav|page.nav|"
     r"ranking|popular|recommend|related|"
     r"\bad\b|ads|advertisement|banner|"
-    r"breadcrumb|sitemap|sns|share|"
+    r"breadcrumb|pankuzu|sitemap|sns|share|"
     r"counter|access.?count|"
-    r"menu|gnav|\bnav\b|global.nav|sidebar",
+    r"menu|gnav|\bnav\b|global.nav|sidebar|"
+    r"\bcategory\b|tag.?list|"
+    r"pagetop|page.top|back.?to.?top|totop",
     re.IGNORECASE,
 )
 _CONTENT_RE = re.compile(r"content|main|news.?list|article.?list|entry", re.IGNORECASE)
@@ -494,11 +496,12 @@ _CONTENT_RE = re.compile(r"content|main|news.?list|article.?list|entry", re.IGNO
 
 def extract_main_content(soup):
     """ノイズ要素を除外して主要コンテンツのテキストを返す"""
-    # ① タグ名で除去（role="navigation" も含む）
+    # ① タグ名で除去、および role 属性によるナビ・ヘッダー・フッター系除去
     for tag in soup(_NOISE_TAGS):
         tag.decompose()
-    for tag in soup.find_all(attrs={"role": "navigation"}):
-        tag.decompose()
+    for role in ("navigation", "banner", "contentinfo", "complementary"):
+        for tag in soup.find_all(attrs={"role": role}):
+            tag.decompose()
 
     # ② class/id のノイズパターンで除去
     noise_tags = [
