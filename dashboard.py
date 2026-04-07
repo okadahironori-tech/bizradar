@@ -917,6 +917,11 @@ def api_suggest_url():
         "www.chubu.meti.go.jp":        "https://www.chubu.meti.go.jp/rss",
         "www.nta.go.jp":               "https://www.nta.go.jp/information/news/index.htm/",
         "global.toyota":               "https://global.toyota/jp/newsroom/",
+        # ── 民間企業（追加分5）────────────────────────────────────────
+        "www.cns.co.jp":               "https://www.cns.co.jp/news/",
+        "avex.com":                    "https://avex.com/jp/ja/news/",
+        "www.maruhon.co.jp":           "https://www.maruhon.co.jp/news/",
+        "www.honda.co.jp":             "https://global.honda/jp/pressroom/",
         # ── 民間企業（追加分4）────────────────────────────────────────
         "www.advics.co.jp":            "https://www.advics.co.jp/news/",
         "www.hosei.co.jp":             "https://www.hosei.co.jp/news/",
