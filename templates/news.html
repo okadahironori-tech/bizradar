@@ -42,7 +42,8 @@
     .section-title { font-size: 1rem; font-weight: 700; color: #4a4a6a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .section-title .count { font-size: 0.78rem; font-weight: 600; color: #6b7280; background: #f3f4f6; border-radius: 10px; padding: 2px 10px; }
     .history-controls { display: flex; gap: 8px; align-items: center; }
-    .btn-sort { font-size: 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 10px; cursor: pointer; color: #4a4a6a; }
+    .btn-sort { font-size: 0.75rem; background: #fff; border: 1px solid #3949ab; border-radius: 6px; padding: 3px 10px; cursor: pointer; color: #3949ab; }
+    .btn-sort.active { background: #3949ab; color: #fff; border-color: #3949ab; }
     .count-select { font-size: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px; background: #fff; color: #4a4a6a; cursor: pointer; }
 
     .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
@@ -160,7 +161,8 @@
       <span class="count" id="articles-count-badge">{{ articles | length }} 件</span>
       {% if articles %}
       <div class="history-controls">
-        <button id="articles-sort-toggle" class="btn-sort" onclick="toggleArticleSort()">新着順</button>
+        <button id="btn-art-desc" class="btn-sort active" onclick="setArticleOrder('desc')">新着順</button>
+        <button id="btn-art-asc"  class="btn-sort"        onclick="setArticleOrder('asc')">古い順</button>
         <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
           <option value="10" selected>10件</option>
           <option value="20">20件</option>
@@ -287,9 +289,10 @@ function toggleUnreadFilter() {
   renderArticles();
 }
 
-function toggleArticleSort() {
-  _articleOrder = _articleOrder === 'desc' ? 'asc' : 'desc';
-  document.getElementById('articles-sort-toggle').textContent = _articleOrder === 'desc' ? '新着順' : '古い順';
+function setArticleOrder(order) {
+  _articleOrder = order;
+  document.getElementById('btn-art-desc').classList.toggle('active', order === 'desc');
+  document.getElementById('btn-art-asc').classList.toggle('active', order === 'asc');
   _articlePage = 1;
   renderArticles();
 }
