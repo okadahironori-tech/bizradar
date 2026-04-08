@@ -108,6 +108,54 @@
     .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
     .bc-sep { color: #9ca3af; font-size: 0.75rem; }
     .bc-current { color: #1a1a2e; font-weight: 500; }
+
+    /* ── キーワード管理セクション ── */
+    .count-badge { font-size: 0.78rem; font-weight: 600; color: #6b7280; background: #f3f4f6; border-radius: 10px; padding: 2px 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 16px; text-align: left; border-bottom: 1px solid #f0f2f5; font-size: 0.85rem; }
+    th { font-size: 0.75rem; font-weight: 600; color: #6b7280; background: #fafafa; }
+    tr:last-child td { border-bottom: none; }
+    .row-actions { display: flex; gap: 6px; }
+    .btn { border: none; border-radius: 7px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .btn-remove { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-remove:hover { background: #fef2f2; }
+    .btn-check  { background: #f0f4ff; color: #3949ab; border: 1px solid #c7d2fe; }
+    .btn-check:hover { background: #e0e7ff; }
+    .btn-save   { background: #1a1a2e; color: #fff; }
+    .btn-save:hover { background: #2d2d4e; }
+    .btn-add    { background: #1a1a2e; color: #fff; }
+    .btn-add:hover { background: #2d2d4e; }
+    .btn-notify-toggle {
+      position: relative; display: inline-block;
+      width: 44px; height: 24px; border-radius: 12px; border: none;
+      padding: 0; font-size: 0; cursor: pointer; flex-shrink: 0;
+      transition: background 0.2s; vertical-align: middle;
+    }
+    .btn-notify-toggle.on  { background: #34C759; }
+    .btn-notify-toggle.off { background: #ccc; }
+    .btn-notify-toggle::after {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; border-radius: 50%; background: #fff;
+      top: 3px; transition: left 0.18s; box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+    }
+    .btn-notify-toggle.on::after  { left: 23px; }
+    .btn-notify-toggle.off::after { left: 3px; }
+    .add-form { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #f0f2f5; flex-wrap: wrap; }
+    .input-url  { padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; flex: 1; min-width: 200px; }
+    .input-url:focus { border-color: #3949ab; }
+    .alert-kw-tag { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 20px; padding: 3px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+    .alert-kw-tag:hover { background: #fee2e2; }
+    /* ── トースト ── */
+    #toast-container { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+    .toast { background: #1a1a2e; color: #fff; border-radius: 8px; padding: 10px 20px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+    @media (max-width: 768px) {
+      .add-form { flex-direction: column; }
+      .input-url { flex: none; width: 100%; }
+      th, td { padding: 7px 8px; font-size: 0.78rem; }
+      .btn { padding: 5px 8px; font-size: 0.75rem; }
+      .row-actions { gap: 4px; flex-wrap: nowrap; }
+    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -219,7 +267,87 @@
       {% endif %}
     </div>
   </section>
+
+  <!-- キーワード管理 -->
+  <section id="keywords-section" style="margin-top:24px;">
+    <div class="section-title">
+      キーワード管理
+      <span class="count-badge">{{ keywords | length }} 件</span>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>キーワード</th>
+            <th style="text-align:right">収集記事数</th>
+            <th style="text-align:center">通知</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody id="kw-tbody">
+          {% for kw in keyword_entries %}
+          {% set is_collecting = kw.keyword in keyword_collecting %}
+          <tr data-kw-row="{{ kw.keyword | e }}">
+            <td style="font-weight:600">{{ kw.keyword }}</td>
+            <td style="text-align:right; color:#6b7280; font-size:0.85rem">{{ keyword_counts.get(kw.keyword, 0) }} 件</td>
+            <td style="text-align:center">
+              <form method="POST" action="/toggle_keyword_notify">
+                <input type="hidden" name="keyword" value="{{ kw.keyword }}">
+                <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
+                <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}"
+                        title="{% if kw.notify_enabled %}通知ON{% else %}通知OFF{% endif %}"></button>
+              </form>
+            </td>
+            <td>
+              <div class="row-actions" style="justify-content:flex-end">
+                <button type="button" class="btn btn-check"
+                        onclick="collectKeyword(this, '{{ kw.keyword | replace("'", "\\'") }}')"
+                        {% if is_collecting %}disabled{% endif %}>
+                  {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
+                </button>
+                <button type="button" class="btn btn-remove"
+                        onclick="deleteKeyword(this, '{{ kw.keyword | e }}')">削除</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not keywords %}
+          <tr><td colspan="4"><div class="empty-state">キーワードが登録されていません</div></td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+      <form class="add-form" id="kw-add-form" onsubmit="addKeyword(event)">
+        <input class="input-url" id="kw-input" type="text" name="keyword"
+               placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
+        <button type="submit" class="btn btn-add">+ 追加</button>
+      </form>
+      <div id="kw-add-error" style="display:none; padding:0 16px 8px; font-size:0.82rem; color:#dc2626;"></div>
+      <div style="border-top:2px solid #f0f2f5; padding:16px 20px 20px;">
+        <div style="font-size:0.85rem; font-weight:700; color:#4a4a6a; margin-bottom:10px;">重要アラートキーワード</div>
+        <p style="font-size:0.82rem;color:#6b7280;margin:0 0 12px;">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付き、記事が上部に表示されます。</p>
+        {% if alert_kw_entries %}
+        <div id="alert-kw-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          {% for ak in alert_kw_entries %}
+          <button type="button" class="alert-kw-tag"
+                  data-alert-kw-id="{{ ak.id }}"
+                  onclick="deleteAlertKeyword(this, {{ ak.id }}, '{{ ak.keyword | e }}')">{{ ak.keyword }} ×</button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:0.82rem;color:#9ca3af;margin:0 0 12px;">アラートキーワードが登録されていません</p>
+        {% endif %}
+        <form id="alert-kw-add-form" style="display:flex; gap:8px; flex-wrap:wrap;" onsubmit="addAlertKeyword(event)">
+          <input id="alert-kw-input" type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="50"
+            style="flex:1; min-width:160px; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; outline:none;">
+          <button type="submit" class="btn btn-save">追加</button>
+        </form>
+        <div id="alert-kw-error" style="display:none; margin-top:6px; font-size:0.82rem; color:#dc2626;"></div>
+      </div>
+    </div>
+  </section>
 </main>
+
+<div id="toast-container"></div>
 
 <script>
 // ============================================================
@@ -440,6 +568,174 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAll();
   }
 });
+
+// ── トースト通知 ─────────────────────────────────────────────────
+function showToast(message) {
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+  var toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  container.appendChild(toast);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() { toast.classList.add('show'); });
+  });
+  setTimeout(function() {
+    toast.classList.remove('show');
+    setTimeout(function() { toast.remove(); }, 300);
+  }, 5000);
+}
+
+// ── 収集完了ポーリング ────────────────────────────────────────────
+function pollUntilDone(statusField, statusKey, maxWaitMs, onDone) {
+  var started = Date.now();
+  var timer = setInterval(function() {
+    if (Date.now() - started >= maxWaitMs) { clearInterval(timer); onDone(); return; }
+    fetch('/api/checking_status')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var statuses = data[statusField] || {};
+        if (statuses[statusKey] !== 'running') { clearInterval(timer); onDone(); }
+      })
+      .catch(function() { clearInterval(timer); onDone(); });
+  }, 3000);
+}
+
+// ── 今すぐ収集（キーワード） ─────────────────────────────────────
+function collectKeyword(btn, keyword) {
+  btn.disabled = true;
+  var origText = btn.textContent.trim();
+  btn.textContent = '収集中...';
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/collect_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { btn.textContent = origText; btn.disabled = false; alert(data.message || '収集に失敗しました'); return; }
+      showToast('収集を開始しました');
+      pollUntilDone('keyword_statuses', keyword, 60000, function() { btn.textContent = origText; btn.disabled = false; });
+    })
+    .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
+}
+
+// ── キーワードAJAX追加 ───────────────────────────────────────────
+function addKeyword(e) {
+  e.preventDefault();
+  var input = document.getElementById('kw-input');
+  var errEl = document.getElementById('kw-add-error');
+  var keyword = input.value.trim();
+  if (!keyword) return;
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/add_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { errEl.textContent = data.message || '追加に失敗しました'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      input.value = '';
+      var tbody = document.getElementById('kw-tbody');
+      var emptyRow = tbody.querySelector('tr td[colspan]');
+      if (emptyRow) emptyRow.closest('tr').remove();
+      var kw = data.keyword;
+      var safeKw = kw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      var safeKwJs = kw.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var tr = document.createElement('tr');
+      tr.dataset.kwRow = kw;
+      tr.style.opacity = '0';
+      tr.style.transition = 'opacity 0.3s';
+      tr.innerHTML =
+        '<td style="font-weight:600">' + safeKw + '</td>' +
+        '<td style="text-align:right; color:#6b7280; font-size:0.85rem">0 件</td>' +
+        '<td style="text-align:center">' +
+          '<form method="POST" action="/toggle_keyword_notify">' +
+            '<input type="hidden" name="keyword" value="' + safeKw + '">' +
+            '<input type="hidden" name="notify_enabled" value="1">' +
+            '<button type="submit" class="btn-notify-toggle off" title="通知OFF"></button>' +
+          '</form>' +
+        '</td>' +
+        '<td>' +
+          '<div class="row-actions" style="justify-content:flex-end">' +
+            '<button type="button" class="btn btn-check" onclick="collectKeyword(this,\'' + safeKwJs + '\')">今すぐ収集</button>' +
+            '<button type="button" class="btn btn-remove" onclick="deleteKeyword(this,\'' + safeKwJs + '\')">削除</button>' +
+          '</div>' +
+        '</td>';
+      tbody.appendChild(tr);
+      requestAnimationFrame(function() { tr.style.opacity = '1'; });
+    })
+    .catch(function() { errEl.textContent = '追加に失敗しました'; errEl.style.display = 'block'; });
+}
+
+// ── アラートキーワードAJAX追加 ──────────────────────────────────
+function addAlertKeyword(e) {
+  e.preventDefault();
+  var input = document.getElementById('alert-kw-input');
+  var errEl = document.getElementById('alert-kw-error');
+  var keyword = input.value.trim();
+  if (!keyword) return;
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/add_alert_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { errEl.textContent = data.message || '追加に失敗しました'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      input.value = '';
+      var list = document.getElementById('alert-kw-list');
+      if (!list) {
+        var form = document.getElementById('alert-kw-add-form');
+        list = document.createElement('div');
+        list.id = 'alert-kw-list';
+        list.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;';
+        form.parentNode.insertBefore(list, form);
+        var emptyMsg = form.previousElementSibling;
+        if (emptyMsg && emptyMsg.tagName === 'P') emptyMsg.remove();
+      }
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'alert-kw-tag';
+      btn.dataset.alertKwId = data.keyword_id;
+      btn.textContent = data.keyword + ' ×';
+      btn.style.opacity = '0';
+      btn.style.transition = 'opacity 0.3s';
+      btn.onclick = function() { deleteAlertKeyword(btn, data.keyword_id, data.keyword); };
+      list.appendChild(btn);
+      requestAnimationFrame(function() { btn.style.opacity = '1'; });
+    })
+    .catch(function() { errEl.textContent = '追加に失敗しました'; errEl.style.display = 'block'; });
+}
+
+// ── キーワード削除 ───────────────────────────────────────────────
+function deleteKeyword(btn, keyword) {
+  if (!confirm('「' + keyword + '」を削除しますか？')) return;
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
+      var row = document.querySelector('tr[data-kw-row="' + keyword.replace(/"/g, '\\"') + '"]');
+      if (row) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; setTimeout(function() { row.remove(); }, 310); }
+    })
+    .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
+}
+
+// ── アラートキーワード削除 ───────────────────────────────────────
+function deleteAlertKeyword(btn, keywordId, keyword) {
+  if (!confirm('「' + keyword + '」を削除しますか？')) return;
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('keyword_id', keywordId);
+  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
+      btn.style.transition = 'opacity 0.3s';
+      btn.style.opacity = '0';
+      setTimeout(function() { btn.remove(); }, 310);
+    })
+    .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
+}
 </script>
 
 <script>

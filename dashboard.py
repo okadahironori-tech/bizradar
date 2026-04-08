@@ -1349,11 +1349,20 @@ def news():
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws_set)
         a["published"] = a.get("published", "")
     all_articles = _deduplicate_articles(all_articles)
+    keyword_counts = {}
+    for a in articles_data.get("articles", []):
+        kw = a.get("keyword", "")
+        keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
+    running = db.get_running_task_statuses()
+    keyword_collecting = set(running.get("keyword_collect", {}).keys())
     return render_template(
         "news.html",
         articles=all_articles,
         keywords=keywords,
         keyword_entries=kw_entries,
+        keyword_counts=keyword_counts,
+        keyword_collecting=keyword_collecting,
+        alert_kw_entries=alert_kw_entries,
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
     )
