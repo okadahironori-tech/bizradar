@@ -1548,58 +1548,7 @@ def company_list():
 @app.route("/management")
 @login_required
 def management():
-    user_id = session["user_id"]
-    alert_kws = db.get_alert_keywords_set(user_id)
-    company_list = db.load_companies(user_id)
-    for c in company_list:
-        summary = db.get_company_summary(user_id, c["id"], alert_kws)
-        c.update(summary)
-
-    # 設定ページから統合: サイト一覧・キーワード・アカウント設定データ
-    config = db.load_config()
-    kw_entries = db.load_keywords(user_id)
-    keywords = [k["keyword"] for k in kw_entries]
-    running = db.get_running_task_statuses()
-    collecting_kws = set(running.get("keyword_collect", {}).keys())
-    articles_data = db.load_articles_data(user_id)
-    keyword_counts = {}
-    for a in articles_data.get("articles", []):
-        kw = a.get("keyword", "")
-        keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
-    alert_kw_entries = db.load_alert_keywords(user_id)
-    log = db.load_monitor_log(user_id)
-    site_statuses = running.get("site_check", {})
-    sites = []
-    for s in db.load_sites(user_id):
-        url = s["url"]
-        check_info = log["last_checks"].get(url, {})
-        error_text = check_info.get("error", "")
-        status = check_info.get("status", "unknown")
-        error_label, error_cls = _classify_site_error(error_text) if status == "error" else ("", "")
-        sites.append({
-            "id":          s.get("id"),
-            "url":         url,
-            "name":        s.get("name", ""),
-            "enabled":     s.get("enabled", True),
-            "last_check":  check_info.get("timestamp", "未チェック"),
-            "status":      status,
-            "error_label": error_label,
-            "error_cls":   error_cls,
-            "checking":    site_statuses.get(url) == "running",
-        })
-
-    return render_template("companies.html",
-                           companies=company_list,
-                           sites=sites,
-                           check_interval=config.get("check_interval_seconds", 3600),
-                           keywords=keywords,
-                           keyword_entries=kw_entries,
-                           keyword_counts=keyword_counts,
-                           keyword_collecting=collecting_kws,
-                           notify_timing=db.get_user_notify_timing(user_id),
-                           alert_kw_entries=alert_kw_entries,
-                           user_email=session.get("email", ""),
-                           is_admin=session.get("is_admin", False))
+    return redirect(url_for("company"))
 
 
 @app.route("/companies/reorder", methods=["POST"])

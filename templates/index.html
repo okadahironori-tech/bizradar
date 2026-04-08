@@ -386,7 +386,6 @@
     <div class="updated-at">表示時刻: {{ now }}</div>
     <a href="/company" class="nav-link">企業</a>
     <a href="/news" class="nav-link">ニュース</a>
-    <a href="/management" class="nav-link">モニター管理</a>
     {% if is_admin %}
     <a href="/admin" class="nav-link">管理者</a>
     {% endif %}
@@ -402,7 +401,6 @@
     <a href="/" class="active">ホーム</a>
     <a href="/news">ニュース</a>
     <a href="/company">企業</a>
-    <a href="/management">モニター管理</a>
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
