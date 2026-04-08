@@ -211,7 +211,13 @@
       font-size: 0.72rem; color: #3949ab; background: #e8eaf6;
       border-radius: 4px; padding: 2px 7px;
     }
-    .today-company-sep { font-size: 0.8rem; color: #9ca3af; padding: 7px 0; }
+    .today-company-more-btn {
+      font-size: 0.8rem; color: #3949ab; background: none; border: none;
+      padding: 7px 0; cursor: pointer; text-decoration: none;
+      display: block; text-align: left;
+    }
+    .today-company-more-btn:hover { text-decoration: underline; }
+    .today-company-extra { display: none; }
 
     /* 変更履歴 */
     .timeline { padding: 4px 0; }
@@ -443,7 +449,16 @@
           </div>
           {% endfor %}
           {% if today_company_list | length > 5 %}
-          <div class="today-company-sep">他 {{ today_company_list | length - 5 }} 社</div>
+          <button class="today-company-more-btn" onclick="toggleExtra(this, 'extra-today')" data-count="{{ today_company_list | length - 5 }}">他 {{ today_company_list | length - 5 }} 社 ▼</button>
+          <div id="extra-today" class="today-company-extra">
+            {% for c in today_company_list[5:] %}
+            <div class="today-company-row">
+              <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
+              {% if c.changes %}<span class="today-company-badge-site">サイト変更あり</span>{% endif %}
+              {% if c.news_count > 0 %}<span class="today-company-badge-news">ニュース {{ c.news_count }} 件</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
           {% endif %}
         </div>
         {% endif %}
@@ -470,7 +485,16 @@
           </div>
           {% endfor %}
           {% if prev_login_company_list | length > 5 %}
-          <div class="today-company-sep">他 {{ prev_login_company_list | length - 5 }} 社</div>
+          <button class="today-company-more-btn" onclick="toggleExtra(this, 'extra-prev')" data-count="{{ prev_login_company_list | length - 5 }}">他 {{ prev_login_company_list | length - 5 }} 社 ▼</button>
+          <div id="extra-prev" class="today-company-extra">
+            {% for c in prev_login_company_list[5:] %}
+            <div class="today-company-row">
+              <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
+              {% if c.changes %}<span class="today-company-badge-site">サイト変更あり</span>{% endif %}
+              {% if c.news_count > 0 %}<span class="today-company-badge-news">ニュース {{ c.news_count }} 件</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
           {% endif %}
         </div>
         {% else %}
@@ -655,6 +679,15 @@ async function markUnread(btn) {
     _readState.set(id, false);
     renderDashSections();
   } catch (_) {}
+}
+
+function toggleExtra(btn, id) {
+  var el = document.getElementById(id);
+  var open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  btn.textContent = open
+    ? ('他 ' + btn.dataset.count + ' 社 ▼')
+    : '閉じる ▲';
 }
 
 function toggleDiff(btn) {
