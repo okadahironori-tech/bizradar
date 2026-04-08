@@ -1627,6 +1627,16 @@ def company_detail(company_id):
         # 重複記事除去
         articles = _deduplicate_articles(articles)
 
+        # 重要記事と通常記事に分離（両グループとも公開日時の新しい順）
+        alert_articles  = sorted(
+            [a for a in articles if a.get("is_alert")],
+            key=lambda x: x.get("published", ""), reverse=True,
+        )
+        normal_articles = sorted(
+            [a for a in articles if not a.get("is_alert")],
+            key=lambda x: x.get("published", ""), reverse=True,
+        )
+
         # 全サイト・全キーワード（紐づけドロップダウン用）
         all_sites    = db.load_sites_with_company(user_id)
         all_keywords = db.load_keywords_with_company(user_id)
@@ -1638,6 +1648,8 @@ def company_detail(company_id):
                                sites_linked=sites_linked,
                                keywords_linked=keywords_linked,
                                articles=articles,
+                               alert_articles=alert_articles,
+                               normal_articles=normal_articles,
                                history=history,
                                all_sites=all_sites,
                                all_keywords=all_keywords,

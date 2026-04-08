@@ -159,6 +159,17 @@
     .btn-ghost { background: none; border: 1px solid #d1d5db; color: #6b7280; }
     .btn-ghost:hover { border-color: #3949ab; color: #3949ab; }
 
+    /* 記事セクション区切り */
+    .articles-section-label {
+      font-size: 0.74rem; font-weight: 700; color: #b45309;
+      background: #fef3c7; border: 1px solid #fcd34d;
+      border-radius: 6px; display: inline-block;
+      padding: 2px 10px; margin: 10px 12px 2px;
+    }
+    .articles-section-divider {
+      border: none; border-top: 1px solid #e5e7eb; margin: 8px 12px;
+    }
+
     /* 記事カード */
     .articles-container { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
     .article-item {
@@ -526,30 +537,59 @@
         {% endif %}
       </div>
       {% if articles %}
-        <div class="articles-container">
-        {% for a in articles %}
-        <div class="article-item {% if a.is_alert %}is-alert{% endif %}{% if a.is_read %} article-read{% endif %}" data-article-id="{{ a.id }}">
-          <!-- 上段：ソース名（左）＋日時（右） -->
-          <div class="article-card-top">
-            <div class="article-card-top-left">
-              {% if a.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
-              <span class="article-source">{{ a.source if a.source else '' }}</span>
+        {% if alert_articles %}
+          {# ── 重要記事セクション ── #}
+          <div class="articles-section-label">⚠ 重要記事 {{ alert_articles | length }} 件</div>
+          <div class="articles-container">
+          {% for a in alert_articles %}
+          <div class="article-item is-alert{% if a.is_read %} article-read{% endif %}" data-article-id="{{ a.id }}">
+            <div class="article-card-top">
+              <div class="article-card-top-left">
+                <span class="article-alert-badge">重要</span>
+                <span class="article-source">{{ a.source if a.source else '' }}</span>
+              </div>
+              <span class="article-date">{{ a.published }}</span>
             </div>
-            <span class="article-date">{{ a.published }}</span>
-          </div>
-          <!-- 中段：タイトル -->
-          <a class="article-title" href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
-          <!-- 下段：ボタン右寄せ -->
-          <div class="article-card-bottom">
-            <span></span>
-            <div class="article-card-actions">
-              <button class="btn-check-done" onclick="markRead(this)"{% if a.is_read %} style="display:none"{% endif %}>チェック済み</button>
-              <button class="btn-unread" onclick="markUnread(this)"{% if not a.is_read %} style="display:none"{% endif %}>未読に戻す</button>
+            <a class="article-title" href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
+            <div class="article-card-bottom">
+              <span></span>
+              <div class="article-card-actions">
+                <button class="btn-check-done" onclick="markRead(this)"{% if a.is_read %} style="display:none"{% endif %}>チェック済み</button>
+                <button class="btn-unread" onclick="markUnread(this)"{% if not a.is_read %} style="display:none"{% endif %}>未読に戻す</button>
+              </div>
             </div>
           </div>
-        </div>
-        {% endfor %}
-        </div>
+          {% endfor %}
+          </div>
+          {# 通常記事がある場合のみ区切り線を表示 #}
+          {% if normal_articles %}
+          <hr class="articles-section-divider">
+          {% endif %}
+        {% endif %}
+        {# ── 通常記事セクション ── #}
+        {% if normal_articles %}
+          <div class="articles-container">
+          {% for a in normal_articles %}
+          <div class="article-item {% if a.is_read %}article-read{% endif %}" data-article-id="{{ a.id }}">
+            <div class="article-card-top">
+              <div class="article-card-top-left">
+                <span class="article-source">{{ a.source if a.source else '' }}</span>
+              </div>
+              <span class="article-date">{{ a.published }}</span>
+            </div>
+            <a class="article-title" href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
+            <div class="article-card-bottom">
+              <span></span>
+              <div class="article-card-actions">
+                <button class="btn-check-done" onclick="markRead(this)"{% if a.is_read %} style="display:none"{% endif %}>チェック済み</button>
+                <button class="btn-unread" onclick="markUnread(this)"{% if not a.is_read %} style="display:none"{% endif %}>未読に戻す</button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          </div>
+        {% endif %}
+        {# 重要記事のみで通常記事がない場合は何も追加しない #}
       {% else %}
       <div class="empty-msg">記事がまだありません。キーワードを紐づけてニュースを収集してください。</div>
       {% endif %}
