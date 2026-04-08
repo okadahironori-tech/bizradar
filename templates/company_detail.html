@@ -177,6 +177,13 @@
     .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
     .btn-ghost { background: none; border: 1px solid #d1d5db; color: #6b7280; }
     .btn-ghost:hover { border-color: #3949ab; color: #3949ab; }
+    .btn-edit { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
+    .btn-edit:hover { background: #c5cae9; }
+    .btn-cancel-edit { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+    .btn-cancel-edit:hover { background: #e5e7eb; }
+    .site-name-edit-wrap { display: none; }
+    .site-name-edit-wrap.open { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+    .input-site-name { border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 8px; font-size: 0.82rem; width: 150px; }
 
     /* 記事セクション区切り */
     .articles-section-label {
@@ -528,9 +535,18 @@
         <tbody>
         {% for s in sites_linked %}
         <tr>
-          <td>{{ s.name or '—' }}</td>
-          <td><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url }}</a></td>
           <td>
+            <span id="site-name-view-{{ loop.index0 }}">{{ s.name or '—' }}</span>
+            <form id="site-name-form-{{ loop.index0 }}" class="site-name-edit-wrap" method="POST" action="/update_site_name">
+              <input type="hidden" name="url" value="{{ s.url }}">
+              <input type="text" name="name" value="{{ s.name or '' }}" class="input-site-name" placeholder="サイト名">
+              <button type="submit" class="btn btn-primary btn-sm">保存</button>
+              <button type="button" class="btn btn-cancel-edit btn-sm" onclick="closeDetailEdit({{ loop.index0 }})">キャンセル</button>
+            </form>
+          </td>
+          <td><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url }}</a></td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="btn btn-edit btn-sm" onclick="openDetailEdit({{ loop.index0 }})">編集</button>
             <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;">
               <input type="hidden" name="site_url" value="{{ s.url }}">
               <input type="hidden" name="action" value="unlink">
@@ -692,6 +708,18 @@ async function markUnread(btn) {
     btn.style.display = 'none';
     item.querySelector('.btn-check-done').style.display = '';
   } catch (_) {}
+}
+
+function openDetailEdit(idx) {
+  document.getElementById('site-name-view-' + idx).style.display = 'none';
+  var form = document.getElementById('site-name-form-' + idx);
+  form.classList.add('open');
+  var input = form.querySelector('input[name="name"]');
+  if (input) { input.focus(); input.select(); }
+}
+function closeDetailEdit(idx) {
+  document.getElementById('site-name-view-' + idx).style.display = '';
+  document.getElementById('site-name-form-' + idx).classList.remove('open');
 }
 </script>
 <script>
