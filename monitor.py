@@ -69,6 +69,34 @@ def _rss_entry_link(entry) -> str:
     return ""
 
 
+def _resolve_google_news_url(url: str) -> str:
+    """Google News リダイレクトURL（news.google.com/rss/articles/...）を
+    実際の記事URLに解決する。HEADリクエストでリダイレクト先を取得する。
+    解決できない場合はもとのURLをそのまま返す。
+    """
+    if "news.google.com" not in url:
+        return url
+    try:
+        resp = requests.head(
+            url,
+            allow_redirects=True,
+            timeout=10,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                )
+            },
+        )
+        final_url = resp.url
+        if final_url and "news.google.com" not in final_url:
+            return final_url
+    except Exception as e:
+        print(f"  [Google News] URL解決失敗: {url!r} error={e}")
+    return url
+
+
 def fetch_news_articles(keyword: str) -> list:
     """Google News RSSからキーワード関連記事を取得する（最新20件）
 
@@ -100,7 +128,7 @@ def fetch_news_articles(keyword: str) -> list:
     articles = []
     for entry in feed.entries[:20]:
         title = _sanitize_text(entry.get("title", ""))
-        url = _sanitize_text(_rss_entry_link(entry))
+        url = _sanitize_text(_resolve_google_news_url(_rss_entry_link(entry)))
         source = ""
         if hasattr(entry, "source"):
             source = _sanitize_text(entry.source.get("title", ""))
