@@ -108,6 +108,7 @@ def _deduplicate_articles(articles, threshold=0.80):
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
 # DB 初期化（テーブル作成 + マイグレーション）
 # Render 新インスタンス起動直後の一時的な接続失敗に備えてリトライする。
@@ -191,6 +192,7 @@ def login():
         password = request.form.get("password", "")
         user = db.get_user_by_email(email)
         if user and db.verify_user_password(user, password):
+            session.permanent = True
             session["user_id"] = user["id"]
             session["email"] = user["email"]
             session["is_admin"] = user["is_admin"]
@@ -221,6 +223,7 @@ def register():
             try:
                 user_id = db.create_user(email, password)
                 user = db.get_user_by_id(user_id)
+                session.permanent = True
                 session["user_id"] = user["id"]
                 session["email"] = user["email"]
                 session["is_admin"] = user["is_admin"]
