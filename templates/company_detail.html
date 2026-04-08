@@ -371,160 +371,6 @@
     </div>
   </div>
 
-  <!-- モニターサイト -->
-  <section>
-    <div class="card">
-      <div class="section-title">
-        モニターサイト
-        <span class="count-badge">{{ sites_linked | length }}</span>
-      </div>
-      {% if sites_linked %}
-      <table>
-        <thead><tr><th>サイト名</th><th>URL</th><th></th></tr></thead>
-        <tbody>
-        {% for s in sites_linked %}
-        <tr>
-          <td>{{ s.name or '—' }}</td>
-          <td><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url }}</a></td>
-          <td>
-            <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;">
-              <input type="hidden" name="site_url" value="{{ s.url }}">
-              <input type="hidden" name="action" value="unlink">
-              <button type="submit" class="btn btn-ghost btn-sm">紐づけ解除</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty-msg">紐づくサイトがありません</div>
-      {% endif %}
-
-      <!-- 新規サイト登録フォーム -->
-      <div class="form-section-divider">新規登録</div>
-      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_site">
-        <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
-        <input type="url" name="url" id="site-url-input-detail" placeholder="https://example.com/news" maxlength="500" required
-               oninput="checkUrlHint(this, 'url-hint-detail')">
-        <button type="submit" class="btn btn-primary">登録する</button>
-      </form>
-      <div id="url-hint-detail"></div>
-
-      {# 未紐づきサイトのみドロップダウンに表示 #}
-      {% set unlinked_sites = all_sites | selectattr("company_id", "none") | list %}
-      {% if unlinked_sites %}
-      <div class="form-section-divider">既存サイトから選んで紐づける</div>
-      <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_site">
-        <input type="hidden" name="action" value="link">
-        <select name="site_url" required>
-          <option value="">サイトを選択して紐づける…</option>
-          {% for s in unlinked_sites %}
-          <option value="{{ s.url }}">{{ s.name or s.url }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-primary">紐づける</button>
-      </form>
-      {% endif %}
-    </div>
-  </section>
-
-  <!-- 更新検知履歴 -->
-  <section>
-    <div class="card">
-      <div class="section-title">
-        更新検知履歴
-        <span class="count-badge">最新 {{ history | length }} 件</span>
-      </div>
-      {% if history %}
-        {% for h in history %}
-        <div class="history-item">
-          <div class="history-ts">{{ h.timestamp }}</div>
-          <div class="history-url"><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
-          {% set ns = namespace(count=0) %}
-          {% set visible = [] %}
-          {% for d in h.diff %}
-            {% set clean = d.text | replace('\t', '') | trim %}
-            {% set is_date = (('年' in clean and '月' in clean and clean | length <= 12)
-                              or ('月' in clean and '日' in clean and clean | length <= 8)
-                              or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
-            {% if d.type == 'added' and clean | length >= 10 and not is_date %}
-              {% if visible.append(d) %}{% endif %}
-              {% set ns.count = ns.count + 1 %}
-            {% endif %}
-          {% endfor %}
-          {% if ns.count > 0 %}
-          <button class="diff-toggle" onclick="toggleDiff(this)">差分を表示（{{ ns.count }} 件）</button>
-          <div class="diff-block">
-            {% for d in visible %}
-            <div class="diff-line diff-added">{{ d.text }}</div>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </div>
-        {% endfor %}
-      {% else %}
-      <div class="empty-msg">更新検知履歴がありません</div>
-      {% endif %}
-    </div>
-  </section>
-
-  <!-- キーワード -->
-  <section>
-    <div class="card">
-      <div class="section-title">
-        キーワード
-        <span class="count-badge">{{ keywords_linked | length }}</span>
-      </div>
-      {% if keywords_linked %}
-      <table>
-        <thead><tr><th>キーワード</th><th>通知</th><th></th></tr></thead>
-        <tbody>
-        {% for k in keywords_linked %}
-        <tr>
-          <td>{{ k.keyword }}</td>
-          <td style="color:{% if k.notify_enabled %}#059669{% else %}#9ca3af{% endif %};font-size:0.78rem;font-weight:600;">
-            {% if k.notify_enabled %}ON{% else %}OFF{% endif %}
-          </td>
-          <td>
-            <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;">
-              <input type="hidden" name="keyword" value="{{ k.keyword }}">
-              <input type="hidden" name="action" value="unlink">
-              <button type="submit" class="btn btn-ghost btn-sm">紐づけ解除</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty-msg">紐づくキーワードがありません</div>
-      {% endif %}
-
-      <!-- 新規キーワード登録フォーム -->
-      <div class="form-section-divider">新規登録</div>
-      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
-        <input type="text" name="keyword" placeholder="キーワードを入力" maxlength="200" required>
-        <button type="submit" class="btn btn-primary">登録する</button>
-      </form>
-
-      {% set unlinked_kws = all_keywords | selectattr("company_id", "none") | list %}
-      {% if unlinked_kws %}
-      <div class="form-section-divider">既存キーワードから選んで紐づける</div>
-      <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_keyword">
-        <input type="hidden" name="action" value="link">
-        <select name="keyword" required>
-          <option value="">キーワードを選択して紐づける…</option>
-          {% for k in unlinked_kws %}
-          <option value="{{ k.keyword }}">{{ k.keyword }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-primary">紐づける</button>
-      </form>
-      {% endif %}
-    </div>
-  </section>
-
   <!-- 最新ニュース記事 -->
   <section>
     <div class="card">
@@ -593,6 +439,160 @@
         {# 重要記事のみで通常記事がない場合は何も追加しない #}
       {% else %}
       <div class="empty-msg">記事がまだありません。キーワードを紐づけてニュースを収集してください。</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- 更新検知履歴 -->
+  <section>
+    <div class="card">
+      <div class="section-title">
+        更新検知履歴
+        <span class="count-badge">最新 {{ history | length }} 件</span>
+      </div>
+      {% if history %}
+        {% for h in history %}
+        <div class="history-item">
+          <div class="history-ts">{{ h.timestamp }}</div>
+          <div class="history-url"><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
+          {% set ns = namespace(count=0) %}
+          {% set visible = [] %}
+          {% for d in h.diff %}
+            {% set clean = d.text | replace('\t', '') | trim %}
+            {% set is_date = (('年' in clean and '月' in clean and clean | length <= 12)
+                              or ('月' in clean and '日' in clean and clean | length <= 8)
+                              or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
+            {% if d.type == 'added' and clean | length >= 10 and not is_date %}
+              {% if visible.append(d) %}{% endif %}
+              {% set ns.count = ns.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.count > 0 %}
+          <button class="diff-toggle" onclick="toggleDiff(this)">差分を表示（{{ ns.count }} 件）</button>
+          <div class="diff-block">
+            {% for d in visible %}
+            <div class="diff-line diff-added">{{ d.text }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-msg">更新検知履歴がありません</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- モニターサイト -->
+  <section>
+    <div class="card">
+      <div class="section-title">
+        モニターサイト
+        <span class="count-badge">{{ sites_linked | length }}</span>
+      </div>
+      {% if sites_linked %}
+      <table>
+        <thead><tr><th>サイト名</th><th>URL</th><th></th></tr></thead>
+        <tbody>
+        {% for s in sites_linked %}
+        <tr>
+          <td>{{ s.name or '—' }}</td>
+          <td><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url }}</a></td>
+          <td>
+            <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;">
+              <input type="hidden" name="site_url" value="{{ s.url }}">
+              <input type="hidden" name="action" value="unlink">
+              <button type="submit" class="btn btn-ghost btn-sm">紐づけ解除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-msg">紐づくサイトがありません</div>
+      {% endif %}
+
+      <!-- 新規サイト登録フォーム -->
+      <div class="form-section-divider">新規登録</div>
+      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_site">
+        <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
+        <input type="url" name="url" id="site-url-input-detail" placeholder="https://example.com/news" maxlength="500" required
+               oninput="checkUrlHint(this, 'url-hint-detail')">
+        <button type="submit" class="btn btn-primary">登録する</button>
+      </form>
+      <div id="url-hint-detail"></div>
+
+      {# 未紐づきサイトのみドロップダウンに表示 #}
+      {% set unlinked_sites = all_sites | selectattr("company_id", "none") | list %}
+      {% if unlinked_sites %}
+      <div class="form-section-divider">既存サイトから選んで紐づける</div>
+      <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_site">
+        <input type="hidden" name="action" value="link">
+        <select name="site_url" required>
+          <option value="">サイトを選択して紐づける…</option>
+          {% for s in unlinked_sites %}
+          <option value="{{ s.url }}">{{ s.name or s.url }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">紐づける</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- キーワード -->
+  <section>
+    <div class="card">
+      <div class="section-title">
+        キーワード
+        <span class="count-badge">{{ keywords_linked | length }}</span>
+      </div>
+      {% if keywords_linked %}
+      <table>
+        <thead><tr><th>キーワード</th><th>通知</th><th></th></tr></thead>
+        <tbody>
+        {% for k in keywords_linked %}
+        <tr>
+          <td>{{ k.keyword }}</td>
+          <td style="color:{% if k.notify_enabled %}#059669{% else %}#9ca3af{% endif %};font-size:0.78rem;font-weight:600;">
+            {% if k.notify_enabled %}ON{% else %}OFF{% endif %}
+          </td>
+          <td>
+            <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;">
+              <input type="hidden" name="keyword" value="{{ k.keyword }}">
+              <input type="hidden" name="action" value="unlink">
+              <button type="submit" class="btn btn-ghost btn-sm">紐づけ解除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-msg">紐づくキーワードがありません</div>
+      {% endif %}
+
+      <!-- 新規キーワード登録フォーム -->
+      <div class="form-section-divider">新規登録</div>
+      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
+        <input type="text" name="keyword" placeholder="キーワードを入力" maxlength="200" required>
+        <button type="submit" class="btn btn-primary">登録する</button>
+      </form>
+
+      {% set unlinked_kws = all_keywords | selectattr("company_id", "none") | list %}
+      {% if unlinked_kws %}
+      <div class="form-section-divider">既存キーワードから選んで紐づける</div>
+      <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_keyword">
+        <input type="hidden" name="action" value="link">
+        <select name="keyword" required>
+          <option value="">キーワードを選択して紐づける…</option>
+          {% for k in unlinked_kws %}
+          <option value="{{ k.keyword }}">{{ k.keyword }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">紐づける</button>
+      </form>
       {% endif %}
     </div>
   </section>
