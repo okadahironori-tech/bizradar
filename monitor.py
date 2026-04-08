@@ -3,6 +3,7 @@
 機能: サイトの内容が変わったらメールで通知する
 """
 
+import base64
 import difflib
 import hashlib
 import re
@@ -70,32 +71,26 @@ def _rss_entry_link(entry) -> str:
 
 
 def _resolve_google_news_url(url: str) -> str:
-    """Google News リダイレクトURL（news.google.com/rss/articles/...）を
-    実際の記事URLに解決する。GETリクエスト（stream=True）でリダイレクト先を取得する。
-    解決できない場合はもとのURLをそのまま返す。
-    """
+    """Google News のBase64エンコードURLから実際の記事URLを抽出する。"""
     if "news.google.com" not in url:
         return url
     try:
-        resp = requests.get(
-            url,
-            allow_redirects=True,
-            timeout=5,
-            stream=True,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                )
-            },
-        )
-        resp.close()
-        final_url = resp.url
-        if final_url and "news.google.com" not in final_url:
-            return final_url
-    except Exception as e:
-        print(f"  [Google News] URL解決失敗: {url!r} error={e}")
+        # URLからBase64部分を抽出
+        match = re.search(r'articles/([A-Za-z0-9_-]+)', url)
+        if not match:
+            return url
+        encoded = match.group(1)
+        # Base64デコード（パディング調整）
+        padded = encoded + '=' * (4 - len(encoded) % 4)
+        decoded = base64.urlsafe_b64decode(padded).decode('latin-1')
+        # デコード結果からhttps://で始まるURLを抽出
+        url_match = re.search(r'https?://[^\s\x00-\x1f]+', decoded)
+        if url_match:
+            extracted = url_match.group(0).rstrip('.')
+            if 'google.com' not in extracted:
+                return extracted
+    except Exception:
+        pass
     return url
 
 
