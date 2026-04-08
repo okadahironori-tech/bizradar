@@ -629,15 +629,7 @@ function collectKeyword(btn, keyword) {
       pollUntilDone('keyword_statuses', keyword, 60000, function() {
         btn.textContent = origText;
         btn.disabled = false;
-        // 収集完了バナーを表示（重複しない）
-        document.getElementById('refresh-banner').classList.add('visible');
-        setTimeout(function() {
-          var banner = document.getElementById('refresh-banner');
-          banner.style.transition = 'opacity 0.5s';
-          banner.style.opacity = '0';
-          setTimeout(function() { banner.classList.remove('visible'); banner.style.opacity = ''; }, 500);
-        }, 5000);
-        // 収集完了後に件数セルを更新
+        // 収集完了後に件数セルを更新し、1件以上ならバナーを表示
         fetch('/api/keyword_article_count?keyword=' + encodeURIComponent(keyword))
           .then(function(r) { return r.json(); })
           .then(function(d) {
@@ -645,6 +637,15 @@ function collectKeyword(btn, keyword) {
             if (row) {
               var countCell = row.querySelectorAll('td')[1];
               if (countCell) countCell.textContent = d.count + ' 件';
+            }
+            if (d.count > 0) {
+              document.getElementById('refresh-banner').classList.add('visible');
+              setTimeout(function() {
+                var banner = document.getElementById('refresh-banner');
+                banner.style.transition = 'opacity 0.5s';
+                banner.style.opacity = '0';
+                setTimeout(function() { banner.classList.remove('visible'); banner.style.opacity = ''; }, 500);
+              }, 5000);
             }
           })
           .catch(function() {});
