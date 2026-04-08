@@ -396,7 +396,7 @@
   <!-- サマリーバー -->
   <div class="summary-bar">
     <div class="summary-item">
-      <div class="summary-val {% if summary.unread_count > 0 %}unread{% endif %}">{{ summary.unread_count }}</div>
+      <div class="summary-val {% if summary.unread_count > 0 %}unread{% endif %}" id="summary-unread-val">{{ summary.unread_count }}</div>
       <div class="summary-label">未読記事</div>
     </div>
     <div class="summary-item">
@@ -419,11 +419,9 @@
       <div class="section-title">
         最新ニュース記事
         <span class="count-badge">最新 {{ articles | length }} 件</span>
-        {% if summary.alert_count > 0 %}
-        <span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:10px;">
-          重要 {{ summary.alert_count }} 件
+        <span id="news-alert-badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:10px;{% if summary.alert_count == 0 %}display:none;{% endif %}">
+          重要 <span id="news-alert-badge-num">{{ summary.alert_count }}</span> 件
         </span>
-        {% endif %}
         <select class="count-select" onchange="applyNewsLimit(+this.value)">
           <option value="5">5件</option>
           <option value="10">10件</option>
@@ -435,7 +433,7 @@
         <div class="pagination-bar news-pagination"></div>
         {% if alert_articles %}
           {# ── 重要記事セクション ── #}
-          <div class="articles-section-label">⚠ 重要記事 {{ alert_articles | length }} 件</div>
+          <div class="articles-section-label" id="articles-alert-label">⚠ 重要記事 <span id="articles-alert-label-num">{{ alert_articles | length }}</span> 件</div>
           <div class="articles-container">
           {% for a in alert_articles %}
           <div class="article-item is-alert{% if a.is_read %} article-read{% endif %}" data-article-id="{{ a.id }}">
@@ -719,9 +717,37 @@
   </div>
 </div>
 <script>
+function _updateReadCounters(isAlert) {
+  // 1. 未読記事サマリー
+  var unreadEl = document.getElementById('summary-unread-val');
+  if (unreadEl) {
+    var n = Math.max(0, parseInt(unreadEl.textContent, 10) - 1);
+    unreadEl.textContent = n;
+    unreadEl.classList.toggle('unread', n > 0);
+  }
+  // 2 & 3. 重要記事バッジ・ラベル（重要記事のときのみ）
+  if (isAlert) {
+    var badgeNum = document.getElementById('news-alert-badge-num');
+    var badge    = document.getElementById('news-alert-badge');
+    if (badgeNum && badge) {
+      var m = Math.max(0, parseInt(badgeNum.textContent, 10) - 1);
+      badgeNum.textContent = m;
+      if (m === 0) badge.style.display = 'none';
+    }
+    var labelNum = document.getElementById('articles-alert-label-num');
+    var label    = document.getElementById('articles-alert-label');
+    if (labelNum && label) {
+      var k = Math.max(0, parseInt(labelNum.textContent, 10) - 1);
+      labelNum.textContent = k;
+      if (k === 0) label.style.display = 'none';
+    }
+  }
+}
+
 async function markRead(btn) {
   const item = btn.closest('.article-item');
   const id = item.dataset.articleId;
+  const isAlert = item.classList.contains('is-alert');
   try {
     const res = await fetch(`/mark_read/${id}`, { method: 'POST' });
     if (!res.ok) return;
@@ -738,7 +764,7 @@ async function markRead(btn) {
       item.style.marginBottom = '0';
       item.style.paddingTop = '0';
       item.style.paddingBottom = '0';
-      setTimeout(() => item.remove(), 260);
+      setTimeout(() => { item.remove(); _updateReadCounters(isAlert); }, 260);
     }, 310);
   } catch (_) {}
 }
