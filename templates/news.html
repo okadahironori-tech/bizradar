@@ -649,8 +649,8 @@ function addKeyword(e) {
         '<td style="text-align:center">' +
           '<form method="POST" action="/toggle_keyword_notify">' +
             '<input type="hidden" name="keyword" value="' + safeKw + '">' +
-            '<input type="hidden" name="notify_enabled" value="1">' +
-            '<button type="submit" class="btn-notify-toggle off" title="通知OFF"></button>' +
+            '<input type="hidden" name="notify_enabled" value="0">' +
+            '<button type="submit" class="btn-notify-toggle on" title="通知ON"></button>' +
           '</form>' +
         '</td>' +
         '<td>' +
@@ -671,7 +671,8 @@ function addKeyword(e) {
         filterBtn.onclick = function() { filterArticlesByKw(kw); };
         filterBtn.style.opacity = '0';
         filterBtn.style.transition = 'opacity 0.3s';
-        filterBar.appendChild(filterBtn);
+        var unreadBtn = document.getElementById('unread-only-btn');
+        filterBar.insertBefore(filterBtn, unreadBtn || null);
         requestAnimationFrame(function() { filterBtn.style.opacity = '1'; });
       }
     })
