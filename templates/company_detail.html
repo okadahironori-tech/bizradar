@@ -108,6 +108,11 @@
       font-size: 0.72rem; font-weight: 600; color: #6b7280;
       background: #f3f4f6; border-radius: 10px; padding: 2px 8px;
     }
+    .count-select {
+      font-size: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+      padding: 3px 8px; background: #fff; color: #4a4a6a; cursor: pointer;
+      margin-left: auto;
+    }
 
     /* テーブル */
     table { width: 100%; border-collapse: collapse; }
@@ -372,7 +377,7 @@
   </div>
 
   <!-- 最新ニュース記事 -->
-  <section>
+  <section id="news-section">
     <div class="card">
       <div class="section-title">
         最新ニュース記事
@@ -382,6 +387,12 @@
           重要 {{ summary.alert_count }} 件
         </span>
         {% endif %}
+        <select class="count-select" onchange="applyNewsLimit(+this.value)">
+          <option value="10">10件</option>
+          <option value="5">5件</option>
+          <option value="20">20件</option>
+          <option value="0">全件</option>
+        </select>
       </div>
       {% if articles %}
         {% if alert_articles %}
@@ -444,11 +455,16 @@
   </section>
 
   <!-- 更新検知履歴 -->
-  <section>
+  <section id="history-section">
     <div class="card">
       <div class="section-title">
         更新検知履歴
         <span class="count-badge">最新 {{ history | length }} 件</span>
+        <select class="count-select" onchange="applyHistoryLimit(+this.value)">
+          <option value="5">5件</option>
+          <option value="10">10件</option>
+          <option value="0">全件</option>
+        </select>
       </div>
       {% if history %}
         {% for h in history %}
@@ -669,6 +685,19 @@ async function markUnread(btn) {
   document.addEventListener('click', function () { menu.classList.remove('open'); });
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 })();
+
+function applyNewsLimit(n) {
+  var items = document.querySelectorAll('#news-section .article-item');
+  items.forEach(function(el, i) { el.style.display = (n === 0 || i < n) ? '' : 'none'; });
+}
+function applyHistoryLimit(n) {
+  var items = document.querySelectorAll('#history-section .history-item');
+  items.forEach(function(el, i) { el.style.display = (n === 0 || i < n) ? '' : 'none'; });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  applyNewsLimit(10);
+  applyHistoryLimit(5);
+});
 
 function toggleDiff(btn) {
   var block = btn.nextElementSibling;
