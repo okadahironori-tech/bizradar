@@ -193,15 +193,25 @@
     .today-companies-label {
       font-size: 0.72rem; color: #9ca3af; font-weight: 500; margin-top: 5px;
     }
-    .today-company-names {
-      margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;
+    .today-company-names { margin-top: 12px; }
+    .today-company-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 7px 0; border-bottom: 1px solid #f0f2f5;
     }
+    .today-company-row:last-child { border-bottom: none; }
     .today-company-link {
-      font-size: 0.8rem; color: #3949ab; text-decoration: none; font-weight: 600;
-      background: #e8eaf6; border-radius: 20px; padding: 3px 10px;
+      font-size: 0.85rem; color: #3949ab; text-decoration: none; font-weight: 600;
     }
-    .today-company-link:hover { background: #c5cae9; }
-    .today-company-sep { font-size: 0.8rem; color: #d1d5db; align-self: center; }
+    .today-company-link:hover { text-decoration: underline; }
+    .today-company-badge-site {
+      font-size: 0.72rem; color: #6b7280; background: #f3f4f6;
+      border-radius: 4px; padding: 2px 7px;
+    }
+    .today-company-badge-news {
+      font-size: 0.72rem; color: #3949ab; background: #e8eaf6;
+      border-radius: 4px; padding: 2px 7px;
+    }
+    .today-company-sep { font-size: 0.8rem; color: #9ca3af; padding: 7px 0; }
 
     /* 変更履歴 */
     .timeline { padding: 4px 0; }
@@ -426,20 +436,14 @@
         {% if today_company_list %}
         <div class="today-company-names">
           {% for c in today_company_list[:5] %}
-          <div style="margin-bottom:6px;">
+          <div class="today-company-row">
             <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
-            {% if c.changes %}
-              {% for ch in c.changes %}
-              <span style="display:inline-block; font-size:0.74rem; color:#6b7280; margin-left:6px;">{{ ch.timestamp }} サイト変更あり</span>
-              {% endfor %}
-            {% endif %}
-            {% if c.news_count > 0 %}
-            <span style="display:inline-block; font-size:0.74rem; color:#3949ab; margin-left:6px;">ニュース {{ c.news_count }} 件</span>
-            {% endif %}
+            {% if c.changes %}<span class="today-company-badge-site">サイト変更あり</span>{% endif %}
+            {% if c.news_count > 0 %}<span class="today-company-badge-news">ニュース {{ c.news_count }} 件</span>{% endif %}
           </div>
           {% endfor %}
           {% if today_company_list | length > 5 %}
-          <span class="today-company-sep">他 {{ today_company_list | length - 5 }} 社</span>
+          <div class="today-company-sep">他 {{ today_company_list | length - 5 }} 社</div>
           {% endif %}
         </div>
         {% endif %}
@@ -459,20 +463,14 @@
         <div class="today-companies-label">企業に動きがありました</div>
         <div class="today-company-names">
           {% for c in prev_login_company_list[:5] %}
-          <div style="margin-bottom:6px;">
+          <div class="today-company-row">
             <a href="/companies/{{ c.id }}" class="today-company-link">{{ c.name }}</a>
-            {% if c.changes %}
-              {% for ch in c.changes %}
-              <span style="display:inline-block; font-size:0.74rem; color:#6b7280; margin-left:6px;">{{ ch.timestamp }} サイト変更あり</span>
-              {% endfor %}
-            {% endif %}
-            {% if c.news_count > 0 %}
-            <span style="display:inline-block; font-size:0.74rem; color:#3949ab; margin-left:6px;">ニュース {{ c.news_count }} 件</span>
-            {% endif %}
+            {% if c.changes %}<span class="today-company-badge-site">サイト変更あり</span>{% endif %}
+            {% if c.news_count > 0 %}<span class="today-company-badge-news">ニュース {{ c.news_count }} 件</span>{% endif %}
           </div>
           {% endfor %}
           {% if prev_login_company_list | length > 5 %}
-          <span class="today-company-sep">他 {{ prev_login_company_list | length - 5 }} 社</span>
+          <div class="today-company-sep">他 {{ prev_login_company_list | length - 5 }} 社</div>
           {% endif %}
         </div>
         {% else %}
