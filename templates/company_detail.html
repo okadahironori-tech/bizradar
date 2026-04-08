@@ -195,7 +195,8 @@
     .site-edit-field { margin-bottom: 14px; }
     .site-edit-field label { display: block; font-size: 0.78rem; font-weight: 600; color: #4a4a6a; margin-bottom: 4px; }
     .site-edit-field input { width: 100%; border: 1px solid #d1d5db; border-radius: 7px; padding: 7px 10px; font-size: 0.88rem; box-sizing: border-box; }
-    .site-edit-url-warn { display: none; color: #dc2626; font-size: 0.78rem; margin-top: 4px; }
+    .site-edit-url-warn { display: block; color: #9ca3af; font-size: 0.78rem; margin-top: 4px; }
+    .site-edit-url-warn.url-changed { color: #dc2626; }
     .site-edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
     .site-edit-error { color: #dc2626; font-size: 0.78rem; margin-top: 8px; display: none; }
 
@@ -761,7 +762,7 @@ function openSiteEditModal(url, name) {
   _siteEditOriginalUrl = url;
   document.getElementById('site-edit-url').value  = url;
   document.getElementById('site-edit-name').value = name;
-  document.getElementById('site-edit-url-warn').style.display = 'none';
+  document.getElementById('site-edit-url-warn').classList.remove('url-changed');
   document.getElementById('site-edit-error').style.display    = 'none';
   document.getElementById('site-edit-save-btn').disabled = false;
   document.getElementById('site-edit-overlay').classList.add('open');
@@ -776,7 +777,7 @@ function closeSiteEditModal(e) {
 function onSiteEditUrlInput() {
   var warn = document.getElementById('site-edit-url-warn');
   var current = document.getElementById('site-edit-url').value.trim();
-  warn.style.display = (current !== _siteEditOriginalUrl) ? 'block' : 'none';
+  warn.classList.toggle('url-changed', current !== _siteEditOriginalUrl);
 }
 
 async function saveSiteEdit() {
