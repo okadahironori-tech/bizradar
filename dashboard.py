@@ -495,6 +495,28 @@ def update_site_name():
     return redirect(request.referrer or url_for("management"))
 
 
+@app.route("/api/update_site", methods=["POST"])
+@login_required
+def api_update_site():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    old_url  = (data.get("old_url") or "").strip()
+    new_url  = (data.get("new_url") or "").strip()
+    name     = (data.get("name") or "").replace("\x00", "").strip()
+
+    if not old_url or not new_url:
+        return {"ok": False, "error": "URLが不正です"}, 400
+    if not new_url.startswith("http"):
+        return {"ok": False, "error": "URLはhttpまたはhttpsで始めてください"}, 400
+    if not any(s["url"] == old_url for s in db.load_sites(user_id)):
+        return {"ok": False, "error": "該当サイトが見つかりません"}, 404
+
+    ok = db.update_site_url_and_name(user_id, old_url, new_url, name)
+    if not ok:
+        return {"ok": False, "error": "更新に失敗しました"}, 500
+    return {"ok": True}
+
+
 @app.route("/check_site", methods=["POST"])
 @login_required
 def check_site():

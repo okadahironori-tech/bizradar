@@ -555,6 +555,22 @@ def update_site_name(user_id: int, url: str, name: str) -> bool:
             return cur.rowcount > 0
 
 
+def update_site_url_and_name(user_id: int, old_url: str, new_url: str, name: str) -> bool:
+    """サイトのURLと名前を更新する。URL変更時は更新履歴・保存コンテンツをリセットする。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE sites SET url = %s, name = %s WHERE user_id = %s AND url = %s",
+                (new_url, name, user_id, old_url)
+            )
+            if cur.rowcount == 0:
+                return False
+            if old_url != new_url:
+                cur.execute("DELETE FROM content_store WHERE url = %s", (old_url,))
+                cur.execute("DELETE FROM change_history WHERE url = %s", (old_url,))
+            return True
+
+
 # ============================================================
 # Config （グローバル設定）
 # ============================================================

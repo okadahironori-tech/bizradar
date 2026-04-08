@@ -179,11 +179,25 @@
     .btn-ghost:hover { border-color: #3949ab; color: #3949ab; }
     .btn-edit { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
     .btn-edit:hover { background: #c5cae9; }
-    .btn-cancel-edit { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
-    .btn-cancel-edit:hover { background: #e5e7eb; }
-    .site-name-edit-wrap { display: none; }
-    .site-name-edit-wrap.open { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
-    .input-site-name { border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 8px; font-size: 0.82rem; width: 150px; }
+    /* サイト編集モーダル */
+    .site-edit-modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .site-edit-modal-overlay.open { display: flex; }
+    .site-edit-modal {
+      background: #fff; border-radius: 12px;
+      padding: 28px 28px 20px; width: 90%; max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .site-edit-modal h3 { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+    .site-edit-field { margin-bottom: 14px; }
+    .site-edit-field label { display: block; font-size: 0.78rem; font-weight: 600; color: #4a4a6a; margin-bottom: 4px; }
+    .site-edit-field input { width: 100%; border: 1px solid #d1d5db; border-radius: 7px; padding: 7px 10px; font-size: 0.88rem; box-sizing: border-box; }
+    .site-edit-url-warn { display: none; color: #dc2626; font-size: 0.78rem; margin-top: 4px; }
+    .site-edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .site-edit-error { color: #dc2626; font-size: 0.78rem; margin-top: 8px; display: none; }
 
     /* 記事セクション区切り */
     .articles-section-label {
@@ -535,18 +549,11 @@
         <tbody>
         {% for s in sites_linked %}
         <tr>
-          <td>
-            <span id="site-name-view-{{ loop.index0 }}">{{ s.name or '—' }}</span>
-            <form id="site-name-form-{{ loop.index0 }}" class="site-name-edit-wrap" method="POST" action="/update_site_name">
-              <input type="hidden" name="url" value="{{ s.url }}">
-              <input type="text" name="name" value="{{ s.name or '' }}" class="input-site-name" placeholder="サイト名">
-              <button type="submit" class="btn btn-primary btn-sm">保存</button>
-              <button type="button" class="btn btn-cancel-edit btn-sm" onclick="closeDetailEdit({{ loop.index0 }})">キャンセル</button>
-            </form>
-          </td>
+          <td>{{ s.name or '—' }}</td>
           <td><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url }}</a></td>
           <td style="white-space:nowrap;">
-            <button type="button" class="btn btn-edit btn-sm" onclick="openDetailEdit({{ loop.index0 }})">編集</button>
+            <button type="button" class="btn btn-edit btn-sm"
+                    onclick="openSiteEditModal('{{ s.url | e }}', '{{ (s.name or '') | e }}')">編集</button>
             <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;">
               <input type="hidden" name="site_url" value="{{ s.url }}">
               <input type="hidden" name="action" value="unlink">
@@ -651,6 +658,30 @@
 
 </main>
 
+<!-- モニターサイト編集モーダル -->
+<div class="site-edit-modal-overlay" id="site-edit-overlay" onclick="closeSiteEditModal(event)">
+  <div class="site-edit-modal">
+    <h3>モニターサイトを編集</h3>
+    <div class="site-edit-field">
+      <label>サイト名</label>
+      <input type="text" id="site-edit-name" placeholder="サイト名（任意）" maxlength="200">
+    </div>
+    <div class="site-edit-field">
+      <label>URL</label>
+      <input type="url" id="site-edit-url" placeholder="https://example.com/news" maxlength="500"
+             oninput="onSiteEditUrlInput()">
+      <div class="site-edit-url-warn" id="site-edit-url-warn">
+        URLを変更すると、このサイトの更新履歴がリセットされます。
+      </div>
+    </div>
+    <div class="site-edit-error" id="site-edit-error"></div>
+    <div class="site-edit-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeSiteEditModal()">キャンセル</button>
+      <button type="button" class="btn btn-primary" id="site-edit-save-btn" onclick="saveSiteEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 企業情報編集モーダル -->
 <div class="modal-overlay" id="edit-modal" onclick="closeEditModalOnOverlay(event)">
   <div class="modal-box">
@@ -710,16 +741,60 @@ async function markUnread(btn) {
   } catch (_) {}
 }
 
-function openDetailEdit(idx) {
-  document.getElementById('site-name-view-' + idx).style.display = 'none';
-  var form = document.getElementById('site-name-form-' + idx);
-  form.classList.add('open');
-  var input = form.querySelector('input[name="name"]');
-  if (input) { input.focus(); input.select(); }
+var _siteEditOriginalUrl = '';
+
+function openSiteEditModal(url, name) {
+  _siteEditOriginalUrl = url;
+  document.getElementById('site-edit-url').value  = url;
+  document.getElementById('site-edit-name').value = name;
+  document.getElementById('site-edit-url-warn').style.display = 'none';
+  document.getElementById('site-edit-error').style.display    = 'none';
+  document.getElementById('site-edit-save-btn').disabled = false;
+  document.getElementById('site-edit-overlay').classList.add('open');
+  document.getElementById('site-edit-name').focus();
 }
-function closeDetailEdit(idx) {
-  document.getElementById('site-name-view-' + idx).style.display = '';
-  document.getElementById('site-name-form-' + idx).classList.remove('open');
+
+function closeSiteEditModal(e) {
+  if (e && e.target !== document.getElementById('site-edit-overlay')) return;
+  document.getElementById('site-edit-overlay').classList.remove('open');
+}
+
+function onSiteEditUrlInput() {
+  var warn = document.getElementById('site-edit-url-warn');
+  var current = document.getElementById('site-edit-url').value.trim();
+  warn.style.display = (current !== _siteEditOriginalUrl) ? 'block' : 'none';
+}
+
+async function saveSiteEdit() {
+  var newUrl  = document.getElementById('site-edit-url').value.trim();
+  var name    = document.getElementById('site-edit-name').value.trim();
+  var errEl   = document.getElementById('site-edit-error');
+  var saveBtn = document.getElementById('site-edit-save-btn');
+  errEl.style.display = 'none';
+  if (!newUrl) { errEl.textContent = 'URLを入力してください'; errEl.style.display = 'block'; return; }
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中…';
+  try {
+    var res = await fetch('/api/update_site', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({old_url: _siteEditOriginalUrl, new_url: newUrl, name: name})
+    });
+    var data = await res.json();
+    if (data.ok) {
+      location.reload();
+    } else {
+      errEl.textContent = data.error || '保存に失敗しました';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      saveBtn.textContent = '保存';
+    }
+  } catch (_) {
+    errEl.textContent = '通信エラーが発生しました';
+    errEl.style.display = 'block';
+    saveBtn.disabled = false;
+    saveBtn.textContent = '保存';
+  }
 }
 </script>
 <script>
