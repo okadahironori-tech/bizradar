@@ -591,8 +591,9 @@ _NOISE_RE = re.compile(
     r"\bad\b|ads|advertisement|banner|"
     r"breadcrumb|pankuzu|sitemap|sns|share|"
     r"counter|access.?count|"
-    r"menu|gnav|\bnav\b|global.nav|sidebar|"
-    r"\bcategory\b|tag.?list|"
+    r"menu|gnav|\bnav\b|global.nav|local.nav|sidebar|"
+    r"\bcategory\b|tag.?list|article.?category|cat.?label|"
+    r"area.?nav|region.?nav|topic.?nav|"
     r"pagetop|page.top|back.?to.?top|totop",
     re.IGNORECASE,
 )
@@ -691,8 +692,9 @@ _DIFF_DATE_RE = re.compile(
 )
 
 # ナビゲーション・カテゴリ文字列判定：以下のいずれも含まない行は除外
-# （全角スペース・読点・句点・中黒・半角スペース・半角数字・半角英字）
-_DIFF_NAV_RE = re.compile(r"[　、。・ \da-zA-Z]")
+# （全角スペース・読点・句点・中黒・半角スペース・半角数字・半角英字・ひらがな・カタカナ）
+# ひらがな/カタカナを含む行は文章的な見出しとして通す
+_DIFF_NAV_RE = re.compile(r"[　、。・ \da-zA-Zぁ-んァ-ン]")
 
 
 def _is_nav(text: str) -> bool:
