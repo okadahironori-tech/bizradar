@@ -559,6 +559,34 @@ def collect_keyword():
     return redirect(url_for("index"))
 
 
+@app.route("/api/collect_keyword", methods=["POST"])
+@login_required
+def api_collect_keyword():
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        return jsonify({"success": False, "message": "キーワードが不正です"})
+    if keyword in db.get_all_running_tasks().get("keyword_collect", set()):
+        return jsonify({"success": False, "message": "収集中です"})
+
+    user_id = session["user_id"]
+    import monitor as monitor_module
+
+    db.add_running_task("keyword_collect", keyword)
+
+    def run():
+        try:
+            monitor_module.check_single_keyword(keyword, user_id)
+        except Exception:
+            logger.exception(
+                "キーワード収集に失敗しました keyword=%r user_id=%s", keyword, user_id
+            )
+        finally:
+            db.remove_running_task("keyword_collect", keyword)
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"success": True, "message": f"収集を開始しました: {keyword}"})
+
+
 @app.route("/add_keyword", methods=["POST"])
 @login_required
 def add_keyword():

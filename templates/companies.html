@@ -383,14 +383,11 @@
             </td>
             <td>
               <div class="row-actions" style="justify-content:flex-end">
-                <form method="POST" action="/collect_keyword">
-                  <input type="hidden" name="keyword" value="{{ kw.keyword }}">
-                  <button type="submit" class="btn btn-check"
-                    {% if is_collecting %}disabled{% endif %}
-                    onclick="this.disabled=true; this.textContent='収集中...'">
-                    {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
-                  </button>
-                </form>
+                <button type="button" class="btn btn-check"
+                        onclick="collectKeyword(this, '{{ kw.keyword | replace("'", "\\'") }}')"
+                        {% if is_collecting %}disabled{% endif %}>
+                  {% if is_collecting %}収集中...{% else %}今すぐ収集{% endif %}
+                </button>
                 <button type="button" class="btn btn-remove"
                         onclick="deleteKeyword(this, '{{ kw.keyword | e }}')">削除</button>
               </div>
@@ -553,10 +550,36 @@ function showToast(message) {
   }, 5000);
 }
 
-// ── 今すぐ収集 AJAX ──────────────────────────────────────────────
+// ── 収集完了ポーリング共通処理 ────────────────────────────────────
+// statusField: 'site_statuses' | 'keyword_statuses'
+// statusKey  : URL or キーワード文字列
+// maxWaitMs  : タイムアウト ms（デフォルト 60000）
+// onDone     : 完了時コールバック
+function pollUntilDone(statusField, statusKey, maxWaitMs, onDone) {
+  var started = Date.now();
+  var timer = setInterval(function() {
+    if (Date.now() - started >= maxWaitMs) {
+      clearInterval(timer);
+      onDone();
+      return;
+    }
+    fetch('/api/checking_status')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var statuses = data[statusField] || {};
+        if (statuses[statusKey] !== 'running') {
+          clearInterval(timer);
+          onDone();
+        }
+      })
+      .catch(function() { /* 通信エラーは無視して継続 */ });
+  }, 3000);
+}
+
+// ── 今すぐ収集 AJAX（モニターサイト） ────────────────────────────
 function checkSite(btn, url) {
   btn.disabled = true;
-  var origText = btn.textContent;
+  var origText = btn.textContent.trim();
   btn.textContent = '収集中...';
   var fd = new FormData();
   fd.append('url', url);
@@ -570,7 +593,35 @@ function checkSite(btn, url) {
         return;
       }
       showToast('収集を開始しました');
-      setTimeout(function() { btn.textContent = origText; btn.disabled = false; }, 3000);
+      pollUntilDone('site_statuses', url, 60000, function() {
+        btn.textContent = origText;
+        btn.disabled = false;
+      });
+    })
+    .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
+}
+
+// ── 今すぐ収集 AJAX（キーワード） ────────────────────────────────
+function collectKeyword(btn, keyword) {
+  btn.disabled = true;
+  var origText = btn.textContent.trim();
+  btn.textContent = '収集中...';
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/collect_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) {
+        btn.textContent = origText;
+        btn.disabled = false;
+        alert(data.message || '収集に失敗しました');
+        return;
+      }
+      showToast('収集を開始しました');
+      pollUntilDone('keyword_statuses', keyword, 60000, function() {
+        btn.textContent = origText;
+        btn.disabled = false;
+      });
     })
     .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
 }
@@ -666,10 +717,7 @@ function addKeyword(e) {
         '</td>' +
         '<td>' +
           '<div class="row-actions" style="justify-content:flex-end">' +
-            '<form method="POST" action="/collect_keyword">' +
-              '<input type="hidden" name="keyword" value="' + safeKw + '">' +
-              '<button type="submit" class="btn btn-check" onclick="this.disabled=true;this.textContent=\'収集中...\'">今すぐ収集</button>' +
-            '</form>' +
+            '<button type="button" class="btn btn-check" onclick="collectKeyword(this,\'' + safeKwJs + '\')">今すぐ収集</button>' +
             '<button type="button" class="btn btn-remove" onclick="deleteKeyword(this,\'' + safeKwJs + '\')">削除</button>' +
           '</div>' +
         '</td>';
