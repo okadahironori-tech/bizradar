@@ -173,6 +173,7 @@ def fetch_bing_news_articles(keyword: str) -> list:
         response.raise_for_status()
     except requests.RequestException as e:
         print(f"  [Bing News] 取得失敗（スキップ）: keyword={keyword!r} error={e}")
+        db.update_source_health("bing_news", False, str(e))
         return []
 
     feed = feedparser.parse(response.content)
@@ -213,6 +214,7 @@ def fetch_bing_news_articles(keyword: str) -> list:
                 "source":    source,
                 "published": published,
             })
+    db.update_source_health("bing_news", True)
     return articles
 
 
@@ -233,6 +235,7 @@ def fetch_prtimes_articles(keyword: str) -> list:
         response.raise_for_status()
     except requests.RequestException as e:
         print(f"  [PR TIMES] 取得失敗（スキップ）: keyword={keyword!r} error={e}")
+        db.update_source_health("prtimes", False, str(e))
         return []
 
     feed = feedparser.parse(response.content)
@@ -262,11 +265,82 @@ def fetch_prtimes_articles(keyword: str) -> list:
                 "source":    "PR TIMES",
                 "published": published,
             })
+    db.update_source_health("prtimes", True)
     return articles
 
 
 # 後方互換エイリアス（旧名称で呼んでいる箇所がある場合に備える）
 fetch_yahoo_news_articles = fetch_bing_news_articles
+
+_SOURCE_NAMES = {
+    "google_news": "Google News",
+    "bing_news":   "Bing News",
+    "prtimes":     "PR TIMES",
+}
+_CONSECUTIVE_FAIL_THRESHOLD = 3
+
+
+def send_system_error_email(errors: list):
+    """システムエラーを管理者に通知するメールを送信する"""
+    import html as _html
+    now = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
+    subject = "【BizRadar】システムエラーが発生しました"
+    errors_html = "".join(f"<li>{_html.escape(e)}</li>" for e in errors)
+    body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<h2 style="font-size:1.1em;color:#dc2626">⚠ システムエラーが発生しました</h2>
+<p style="color:#6b7280;font-size:0.85em">発生日時: {now}</p>
+<ul style="line-height:1.8">
+{errors_html}
+</ul>
+<hr style="margin-top:24px;border:none;border-top:1px solid #e5e7eb">
+<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
+
+    msg = MIMEMultipart()
+    msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
+    msg["To"]      = EMAIL_SETTINGS["recipient_email"]
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "html", "utf-8"))
+    try:
+        with smtplib.SMTP(EMAIL_SETTINGS["smtp_server"], EMAIL_SETTINGS["smtp_port"]) as server:
+            server.starttls()
+            server.login(EMAIL_SETTINGS["sender_email"], EMAIL_SETTINGS["sender_password"])
+            server.send_message(msg)
+        print(f"[システムエラー通知] メールを送信しました: {errors}")
+    except smtplib.SMTPException as e:
+        print(f"[エラー] システムエラーメール送信失敗: {e}")
+
+
+def check_and_notify_source_errors():
+    """ソース連続失敗を確認し、未通知のエラーを管理者にメール通知する（24時間に1回まで）"""
+    try:
+        health = db.get_source_health()
+    except Exception as e:
+        print(f"[check_and_notify_source_errors] DB取得失敗: {e}")
+        return
+
+    errors_to_notify = []
+    for source, data in health.items():
+        if data.get("consecutive_failures", 0) < _CONSECUTIVE_FAIL_THRESHOLD:
+            continue
+        notified_at = data.get("error_notified_at")
+        if notified_at is not None:
+            elapsed = (datetime.now(timezone.utc) - notified_at).total_seconds()
+            if elapsed < 86400:
+                continue
+        name = _SOURCE_NAMES.get(source, source)
+        fails = data.get("consecutive_failures", 0)
+        errors_to_notify.append((source, f"{name}の収集が停止しています（{fails}回連続失敗）"))
+
+    if errors_to_notify:
+        messages = [msg for _, msg in errors_to_notify]
+        send_system_error_email(messages)
+        for source, _ in errors_to_notify:
+            try:
+                db.set_source_error_notified(source)
+            except Exception as e:
+                print(f"[check_and_notify_source_errors] 通知済み更新失敗: {e}")
 
 
 def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set = None):
@@ -529,8 +603,10 @@ def check_single_keyword(keyword: str, user_id=None):
     seen_titles = db.load_article_seen_titles(user_id)
     try:
         google_articles = fetch_news_articles(keyword)
+        db.update_source_health("google_news", True)
     except Exception as e:
         print(f"  [エラー] Google News 取得失敗: {e}")
+        db.update_source_health("google_news", False, str(e))
         db.fail_running_task("keyword_check", keyword, str(e))
         return
     yahoo_articles = fetch_bing_news_articles(keyword)
@@ -594,8 +670,10 @@ def check_all_keywords():
             db.add_running_task("keyword_check", keyword)
             try:
                 google_articles = fetch_news_articles(keyword)
+                db.update_source_health("google_news", True)
             except Exception as e:
                 print(f"  [エラー] Google News 取得失敗: {e}")
+                db.update_source_health("google_news", False, str(e))
                 db.fail_running_task("keyword_check", keyword, str(e))
                 continue
             yahoo_articles = fetch_bing_news_articles(keyword)
@@ -633,6 +711,7 @@ def check_all_keywords():
             db.remove_running_task("keyword_check", keyword)
 
     print(f"[ニュースチェック完了]")
+    check_and_notify_source_errors()
 
 
 _NOISE_TAGS = ["script", "style", "nav", "footer", "header", "aside", "iframe", "noscript"]

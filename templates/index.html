@@ -393,6 +393,16 @@
   </div>
 </header>
 
+{% if system_errors %}
+<div id="system-error-banner" style="background:#dc2626;color:#fff;padding:10px 20px;">
+  {% for err in system_errors %}
+  <div style="display:flex;align-items:center;gap:8px;padding:2px 0;font-size:0.85rem;">
+    <span style="font-weight:700;">⚠</span> {{ err }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <main>
 
   <div id="global-flash-messages">

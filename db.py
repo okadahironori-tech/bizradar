@@ -129,6 +129,13 @@ def init_db():
                     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
+                CREATE TABLE IF NOT EXISTS source_health (
+                    source               TEXT PRIMARY KEY,
+                    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+                    last_error           TEXT,
+                    last_checked_at      TIMESTAMPTZ,
+                    error_notified_at    TIMESTAMPTZ
+                );
             """)
     _run_migrations()
 
@@ -1626,3 +1633,48 @@ def load_keywords_with_company(user_id: int) -> list:
                 (user_id,),
             )
             return [dict(row) for row in cur.fetchall()]
+
+
+# ── ソースヘルス管理 ──────────────────────────────────────────
+
+def update_source_health(source: str, success: bool, error: str = None):
+    """ニュースソースの成否を記録する。成功時は連続失敗カウントをリセット。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            if success:
+                cur.execute("""
+                    INSERT INTO source_health (source, consecutive_failures, last_error, last_checked_at)
+                    VALUES (%s, 0, NULL, NOW())
+                    ON CONFLICT (source) DO UPDATE SET
+                        consecutive_failures = 0,
+                        last_error           = NULL,
+                        last_checked_at      = NOW()
+                """, (source,))
+            else:
+                cur.execute("""
+                    INSERT INTO source_health (source, consecutive_failures, last_error, last_checked_at)
+                    VALUES (%s, 1, %s, NOW())
+                    ON CONFLICT (source) DO UPDATE SET
+                        consecutive_failures = source_health.consecutive_failures + 1,
+                        last_error           = EXCLUDED.last_error,
+                        last_checked_at      = NOW()
+                """, (source, (error or "")[:500]))
+
+
+def get_source_health() -> dict:
+    """全ソースのヘルス情報を {source: {...}} 形式で返す。"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM source_health")
+            return {row["source"]: dict(row) for row in cur.fetchall()}
+
+
+def set_source_error_notified(source: str):
+    """エラー通知済みタイムスタンプを現在時刻に更新する。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO source_health (source, error_notified_at)
+                VALUES (%s, NOW())
+                ON CONFLICT (source) DO UPDATE SET error_notified_at = NOW()
+            """, (source,))

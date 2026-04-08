@@ -302,6 +302,20 @@ def index():
     alert_count        = sum(1 for a in articles if a.get("is_alert") and not a.get("is_read"))
     error_site_count   = sum(1 for s in sites if s["status"] == "error")
     today_company_list = db.load_active_companies_today(user_id)
+
+    # ---- システムエラーバナー ----
+    _SOURCE_DISPLAY = {"google_news": "Google News", "bing_news": "Bing News", "prtimes": "PR TIMES"}
+    system_errors = []
+    try:
+        source_health = db.get_source_health()
+        for src, health in source_health.items():
+            if health.get("consecutive_failures", 0) >= 3:
+                name = _SOURCE_DISPLAY.get(src, src)
+                system_errors.append(f"{name}の収集が停止しています")
+    except Exception:
+        pass
+    if error_site_count > 0:
+        system_errors.append(f"取得エラーのサイトが {error_site_count} 件あります")
     today_companies    = len(today_company_list)
 
     # ---- 前回ログイン以降の更新企業（今日0:00より前が対象） ----
@@ -338,6 +352,7 @@ def index():
         today_company_list=today_company_list,
         prev_login_company_list=prev_login_company_list,
         prev_login_at=prev_login_at,
+        system_errors=system_errors,
     )
 
 
