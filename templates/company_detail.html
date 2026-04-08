@@ -418,7 +418,7 @@
     <div class="card">
       <div class="section-title">
         最新ニュース記事
-        <span class="count-badge">最新 {{ articles | length }} 件</span>
+        <span class="count-badge">未読 {{ (alert_articles | length) + (normal_articles | length) }} 件 / 全 {{ articles | length }} 件</span>
         <span id="news-alert-badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:10px;{% if summary.alert_count == 0 %}display:none;{% endif %}">
           重要 <span id="news-alert-badge-num">{{ summary.alert_count }}</span> 件
         </span>
