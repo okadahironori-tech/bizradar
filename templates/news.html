@@ -166,7 +166,7 @@
       box-shadow: 0 2px 8px rgba(57,73,171,0.25);
       transition: background 0.15s;
     }
-    #refresh-banner:hover { background: #2d3a8c; }
+    #refresh-banner:hover { background: #3949ab; }
     #refresh-banner.visible { display: block; }
   </style>
   <link rel="stylesheet" href="/static/base.css">
@@ -215,7 +215,7 @@
     <span class="bc-current">ニュース</span>
   </nav>
 
-  <div id="refresh-banner" onclick="window.location.reload()">新しい記事が追加されました。クリックして更新する</div>
+  <div id="refresh-banner">新しい記事が追加されました。ニュース一覧は再読み込みで更新されます</div>
   <section id="articles-section">
     <div class="section-title">
       ニュース
@@ -631,6 +631,12 @@ function collectKeyword(btn, keyword) {
         btn.disabled = false;
         // 収集完了バナーを表示（重複しない）
         document.getElementById('refresh-banner').classList.add('visible');
+        setTimeout(function() {
+          var banner = document.getElementById('refresh-banner');
+          banner.style.transition = 'opacity 0.5s';
+          banner.style.opacity = '0';
+          setTimeout(function() { banner.classList.remove('visible'); banner.style.opacity = ''; }, 500);
+        }, 5000);
         // 収集完了後に件数セルを更新
         fetch('/api/keyword_article_count?keyword=' + encodeURIComponent(keyword))
           .then(function(r) { return r.json(); })
