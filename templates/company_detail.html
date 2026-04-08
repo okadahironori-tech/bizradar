@@ -430,6 +430,9 @@
         </select>
       </div>
       {% if articles %}
+        {% if not alert_articles and not normal_articles %}
+        <div class="empty-msg" style="padding:24px 0;">全ての記事を確認済みです。既読を含む全記事は「ニュース」から確認できます。</div>
+        {% endif %}
         <div class="pagination-bar news-pagination"></div>
         {% if alert_articles %}
           {# ── 重要記事セクション ── #}
