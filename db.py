@@ -1678,3 +1678,12 @@ def set_source_error_notified(source: str):
                 VALUES (%s, NOW())
                 ON CONFLICT (source) DO UPDATE SET error_notified_at = NOW()
             """, (source,))
+
+
+def count_error_sites() -> int:
+    """status='error' のサイト件数を返す。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM last_checks WHERE status = 'error'")
+            row = cur.fetchone()
+            return row[0] if row else 0

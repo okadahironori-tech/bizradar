@@ -315,7 +315,7 @@ def index():
     except Exception:
         pass
     if error_site_count > 0:
-        system_errors.append(f"取得エラーのサイトが {error_site_count} 件あります")
+        system_errors.append(f"モニターサイトの取得エラーが {error_site_count} 件あります")
     today_companies    = len(today_company_list)
 
     # ---- 前回ログイン以降の更新企業（今日0:00より前が対象） ----

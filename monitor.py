@@ -979,6 +979,35 @@ def check_single_site(url: str, site_name: str = ""):
     db.save_content_store(content_store)
 
 
+def check_and_notify_site_errors():
+    """モニターサイトのエラーを確認し、未通知の場合に管理者へメール通知する（24時間に1回まで）"""
+    try:
+        error_count = db.count_error_sites()
+    except Exception as e:
+        print(f"[check_and_notify_site_errors] DB取得失敗: {e}")
+        return
+    if error_count == 0:
+        return
+
+    try:
+        health = db.get_source_health()
+    except Exception:
+        health = {}
+
+    site_health = health.get("site_errors", {})
+    notified_at = site_health.get("error_notified_at")
+    if notified_at is not None:
+        elapsed = (datetime.now(timezone.utc) - notified_at).total_seconds()
+        if elapsed < 86400:
+            return
+
+    send_system_error_email([f"モニターサイトの取得エラーが {error_count} 件あります"])
+    try:
+        db.set_source_error_notified("site_errors")
+    except Exception as e:
+        print(f"[check_and_notify_site_errors] 通知済み更新失敗: {e}")
+
+
 def check_all_sites():
     """全URLをチェックして変更があれば通知する"""
     print(f"\n[チェック開始] {datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')}")
@@ -986,6 +1015,7 @@ def check_all_sites():
     for site in sites:
         check_single_site(site["url"], site.get("name", ""))
     print(f"[チェック完了]")
+    check_and_notify_site_errors()
 
 
 def main():
