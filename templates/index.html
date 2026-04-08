@@ -323,6 +323,12 @@
       cursor: pointer; white-space: nowrap;
     }
     .btn-unread:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+    .btn-sort {
+      font-size: 0.75rem; padding: 2px 10px;
+      border: 1px solid #d1d5db; border-radius: 4px;
+      background: #fff; color: #6b7280; cursor: pointer;
+    }
+    .btn-sort.active { background: #3949ab; color: #fff; border-color: #3949ab; }
 
     /* ── タブレット (〜 768px) ── */
     @media (max-width: 768px) {
@@ -596,7 +602,13 @@
       <span>ニュース
       <span class="count" id="dash-news-count"></span>
       <span style="font-size:0.74rem; color:#9ca3af; font-weight:400; margin-left:4px;">チェック済み記事はニュースで確認できます</span></span>
-      <a href="/news" class="view-all-link news-section-heading-link" style="white-space:nowrap;">既読を含む全記事は「ニュース」へ →</a>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:4px;">
+          <button id="btn-news-desc" class="btn-sort active" onclick="setNewsOrder('desc')">新着順</button>
+          <button id="btn-news-asc"  class="btn-sort"        onclick="setNewsOrder('asc')">古い順</button>
+        </div>
+        <a href="/news" class="view-all-link news-section-heading-link" style="white-space:nowrap;">既読を含む全記事は「ニュース」へ →</a>
+      </div>
     </div>
     <div class="card" id="dash-news-container"></div>
   </section>
@@ -614,6 +626,15 @@ const _kwCompanyMap = {{ kw_company_map | tojson }};
 
 // 既読状態を id → bool で管理（サーバー初期値から開始）
 const _readState = new Map(_dashArticles.map(a => [a.id, !!a.is_read]));
+
+// ニュース並び順: 'desc' = 新着順（デフォルト）, 'asc' = 古い順
+let _newsOrder = 'desc';
+function setNewsOrder(order) {
+  _newsOrder = order;
+  document.getElementById('btn-news-desc').classList.toggle('active', order === 'desc');
+  document.getElementById('btn-news-asc').classList.toggle('active', order === 'asc');
+  renderDashSections();
+}
 
 function _esc(s) {
   return String(s ?? '')
@@ -658,7 +679,11 @@ function renderDashSections() {
   const newsContainer = document.getElementById('dash-news-container');
   const newsCount     = document.getElementById('dash-news-count');
   if (newsContainer) {
-    const unreadNews = _dashArticles.filter(a => !a.is_alert && !_readState.get(a.id));
+    let unreadNews = _dashArticles.filter(a => !a.is_alert && !_readState.get(a.id));
+    unreadNews = [...unreadNews].sort((a, b) => {
+      const da = new Date(a.published || 0), db = new Date(b.published || 0);
+      return _newsOrder === 'asc' ? da - db : db - da;
+    });
     if (newsCount) newsCount.textContent = unreadNews.length + ' 件';
     newsContainer.innerHTML = unreadNews.length
       ? unreadNews.slice(0, 5).map(_articleItemHtml).join('') + _VIEW_ALL_BAR

@@ -832,7 +832,7 @@ def load_articles_data(user_id=None) -> dict:
             if user_id is not None:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles WHERE user_id = %s ORDER BY id DESC LIMIT 1000",
+                    "FROM articles WHERE user_id = %s ORDER BY published DESC LIMIT 1000",
                     (user_id,)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
@@ -841,7 +841,7 @@ def load_articles_data(user_id=None) -> dict:
             else:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles ORDER BY id DESC LIMIT 1000"
+                    "FROM articles ORDER BY published DESC LIMIT 1000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
@@ -1548,7 +1548,7 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
 
 
 def load_company_change_history(user_id: int, company_id: int, limit: int = 10) -> list:
-    """企業に紐づくサイトの更新検知履歴"""
+    """企業に紐づくサイトのモニターサイト更新履歴"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
