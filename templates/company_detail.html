@@ -113,6 +113,17 @@
       padding: 3px 8px; background: #fff; color: #4a4a6a; cursor: pointer;
       margin-left: auto;
     }
+    .pagination-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 8px 16px; border-top: 1px solid #f0f2f5; min-height: 0;
+    }
+    .pagination-bar:empty { padding: 0; border: none; }
+    .btn-page {
+      font-size: 0.78rem; background: #f3f4f6; border: 1px solid #999;
+      border-radius: 6px; padding: 4px 12px; cursor: pointer; color: #555;
+    }
+    .btn-page:disabled { opacity: 0.4; cursor: default; }
+    .page-info { font-size: 0.78rem; color: #6b7280; }
 
     /* テーブル */
     table { width: 100%; border-collapse: collapse; }
@@ -388,13 +399,14 @@
         </span>
         {% endif %}
         <select class="count-select" onchange="applyNewsLimit(+this.value)">
-          <option value="10">10件</option>
           <option value="5">5件</option>
+          <option value="10">10件</option>
           <option value="20">20件</option>
           <option value="0">全件</option>
         </select>
       </div>
       {% if articles %}
+        <div class="pagination-bar news-pagination"></div>
         {% if alert_articles %}
           {# ── 重要記事セクション ── #}
           <div class="articles-section-label">⚠ 重要記事 {{ alert_articles | length }} 件</div>
@@ -448,6 +460,7 @@
           </div>
         {% endif %}
         {# 重要記事のみで通常記事がない場合は何も追加しない #}
+        <div class="pagination-bar news-pagination"></div>
       {% else %}
       <div class="empty-msg">記事がまだありません。キーワードを紐づけてニュースを収集してください。</div>
       {% endif %}
@@ -467,6 +480,7 @@
         </select>
       </div>
       {% if history %}
+        <div class="pagination-bar hist-pagination"></div>
         {% for h in history %}
         <div class="history-item">
           <div class="history-ts">{{ h.timestamp }}</div>
@@ -493,6 +507,7 @@
           {% endif %}
         </div>
         {% endfor %}
+        <div class="pagination-bar hist-pagination"></div>
       {% else %}
       <div class="empty-msg">更新検知履歴がありません</div>
       {% endif %}
@@ -686,18 +701,56 @@ async function markUnread(btn) {
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 })();
 
-function applyNewsLimit(n) {
+var _newsLimit = 5, _newsPage = 1;
+var _histLimit = 5, _histPage = 1;
+
+function _renderPagBars(cls, cur, total, goFn) {
+  document.querySelectorAll('.' + cls).forEach(function(bar) {
+    if (total <= 1) { bar.innerHTML = ''; return; }
+    bar.innerHTML =
+      '<button class="btn-page" onclick="' + goFn + '(-1)"' + (cur <= 1 ? ' disabled' : '') + '>← 前へ</button>' +
+      '<span class="page-info">' + cur + ' / ' + total + ' ページ</span>' +
+      '<button class="btn-page" onclick="' + goFn + '(1)"' + (cur >= total ? ' disabled' : '') + '>次へ →</button>';
+  });
+}
+
+function renderNews() {
   var items = document.querySelectorAll('#news-section .article-item');
-  items.forEach(function(el, i) { el.style.display = (n === 0 || i < n) ? '' : 'none'; });
+  var total = items.length;
+  if (_newsLimit === 0) {
+    items.forEach(function(el) { el.style.display = ''; });
+    document.querySelectorAll('.news-pagination').forEach(function(b) { b.innerHTML = ''; });
+    return;
+  }
+  var totalPages = Math.max(1, Math.ceil(total / _newsLimit));
+  if (_newsPage > totalPages) _newsPage = totalPages;
+  if (_newsPage < 1) _newsPage = 1;
+  var start = (_newsPage - 1) * _newsLimit;
+  items.forEach(function(el, i) { el.style.display = (i >= start && i < start + _newsLimit) ? '' : 'none'; });
+  _renderPagBars('news-pagination', _newsPage, totalPages, 'goNewsPage');
 }
-function applyHistoryLimit(n) {
+function applyNewsLimit(n) { _newsLimit = n; _newsPage = 1; renderNews(); }
+function goNewsPage(d) { _newsPage += d; renderNews(); }
+
+function renderHist() {
   var items = document.querySelectorAll('#history-section .history-item');
-  items.forEach(function(el, i) { el.style.display = (n === 0 || i < n) ? '' : 'none'; });
+  var total = items.length;
+  if (_histLimit === 0) {
+    items.forEach(function(el) { el.style.display = ''; });
+    document.querySelectorAll('.hist-pagination').forEach(function(b) { b.innerHTML = ''; });
+    return;
+  }
+  var totalPages = Math.max(1, Math.ceil(total / _histLimit));
+  if (_histPage > totalPages) _histPage = totalPages;
+  if (_histPage < 1) _histPage = 1;
+  var start = (_histPage - 1) * _histLimit;
+  items.forEach(function(el, i) { el.style.display = (i >= start && i < start + _histLimit) ? '' : 'none'; });
+  _renderPagBars('hist-pagination', _histPage, totalPages, 'goHistPage');
 }
-document.addEventListener('DOMContentLoaded', function() {
-  applyNewsLimit(10);
-  applyHistoryLimit(5);
-});
+function applyHistoryLimit(n) { _histLimit = n; _histPage = 1; renderHist(); }
+function goHistPage(d) { _histPage += d; renderHist(); }
+
+document.addEventListener('DOMContentLoaded', function() { renderNews(); renderHist(); });
 
 function toggleDiff(btn) {
   var block = btn.nextElementSibling;
