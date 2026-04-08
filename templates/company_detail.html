@@ -164,6 +164,9 @@
       padding: 6px 16px; font-size: 0.72rem; font-weight: 600; color: #9ca3af;
       border-top: 1px solid #f0f2f5; background: #fafafa;
     }
+    .section-desc {
+      padding: 8px 16px 0; font-size: 0.78rem; color: #6b7280; line-height: 1.6;
+    }
 
     /* ボタン */
     .btn { display: inline-block; border: none; border-radius: 7px; padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
@@ -579,6 +582,7 @@
         キーワード
         <span class="count-badge">{{ keywords_linked | length }}</span>
       </div>
+      <div class="section-desc">登録したキーワードのニュースを収集し、この企業の情報として表示・集計します。企業に紐づけないキーワードはニュースページのみに表示されます。</div>
       {% if keywords_linked %}
       <table>
         <thead><tr><th>キーワード</th><th>通知</th><th></th></tr></thead>
@@ -607,13 +611,14 @@
       <!-- 新規キーワード登録フォーム -->
       <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
-        <input type="text" name="keyword" placeholder="キーワードを入力" maxlength="200" required>
+        <input type="text" name="keyword" placeholder="例：ニデック、永守重信、EV市場" maxlength="200" required>
         <button type="submit" class="btn btn-primary">登録する</button>
       </form>
 
       {% set unlinked_kws = all_keywords | selectattr("company_id", "none") | list %}
       {% if unlinked_kws %}
       <div class="form-section-divider">既存キーワードから選んで紐づける</div>
+      <p class="section-desc" style="padding-bottom:6px;">他の企業で登録済みのキーワードをこの企業にも紐づけます。</p>
       <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_keyword">
         <input type="hidden" name="action" value="link">
         <select name="keyword" required>
