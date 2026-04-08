@@ -125,39 +125,51 @@ def fetch_news_articles(keyword: str) -> list:
     return articles
 
 
-def fetch_yahoo_news_articles(keyword: str) -> list:
-    """Yahoo!ニュース RSSからキーワード関連記事を取得する（最新20件）
+def fetch_bing_news_articles(keyword: str) -> list:
+    """Bing News RSSからキーワード関連記事を取得する（最新20件）
 
-    Google News がサーバー環境でブロックされる場合の補助ソースとして使用する。
+    Yahoo!ニュースのキーワードRSS（2020年8月廃止）の代替ソースとして使用する。
     失敗しても例外を上位に伝播せず空リストを返す（Google News に影響を与えない）。
+    BingリダイレクトURLからクエリパラメータで実際の記事URLを抽出する。
     """
-    rss_url = f"https://news.yahoo.co.jp/rss/search?p={quote(keyword)}&ei=UTF-8"
+    from urllib.parse import urlparse, parse_qs as _parse_qs
+    rss_url = f"https://www.bing.com/news/search?q={quote(keyword)}&format=rss&mkt=ja-JP"
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
     }
-    print(f"  [Yahoo News] 取得開始: keyword={keyword!r}")
+    print(f"  [Bing News] 取得開始: keyword={keyword!r}")
     try:
         response = requests.get(rss_url, headers=headers, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
-        print(f"  [Yahoo News] 取得失敗（スキップ）: keyword={keyword!r} error={e}")
+        print(f"  [Bing News] 取得失敗（スキップ）: keyword={keyword!r} error={e}")
         return []
 
     feed = feedparser.parse(response.content)
     if feed.bozo and getattr(feed, "bozo_exception", None):
-        print(f"  [Yahoo News][警告] RSSの解析に問題があります: {feed.bozo_exception}")
+        print(f"  [Bing News][警告] RSSの解析に問題があります: {feed.bozo_exception}")
     if not feed.entries:
-        print(f"  [Yahoo News][警告] RSSの記事が0件です (HTTP {response.status_code}, keyword={keyword!r})")
+        print(f"  [Bing News][警告] RSSの記事が0件です (HTTP {response.status_code}, keyword={keyword!r})")
     else:
-        print(f"  [Yahoo News] 取得完了: keyword={keyword!r} HTTP={response.status_code} 件数={len(feed.entries)}")
+        print(f"  [Bing News] 取得完了: keyword={keyword!r} HTTP={response.status_code} 件数={len(feed.entries)}")
+
+    def _extract_actual_url(bing_url: str) -> str:
+        """Bingリダイレクトリンクから実際の記事URLを抽出する"""
+        try:
+            qs = _parse_qs(urlparse(bing_url).query)
+            actual = qs.get("url", [""])[0]
+            return actual if actual else bing_url
+        except Exception:
+            return bing_url
 
     articles = []
     for entry in feed.entries[:20]:
         title = _sanitize_text(entry.get("title", ""))
-        url = _sanitize_text(_rss_entry_link(entry))
-        source = "Yahoo!ニュース"
+        raw_url = _sanitize_text(_rss_entry_link(entry))
+        url = _extract_actual_url(raw_url) if raw_url else raw_url
+        source = "Bing News"
         published = ""
         if entry.get("published_parsed"):
             dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed), tz=timezone.utc).astimezone(JST)
@@ -174,6 +186,10 @@ def fetch_yahoo_news_articles(keyword: str) -> list:
                 "published": published,
             })
     return articles
+
+
+# 後方互換エイリアス（旧名称で呼んでいる箇所がある場合に備える）
+fetch_yahoo_news_articles = fetch_bing_news_articles
 
 
 def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set = None):
@@ -440,7 +456,7 @@ def check_single_keyword(keyword: str, user_id=None):
         print(f"  [エラー] Google News 取得失敗: {e}")
         db.fail_running_task("keyword_check", keyword, str(e))
         return
-    yahoo_articles = fetch_yahoo_news_articles(keyword)
+    yahoo_articles = fetch_bing_news_articles(keyword)
     articles = google_articles + yahoo_articles
 
     now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
@@ -504,7 +520,7 @@ def check_all_keywords():
                 print(f"  [エラー] Google News 取得失敗: {e}")
                 db.fail_running_task("keyword_check", keyword, str(e))
                 continue
-            yahoo_articles = fetch_yahoo_news_articles(keyword)
+            yahoo_articles = fetch_bing_news_articles(keyword)
             articles = google_articles + yahoo_articles
 
             now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
