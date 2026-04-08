@@ -826,10 +826,30 @@ _DIFF_DATE_RE = re.compile(
 # ひらがな/カタカナを含む行は文章的な見出しとして通す
 _DIFF_NAV_RE = re.compile(r"[　、。・ \da-zA-Zぁ-んァ-ン]")
 
+# 区切り文字によるナビメニュー判定
+# 「/」「／」「・」「|」「｜」で区切られた3語以上の短い語の羅列をナビとみなす
+_NAV_SEPARATOR_RE = re.compile(r"[/／・|｜]")
+
+
+def _is_nav_separator_list(text: str) -> bool:
+    """区切り文字で3語以上に分割でき、各パーツが短い語のみの場合 True を返す"""
+    parts = [p.strip() for p in _NAV_SEPARATOR_RE.split(text) if p.strip()]
+    if len(parts) < 3:
+        return False
+    # 各パーツが平均10文字以下ならナビ列とみなす（長いメニューも拾えるよう全体長は制限しない）
+    avg_len = sum(len(p) for p in parts) / len(parts)
+    return avg_len <= 10
+
 
 def _is_nav(text: str) -> bool:
-    """True = ナビゲーション/カテゴリ文字列（有意義な区切り文字を含まない）"""
-    return not bool(_DIFF_NAV_RE.search(text))
+    """True = ナビゲーション/カテゴリ文字列"""
+    # 既存判定: 有意義な文字種を含まない漢字だけの行
+    if not bool(_DIFF_NAV_RE.search(text)):
+        return True
+    # 追加判定: 区切り文字で分割された短い語の羅列
+    if _is_nav_separator_list(text):
+        return True
+    return False
 
 
 def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "") -> list:
