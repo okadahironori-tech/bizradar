@@ -819,6 +819,17 @@ def mark_unread_api(article_id):
     return jsonify({"ok": ok})
 
 
+@app.route("/api/keyword_article_count")
+@login_required
+def api_keyword_article_count():
+    user_id = session["user_id"]
+    keyword = request.args.get("keyword", "").strip()
+    if not keyword:
+        return jsonify({"count": 0})
+    count = db.count_articles_by_keyword(user_id, keyword)
+    return jsonify({"count": count})
+
+
 @app.route("/api/articles")
 @login_required
 def api_articles():

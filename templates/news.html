@@ -613,7 +613,21 @@ function collectKeyword(btn, keyword) {
     .then(function(data) {
       if (!data.success) { btn.textContent = origText; btn.disabled = false; alert(data.message || '収集に失敗しました'); return; }
       showToast('収集を開始しました');
-      pollUntilDone('keyword_statuses', keyword, 60000, function() { btn.textContent = origText; btn.disabled = false; });
+      pollUntilDone('keyword_statuses', keyword, 60000, function() {
+        btn.textContent = origText;
+        btn.disabled = false;
+        // 収集完了後に件数セルを更新
+        fetch('/api/keyword_article_count?keyword=' + encodeURIComponent(keyword))
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            var row = document.querySelector('tr[data-kw-row="' + keyword.replace(/"/g, '\\"') + '"]');
+            if (row) {
+              var countCell = row.querySelectorAll('td')[1];
+              if (countCell) countCell.textContent = d.count + ' 件';
+            }
+          })
+          .catch(function() {});
+      });
     })
     .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
 }
