@@ -602,12 +602,9 @@
       <span>ニュース
       <span class="count" id="dash-news-count"></span>
       <span style="font-size:0.74rem; color:#9ca3af; font-weight:400; margin-left:4px;">チェック済み記事はニュースで確認できます</span></span>
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <div style="display:flex; gap:4px;">
-          <button id="btn-news-desc" class="btn-sort active" onclick="setNewsOrder('desc')">新着順</button>
-          <button id="btn-news-asc"  class="btn-sort"        onclick="setNewsOrder('asc')">古い順</button>
-        </div>
-        <a href="/news" class="view-all-link news-section-heading-link" style="white-space:nowrap;">既読を含む全記事は「ニュース」へ →</a>
+      <div style="display:flex; gap:4px;">
+        <button id="btn-news-desc" class="btn-sort active" onclick="setNewsOrder('desc')">新着順</button>
+        <button id="btn-news-asc"  class="btn-sort"        onclick="setNewsOrder('asc')">古い順</button>
       </div>
     </div>
     <div class="card" id="dash-news-container"></div>
