@@ -1,0 +1,6 @@
+/* 全ページ共通スタイル */
+
+/* ページトップへ戻るボタン（position: fixed; bottom: 24px）との重なりを防ぐ */
+body {
+  padding-bottom: 100px !important;
+}
