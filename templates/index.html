@@ -516,7 +516,7 @@
   </section>
   {% endif %}
 
-  <!-- 更新検知履歴（最新5件） -->
+  <!-- モニターサイト更新履歴（最新5件） -->
   <section>
     {% set hist_ns = namespace(shown=0) %}
     {% set hist_events = [] %}
@@ -537,7 +537,7 @@
       {% endif %}
     {% endfor %}
     <div class="section-title">
-      更新検知履歴
+      モニターサイト更新履歴
       <span class="count">{{ hist_ns.shown }} 件</span>
     </div>
     <div class="card">
