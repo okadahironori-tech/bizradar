@@ -1646,11 +1646,11 @@ def company_detail(company_id):
 
         # 重要記事と通常記事に分離（両グループとも公開日時の新しい順）
         alert_articles  = sorted(
-            [a for a in articles if a.get("is_alert")],
+            [a for a in articles if a.get("is_alert") and not a.get("is_read")],
             key=lambda x: x.get("published", ""), reverse=True,
         )
         normal_articles = sorted(
-            [a for a in articles if not a.get("is_alert")],
+            [a for a in articles if not a.get("is_alert") and not a.get("is_read")],
             key=lambda x: x.get("published", ""), reverse=True,
         )
 
