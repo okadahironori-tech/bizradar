@@ -329,6 +329,9 @@
       background: #fff; color: #3949ab; cursor: pointer;
     }
     .btn-sort.active { background: #3949ab; color: #fff; border-color: #3949ab; }
+    .news-section-title { display: flex; flex-direction: column; gap: 4px; }
+    .news-title-row { display: flex; align-items: center; justify-content: space-between; }
+    .news-hint { font-size: 0.74rem; color: #9ca3af; font-weight: 400; }
 
     /* ── タブレット (〜 768px) ── */
     @media (max-width: 768px) {
@@ -357,7 +360,9 @@
       .timeline-item { padding: 11px 14px; gap: 10px; }
       .timeline-meta { font-size: 0.72rem; }
 
-      .article-item { padding: 10px 14px; gap: 8px; }
+      .article-item { padding: 10px 14px; gap: 6px 8px; flex-wrap: wrap; }
+      .article-body { flex: 1 1 0; min-width: 0; }
+      .btn-check-done { flex: 0 0 auto; margin-top: 2px; }
       .article-title { font-size: 0.86rem; }
 
       .flash { padding: 10px 14px; font-size: 0.84rem; }
@@ -598,14 +603,15 @@
   <!-- ニュース（JS再描画） -->
   {% if keywords %}
   <section id="dash-news-section">
-    <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px;">
-      <span>ニュース
-      <span class="count" id="dash-news-count"></span>
-      <span style="font-size:0.74rem; color:#9ca3af; font-weight:400; margin-left:4px;">チェック済み記事はニュースで確認できます</span></span>
-      <div style="display:flex; gap:4px;">
-        <button id="btn-news-desc" class="btn-sort active" onclick="setNewsOrder('desc')">新着順</button>
-        <button id="btn-news-asc"  class="btn-sort"        onclick="setNewsOrder('asc')">古い順</button>
+    <div class="section-title news-section-title">
+      <div class="news-title-row">
+        <span>ニュース <span class="count" id="dash-news-count"></span></span>
+        <div style="display:flex; gap:4px;">
+          <button id="btn-news-desc" class="btn-sort active" onclick="setNewsOrder('desc')">新着順</button>
+          <button id="btn-news-asc"  class="btn-sort"        onclick="setNewsOrder('asc')">古い順</button>
+        </div>
       </div>
+      <div class="news-hint">チェック済み記事はニュースで確認できます</div>
     </div>
     <div class="card" id="dash-news-container"></div>
   </section>
