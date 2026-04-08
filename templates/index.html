@@ -330,6 +330,8 @@
       .summary-grid { grid-template-columns: repeat(2, 1fr); }
       .section-title { flex-wrap: wrap; row-gap: 8px; }
       .card { overflow-x: auto; }
+      #dash-news-container { overflow-x: visible; }
+      #dash-news-container .article-body { min-width: 0; }
     }
 
     /* ── スマホ (〜 480px) ── */
@@ -353,6 +355,8 @@
       .article-title { font-size: 0.86rem; }
 
       .flash { padding: 10px 14px; font-size: 0.84rem; }
+
+      .news-section-heading-link { display: none; }
     }
   </style>
   <link rel="stylesheet" href="/static/base.css">
@@ -592,7 +596,7 @@
       <span>ニュース
       <span class="count" id="dash-news-count"></span>
       <span style="font-size:0.74rem; color:#9ca3af; font-weight:400; margin-left:4px;">チェック済み記事はニュースで確認できます</span></span>
-      <a href="/news" class="view-all-link" style="white-space:nowrap;">既読を含む全記事は「ニュース」へ →</a>
+      <a href="/news" class="view-all-link news-section-heading-link" style="white-space:nowrap;">既読を含む全記事は「ニュース」へ →</a>
     </div>
     <div class="card" id="dash-news-container"></div>
   </section>
