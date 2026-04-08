@@ -156,6 +156,18 @@
       .btn { padding: 5px 8px; font-size: 0.75rem; }
       .row-actions { gap: 4px; flex-wrap: nowrap; }
     }
+    /* ── 記事更新バナー ── */
+    #refresh-banner {
+      display: none; position: sticky; top: 0; z-index: 100;
+      background: #3949ab; color: #fff;
+      text-align: center; padding: 10px 16px;
+      font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; border-radius: 0;
+      box-shadow: 0 2px 8px rgba(57,73,171,0.25);
+      transition: background 0.15s;
+    }
+    #refresh-banner:hover { background: #2d3a8c; }
+    #refresh-banner.visible { display: block; }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -203,6 +215,7 @@
     <span class="bc-current">ニュース</span>
   </nav>
 
+  <div id="refresh-banner" onclick="window.location.reload()">新しい記事が追加されました。クリックして更新する</div>
   <section id="articles-section">
     <div class="section-title">
       ニュース
@@ -616,6 +629,8 @@ function collectKeyword(btn, keyword) {
       pollUntilDone('keyword_statuses', keyword, 60000, function() {
         btn.textContent = origText;
         btn.disabled = false;
+        // 収集完了バナーを表示（重複しない）
+        document.getElementById('refresh-banner').classList.add('visible');
         // 収集完了後に件数セルを更新
         fetch('/api/keyword_article_count?keyword=' + encodeURIComponent(keyword))
           .then(function(r) { return r.json(); })
