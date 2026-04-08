@@ -1508,7 +1508,7 @@ def get_company_summary(user_id: int, company_id: int, alert_kws: set) -> dict:
             unread_count = sum(1 for r in rows if not r[1])
             alert_count  = sum(
                 1 for r in rows
-                if any(kw in r[0].lower() for kw in alert_kws)
+                if any(kw in r[0].lower() for kw in alert_kws) and not r[1]
             )
 
             # 最終更新: 記事の最新 found_at か企業の updated_at の新しい方
