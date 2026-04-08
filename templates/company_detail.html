@@ -467,11 +467,11 @@
     </div>
   </section>
 
-  <!-- 更新検知履歴 -->
+  <!-- モニターサイト更新履歴 -->
   <section id="history-section">
     <div class="card">
       <div class="section-title">
-        更新検知履歴
+        モニターサイト更新履歴
         <span class="count-badge">最新 {{ history | length }} 件</span>
         <select class="count-select" onchange="applyHistoryLimit(+this.value)">
           <option value="5">5件</option>
@@ -509,7 +509,7 @@
         {% endfor %}
         <div class="pagination-bar hist-pagination"></div>
       {% else %}
-      <div class="empty-msg">更新検知履歴がありません</div>
+      <div class="empty-msg">モニターサイト更新履歴がありません</div>
       {% endif %}
     </div>
   </section>
