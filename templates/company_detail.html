@@ -231,6 +231,9 @@
     .btn-check-done:hover { background: #2d3a8c; border-color: #2d3a8c; }
     .btn-unread { font-size: 0.72rem; background: #f3f4f6; color: #555; border: 1px solid #999; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; }
     .btn-unread:hover { background: #e5e7eb; }
+    .view-all-bar { display: flex; align-items: center; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid #f0f2f5; }
+    .view-all-link { font-size: 0.8rem; color: #3949ab; text-decoration: none; font-weight: 600; }
+    .view-all-link:hover { text-decoration: underline; }
     .badge-alert-sm {
       background: #dc2626; color: #fff; font-size: 0.68rem; font-weight: 700;
       padding: 1px 6px; border-radius: 3px; margin-right: 4px; vertical-align: middle;
@@ -483,6 +486,7 @@
         {% endif %}
         {# 重要記事のみで通常記事がない場合は何も追加しない #}
         <div class="pagination-bar news-pagination"></div>
+        <div class="view-all-bar"><a href="/news" class="view-all-link">既読を含む全記事は「ニュース」へ →</a></div>
       {% else %}
       <div class="empty-msg">記事がまだありません。キーワードを紐づけてニュースを収集してください。</div>
       {% endif %}
@@ -722,9 +726,19 @@ async function markRead(btn) {
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
-    item.classList.add('article-read');
-    btn.style.display = 'none';
-    item.querySelector('.btn-unread').style.display = '';
+    item.style.transition = 'opacity 0.3s';
+    item.style.opacity = '0';
+    setTimeout(() => {
+      item.style.maxHeight = item.offsetHeight + 'px';
+      item.style.transition = 'max-height 0.25s ease, margin 0.25s ease, padding 0.25s ease';
+      item.style.overflow = 'hidden';
+      item.style.maxHeight = '0';
+      item.style.marginTop = '0';
+      item.style.marginBottom = '0';
+      item.style.paddingTop = '0';
+      item.style.paddingBottom = '0';
+      setTimeout(() => item.remove(), 260);
+    }, 310);
   } catch (_) {}
 }
 async function markUnread(btn) {

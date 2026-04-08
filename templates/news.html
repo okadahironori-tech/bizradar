@@ -86,6 +86,8 @@
     .kw-filter-btn.active { background: #3949ab; color: #fff; border-color: #3949ab; }
     .kw-filter-btn.unread-toggle { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
     .kw-filter-btn.unread-toggle.active { background: #059669; color: #fff; border-color: #059669; }
+    .kw-filter-btn.read-toggle { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+    .kw-filter-btn.read-toggle.active { background: #6b7280; color: #fff; border-color: #6b7280; }
 
     /* ページネーション */
     .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 16px; border-top: 1px solid #f0f2f5; }
@@ -182,6 +184,7 @@
           <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
           {% endfor %}
           <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
+          <button class="kw-filter-btn read-toggle" id="read-only-btn" onclick="toggleReadFilter()">既読のみ</button>
         </div>
 
         <div class="pagination-bar" id="articles-pagination-top"></div>
@@ -268,6 +271,7 @@ let _articleOrder = 'desc';
 let _articlePage = 1;
 let _articleFilter = 'all';
 let _articleUnreadOnly = localStorage.getItem('bizradar_unread_only') === '1';
+let _articleReadOnly  = localStorage.getItem('bizradar_read_only')   === '1';
 
 function filterArticlesByKw(keyword) {
   _articleFilter = keyword;
@@ -280,9 +284,24 @@ function filterArticlesByKw(keyword) {
 
 function toggleUnreadFilter() {
   _articleUnreadOnly = !_articleUnreadOnly;
+  if (_articleUnreadOnly) { _articleReadOnly = false; localStorage.setItem('bizradar_read_only', '0'); }
   localStorage.setItem('bizradar_unread_only', _articleUnreadOnly ? '1' : '0');
   const btn = document.getElementById('unread-only-btn');
   if (btn) btn.classList.toggle('active', _articleUnreadOnly);
+  const rbtn = document.getElementById('read-only-btn');
+  if (rbtn) rbtn.classList.toggle('active', false);
+  _articlePage = 1;
+  renderArticles();
+}
+
+function toggleReadFilter() {
+  _articleReadOnly = !_articleReadOnly;
+  if (_articleReadOnly) { _articleUnreadOnly = false; localStorage.setItem('bizradar_unread_only', '0'); }
+  localStorage.setItem('bizradar_read_only', _articleReadOnly ? '1' : '0');
+  const btn = document.getElementById('read-only-btn');
+  if (btn) btn.classList.toggle('active', _articleReadOnly);
+  const ubtn = document.getElementById('unread-only-btn');
+  if (ubtn) ubtn.classList.toggle('active', false);
   _articlePage = 1;
   renderArticles();
 }
@@ -308,6 +327,7 @@ function goArticlePage(delta) {
 function _getFilteredArticles() {
   let items = _articleFilter === 'all' ? [..._articleItems] : _articleItems.filter(i => i.dataset.keyword === _articleFilter);
   if (_articleUnreadOnly) items = items.filter(i => !i.classList.contains('article-read'));
+  if (_articleReadOnly)   items = items.filter(i =>  i.classList.contains('article-read'));
   items.sort((a, b) => {
     const pa = a.dataset.published || '', pb = b.dataset.published || '';
     if (pa < pb) return _articleOrder === 'desc' ? 1 : -1;
@@ -415,6 +435,8 @@ document.addEventListener('DOMContentLoaded', () => {
     _articleItems = Array.from(container.querySelectorAll('.article-item'));
     const unreadBtn = document.getElementById('unread-only-btn');
     if (unreadBtn) unreadBtn.classList.toggle('active', _articleUnreadOnly);
+    const readBtn = document.getElementById('read-only-btn');
+    if (readBtn) readBtn.classList.toggle('active', _articleReadOnly);
     renderAll();
   }
 });
