@@ -827,17 +827,20 @@ _DIFF_DATE_RE = re.compile(
 _DIFF_NAV_RE = re.compile(r"[　、。・ \da-zA-Zぁ-んァ-ン]")
 
 # 区切り文字によるナビメニュー判定
-# 「/」「／」「・」「|」「｜」で区切られた3語以上の短い語の羅列をナビとみなす
-_NAV_SEPARATOR_RE = re.compile(r"[/／・|｜]")
+# 「/」「／」「・」「|」「｜」「　（全角スペース）」で区切られた短い語の羅列をナビとみなす
+_NAV_SEPARATOR_RE = re.compile(r"[/／・|｜　]")
 
 
 def _is_nav_separator_list(text: str) -> bool:
-    """区切り文字で3語以上に分割でき、各パーツが短い語のみの場合 True を返す"""
+    """区切り文字で2語以上に分割でき、各パーツが短い語のみの場合 True を返す"""
     parts = [p.strip() for p in _NAV_SEPARATOR_RE.split(text) if p.strip()]
-    if len(parts) < 3:
+    if len(parts) < 2:
         return False
     # 各パーツが平均10文字以下ならナビ列とみなす（長いメニューも拾えるよう全体長は制限しない）
     avg_len = sum(len(p) for p in parts) / len(parts)
+    # 2語の場合は各パーツが8文字以下の場合のみナビとみなす
+    if len(parts) == 2 and avg_len > 8:
+        return False
     return avg_len <= 10
 
 
