@@ -71,16 +71,17 @@ def _rss_entry_link(entry) -> str:
 
 def _resolve_google_news_url(url: str) -> str:
     """Google News リダイレクトURL（news.google.com/rss/articles/...）を
-    実際の記事URLに解決する。HEADリクエストでリダイレクト先を取得する。
+    実際の記事URLに解決する。GETリクエスト（stream=True）でリダイレクト先を取得する。
     解決できない場合はもとのURLをそのまま返す。
     """
     if "news.google.com" not in url:
         return url
     try:
-        resp = requests.head(
+        resp = requests.get(
             url,
             allow_redirects=True,
-            timeout=10,
+            timeout=5,
+            stream=True,
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -89,6 +90,7 @@ def _resolve_google_news_url(url: str) -> str:
                 )
             },
         )
+        resp.close()
         final_url = resp.url
         if final_url and "news.google.com" not in final_url:
             return final_url
