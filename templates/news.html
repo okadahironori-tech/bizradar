@@ -661,6 +661,19 @@ function addKeyword(e) {
         '</td>';
       tbody.appendChild(tr);
       requestAnimationFrame(function() { tr.style.opacity = '1'; });
+      // フィルターバーにボタンを追加
+      var filterBar = document.querySelector('.kw-filter-bar');
+      if (filterBar && !filterBar.querySelector('[data-kw="' + kw.replace(/"/g, '\\"') + '"]')) {
+        var filterBtn = document.createElement('button');
+        filterBtn.className = 'kw-filter-btn';
+        filterBtn.dataset.kw = kw;
+        filterBtn.textContent = kw;
+        filterBtn.onclick = function() { filterArticlesByKw(kw); };
+        filterBtn.style.opacity = '0';
+        filterBtn.style.transition = 'opacity 0.3s';
+        filterBar.appendChild(filterBtn);
+        requestAnimationFrame(function() { filterBtn.style.opacity = '1'; });
+      }
     })
     .catch(function() { errEl.textContent = '追加に失敗しました'; errEl.style.display = 'block'; });
 }
@@ -716,6 +729,9 @@ function deleteKeyword(btn, keyword) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
       var row = document.querySelector('tr[data-kw-row="' + keyword.replace(/"/g, '\\"') + '"]');
       if (row) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; setTimeout(function() { row.remove(); }, 310); }
+      // フィルターバーから該当ボタンを削除
+      var filterBtn = document.querySelector('.kw-filter-bar [data-kw="' + keyword.replace(/"/g, '\\"') + '"]');
+      if (filterBtn) { filterBtn.style.transition = 'opacity 0.3s'; filterBtn.style.opacity = '0'; setTimeout(function() { filterBtn.remove(); }, 310); }
     })
     .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
 }
