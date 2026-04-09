@@ -489,6 +489,10 @@ function _getFilteredArticles() {
 function _renderArticlePaginationBar(id, cur, total) {
   const bar = document.getElementById(id);
   if (!bar) return;
+  if (total <= 1 && id === 'articles-pagination-top') {
+    bar.innerHTML = '';
+    return;
+  }
   bar.innerHTML =
     `<button class="btn-page" onclick="goArticlePage(-1)" ${cur<=1?'disabled':''}>← 前へ</button>` +
     `<span class="page-info">${cur} / ${total} ページ</span>` +

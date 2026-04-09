@@ -854,7 +854,7 @@ def load_articles_data(user_id=None) -> dict:
             if user_id is not None:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles WHERE user_id = %s ORDER BY published DESC LIMIT 1000",
+                    "FROM articles WHERE user_id = %s ORDER BY published DESC LIMIT 3000",
                     (user_id,)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
@@ -863,7 +863,7 @@ def load_articles_data(user_id=None) -> dict:
             else:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles ORDER BY published DESC LIMIT 1000"
+                    "FROM articles ORDER BY published DESC LIMIT 3000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
