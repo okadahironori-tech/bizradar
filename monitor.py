@@ -74,26 +74,85 @@ def _resolve_google_news_url(url: str) -> str:
     """Google News のBase64エンコードURLから実際の記事URLを抽出する。"""
     if "news.google.com" not in url:
         return url
+    # まずBase64デコードを試みる
     try:
-        # URLからBase64部分を抽出
         match = re.search(r'articles/([A-Za-z0-9_-]+)', url)
-        if not match:
-            return url
-        encoded = match.group(1)
-        # Base64デコード（パディング調整）
-        padded = encoded + '=' * (4 - len(encoded) % 4)
-        for encoding in ('utf-8', 'latin-1'):
-            try:
-                decoded = base64.urlsafe_b64decode(padded).decode(encoding)
-                url_match = re.search(r'https?://(?!news\.google\.com)[a-zA-Z0-9\-._~:/?#\[\]@!$&\'()*+,;=%]+', decoded)
-                if url_match:
-                    extracted = url_match.group(0).rstrip('.')
-                    return extracted
-            except Exception:
-                continue
+        if match:
+            encoded = match.group(1)
+            padded = encoded + '=' * (4 - len(encoded) % 4)
+            for encoding in ('utf-8', 'latin-1'):
+                try:
+                    decoded = base64.urlsafe_b64decode(padded).decode(encoding)
+                    url_match = re.search(r'https?://(?!news\.google\.com)[^\s\x00-\x1f"<>]+', decoded)
+                    if url_match:
+                        extracted = url_match.group(0).rstrip('.,)')
+                        if len(extracted) > 15:
+                            return extracted
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    # フォールバック: GETリクエストでリダイレクト追跡
+    try:
+        resp = requests.get(
+            url, allow_redirects=True, timeout=5, stream=True,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)"}
+        )
+        resp.close()
+        if "news.google.com" not in resp.url:
+            return resp.url
     except Exception:
         pass
     return url
+
+
+def _fetch_article_published_date(url: str) -> str:
+    """記事ページから実際の発行日時を取得する。取得できなければ空文字を返す。"""
+    if "news.google.com" in url:
+        return ""
+    try:
+        resp = requests.get(
+            url, timeout=5, stream=True,
+            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+        )
+        resp.encoding = resp.apparent_encoding
+        html = resp.text[:50000]  # 先頭50KBのみ読む
+        from bs4 import BeautifulSoup
+        import json as _json
+        soup = BeautifulSoup(html, 'html.parser')
+
+        # 1. JSON-LD の datePublished
+        for script in soup.find_all('script', type='application/ld+json'):
+            try:
+                data = _json.loads(script.string or '')
+                if isinstance(data, list):
+                    data = data[0]
+                date = data.get('datePublished') or data.get('dateCreated')
+                if date:
+                    return date
+            except Exception:
+                pass
+
+        # 2. meta タグ各種
+        for attr, name in [
+            ('property', 'article:published_time'),
+            ('name', 'pubdate'),
+            ('name', 'date'),
+            ('name', 'DC.date'),
+            ('property', 'og:updated_time'),
+        ]:
+            tag = soup.find('meta', attrs={attr: name})
+            if tag and tag.get('content'):
+                return tag['content']
+
+        # 3. time タグ
+        time_tag = soup.find('time', attrs={'datetime': True})
+        if time_tag:
+            return time_tag['datetime']
+
+    except Exception:
+        pass
+    return ""
 
 
 def fetch_news_articles(keyword: str) -> list:
@@ -142,6 +201,14 @@ def fetch_news_articles(keyword: str) -> list:
         else:
             published = entry.get("published", "")
         published = _sanitize_text(published)
+        # RSSから発行日時が取れない場合、記事ページから補完
+        if not published and url and "news.google.com" not in url:
+            try:
+                fetched = _fetch_article_published_date(url)
+                if fetched:
+                    published = _sanitize_text(fetched)
+            except Exception:
+                pass
         articles.append({
             "keyword":   keyword,
             "title":     title,
