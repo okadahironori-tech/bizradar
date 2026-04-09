@@ -698,33 +698,55 @@ function collectKeyword(btn, keyword) {
   btn.disabled = true;
   var origText = btn.textContent.trim();
   btn.textContent = '収集中...';
-  var fd = new FormData();
-  fd.append('keyword', keyword);
-  fetch('/api/collect_keyword', { method: 'POST', body: fd })
+  // 収集開始前の件数を取得してから収集を開始する
+  fetch('/api/keyword_article_count?keyword=' + encodeURIComponent(keyword))
     .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.success) { btn.textContent = origText; btn.disabled = false; alert(data.message || '収集に失敗しました'); return; }
-      showToast('収集を開始しました');
-      pollUntilDone('keyword_statuses', keyword, 60000, function() {
-        btn.textContent = origText;
-        btn.disabled = false;
-        // 収集完了後に件数セルを更新し、1件以上ならバナーを表示
-        fetch('/api/keyword_article_count?keyword=' + encodeURIComponent(keyword))
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            var row = document.querySelector('tr[data-kw-row="' + keyword.replace(/"/g, '\\"') + '"]');
-            if (row) {
-              var countCell = row.querySelectorAll('td')[1];
-              if (countCell) countCell.textContent = d.count + ' 件';
-            }
-            if (d.count > 0) {
-              showToast('新しい記事が追加されました。再読み込みで更新されます');
-            }
-          })
-          .catch(function() {});
-      });
+    .then(function(before) {
+      var countBefore = before.count || 0;
+      var fd = new FormData();
+      fd.append('keyword', keyword);
+      fetch('/api/collect_keyword', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.success) { btn.textContent = origText; btn.disabled = false; alert(data.message || '収集に失敗しました'); return; }
+          showToast('収集を開始しました');
+          pollUntilDone('keyword_statuses', keyword, 60000, function() {
+            btn.textContent = origText;
+            btn.disabled = false;
+            // 収集完了後に件数セルを更新し、新規追加があればトースト表示
+            fetch('/api/keyword_article_count?keyword=' + encodeURIComponent(keyword))
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                var row = document.querySelector('tr[data-kw-row="' + keyword.replace(/"/g, '\\"') + '"]');
+                if (row) {
+                  var countCell = row.querySelectorAll('td')[1];
+                  if (countCell) countCell.textContent = d.count + ' 件';
+                }
+                if (d.count > countBefore) {
+                  showToast('新しい記事が追加されました。再読み込みで更新されます');
+                }
+              })
+              .catch(function() {});
+          });
+        })
+        .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
     })
-    .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
+    .catch(function() {
+      // 事前件数取得失敗時はそのまま収集開始（件数比較なし）
+      var fd = new FormData();
+      fd.append('keyword', keyword);
+      fetch('/api/collect_keyword', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.success) { btn.textContent = origText; btn.disabled = false; alert(data.message || '収集に失敗しました'); return; }
+          showToast('収集を開始しました');
+          pollUntilDone('keyword_statuses', keyword, 60000, function() {
+            btn.textContent = origText;
+            btn.disabled = false;
+          });
+        })
+        .catch(function() { btn.textContent = origText; btn.disabled = false; alert('通信エラーが発生しました'); });
+    });
 }
 
 // ── キーワードAJAX追加 ───────────────────────────────────────────
