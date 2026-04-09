@@ -1553,7 +1553,7 @@ def get_company_summary(user_id: int, company_id: int, alert_kws: set) -> dict:
 
             # 未読件数をSQLで直接カウント（LIMIT なし・正確な件数）
             cur.execute(
-                "SELECT COUNT(*) FROM articles a "
+                "SELECT COUNT(DISTINCT a.id) FROM articles a "
                 "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                 "WHERE a.user_id=%s AND k.company_id=%s AND a.is_read = FALSE",
                 (user_id, company_id),
