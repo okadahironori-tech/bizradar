@@ -399,7 +399,7 @@
       <div class="summary-val {% if summary.unread_count > 0 %}unread{% endif %}" id="summary-unread-val">{{ summary.unread_count }}</div>
       <div class="summary-label">未読記事</div>
     </div>
-    <div class="summary-item">
+    <div class="summary-item" style="display:none;">
       <div class="summary-val {% if summary.alert_count > 0 %}alert{% endif %}">{{ summary.alert_count }}</div>
       <div class="summary-label">重要アラート</div>
     </div>
@@ -411,9 +411,7 @@
       <div class="section-title">
         最新ニュース記事
         <span class="count-badge">未読 <span id="news-unread-count">{{ (alert_articles | length) + (normal_articles | length) }}</span> 件 / 全 {{ articles | length }} 件</span>
-        <span id="news-alert-badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:10px;{% if summary.alert_count == 0 %}display:none;{% endif %}">
-          重要 <span id="news-alert-badge-num">{{ summary.alert_count }}</span> 件
-        </span>
+
         <select class="count-select" onchange="applyNewsLimit(+this.value)">
           <option value="5">5件</option>
           <option value="10">10件</option>
@@ -722,15 +720,8 @@ function _updateReadCounters(isAlert) {
     var u = Math.max(0, parseInt(newsUnreadEl.textContent, 10) - 1);
     newsUnreadEl.textContent = u;
   }
-  // 2 & 3. 重要記事バッジ・ラベル（重要記事のときのみ）
+  // 2. 重要記事ラベル（重要記事のときのみ）
   if (isAlert) {
-    var badgeNum = document.getElementById('news-alert-badge-num');
-    var badge    = document.getElementById('news-alert-badge');
-    if (badgeNum && badge) {
-      var m = Math.max(0, parseInt(badgeNum.textContent, 10) - 1);
-      badgeNum.textContent = m;
-      if (m === 0) badge.style.display = 'none';
-    }
     var labelNum = document.getElementById('articles-alert-label-num');
     var label    = document.getElementById('articles-alert-label');
     if (labelNum && label) {
