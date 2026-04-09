@@ -316,6 +316,16 @@
           {% endif %}
         </tbody>
       </table>
+      <div id="kw-pag-bar" style="display:none; align-items:center; justify-content:center; gap:10px; padding:8px 16px; border-top:1px solid #f0f2f5; flex-wrap:wrap;">
+        <button id="kw-pag-prev" class="btn-page" onclick="goKwPage(-1)">← 前へ</button>
+        <span id="kw-pag-info" class="page-info"></span>
+        <button id="kw-pag-next" class="btn-page" onclick="goKwPage(1)">次へ →</button>
+        <select id="kw-count-select" class="count-select" onchange="changeKwPageSize()">
+          <option value="10" selected>10件</option>
+          <option value="20">20件</option>
+          <option value="30">30件</option>
+        </select>
+      </div>
       <form class="add-form" id="kw-add-form" onsubmit="addKeyword(event)">
         <input class="input-url" id="kw-input" type="text" name="keyword"
                placeholder="キーワードを入力（例: 山一ハガネ、半導体 市場動向）" required>
@@ -592,7 +602,56 @@ document.addEventListener('DOMContentLoaded', () => {
     if (readBtn) readBtn.classList.toggle('active', _articleReadOnly);
     renderAll();
   }
+  _renderKwTable();
 });
+
+// ── キーワードテーブル ページネーション ──────────────────────────
+var _kwPage = 1;
+var _kwPageSize = 10;
+
+function _renderKwTable() {
+  var tbody = document.getElementById('kw-tbody');
+  if (!tbody) return;
+  var rows = Array.from(tbody.querySelectorAll('tr[data-kw-row]'));
+  var total = rows.length;
+  var totalPages = Math.max(1, Math.ceil(total / _kwPageSize));
+  if (_kwPage > totalPages) _kwPage = totalPages;
+  var start = (_kwPage - 1) * _kwPageSize;
+  var end = start + _kwPageSize;
+  rows.forEach(function(row, i) {
+    row.style.display = (i >= start && i < end) ? '' : 'none';
+  });
+  var bar = document.getElementById('kw-pag-bar');
+  if (!bar) return;
+  if (total > _kwPageSize) {
+    bar.style.display = 'flex';
+    var info = document.getElementById('kw-pag-info');
+    if (info) info.textContent = _kwPage + ' / ' + totalPages + ' ページ';
+    var prev = document.getElementById('kw-pag-prev');
+    var next = document.getElementById('kw-pag-next');
+    if (prev) prev.disabled = (_kwPage <= 1);
+    if (next) next.disabled = (_kwPage >= totalPages);
+  } else {
+    bar.style.display = 'none';
+    _kwPage = 1;
+  }
+}
+
+function goKwPage(delta) {
+  var tbody = document.getElementById('kw-tbody');
+  if (!tbody) return;
+  var total = tbody.querySelectorAll('tr[data-kw-row]').length;
+  var totalPages = Math.max(1, Math.ceil(total / _kwPageSize));
+  _kwPage = Math.min(totalPages, Math.max(1, _kwPage + delta));
+  _renderKwTable();
+}
+
+function changeKwPageSize() {
+  var sel = document.getElementById('kw-count-select');
+  if (sel) _kwPageSize = parseInt(sel.value, 10);
+  _kwPage = 1;
+  _renderKwTable();
+}
 
 // ── トースト通知 ─────────────────────────────────────────────────
 function showToast(message) {
@@ -703,6 +762,7 @@ function addKeyword(e) {
         '</td>';
       tbody.appendChild(tr);
       requestAnimationFrame(function() { tr.style.opacity = '1'; });
+      _renderKwTable();
       // フィルターバーにボタンを追加
       var filterBar = document.querySelector('.kw-filter-bar');
       if (filterBar && !filterBar.querySelector('[data-kw="' + kw.replace(/"/g, '\\"') + '"]')) {
@@ -771,7 +831,7 @@ function deleteKeyword(btn, keyword) {
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
       var row = document.querySelector('tr[data-kw-row="' + keyword.replace(/"/g, '\\"') + '"]');
-      if (row) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; setTimeout(function() { row.remove(); }, 310); }
+      if (row) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; setTimeout(function() { row.remove(); _renderKwTable(); }, 310); }
       // フィルターバーから該当ボタンを削除
       var filterBtn = document.querySelector('.kw-filter-bar [data-kw="' + keyword.replace(/"/g, '\\"') + '"]');
       if (filterBtn) { filterBtn.style.transition = 'opacity 0.3s'; filterBtn.style.opacity = '0'; setTimeout(function() { filterBtn.remove(); }, 310); }
