@@ -206,7 +206,7 @@ def fetch_news_articles(keyword: str) -> list:
             try:
                 fetched = _fetch_article_published_date(url)
                 if fetched:
-                    published = _sanitize_text(fetched)
+                    published = _sanitize_text(fetched[:16])
             except Exception:
                 pass
         articles.append({
@@ -272,6 +272,14 @@ def fetch_bing_news_articles(keyword: str) -> list:
         else:
             published = entry.get("published", "")
         published = _sanitize_text(published)
+        # 発行日時が取得できていない場合、記事ページから取得を試みる
+        if not published and url and "news.google.com" not in url:
+            try:
+                fetched_date = _fetch_article_published_date(url)
+                if fetched_date:
+                    published = fetched_date[:16]
+            except Exception:
+                pass
         if title and url:
             articles.append({
                 "keyword":   keyword,
@@ -323,6 +331,14 @@ def fetch_prtimes_articles(keyword: str) -> list:
         else:
             published = entry.get("published", "")
         published = _sanitize_text(published)
+        # 発行日時が取得できていない場合、記事ページから取得を試みる
+        if not published and url and "news.google.com" not in url:
+            try:
+                fetched_date = _fetch_article_published_date(url)
+                if fetched_date:
+                    published = fetched_date[:16]
+            except Exception:
+                pass
         if title and url:
             articles.append({
                 "keyword":   keyword,
