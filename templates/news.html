@@ -41,7 +41,9 @@
 
     .section-title { font-size: 1rem; font-weight: 700; color: #4a4a6a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .section-title .count { font-size: 0.78rem; font-weight: 600; color: #6b7280; background: #f3f4f6; border-radius: 10px; padding: 2px 10px; }
-    .history-controls { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+    .pagination-controls-row { display: flex; align-items: center; border-top: 1px solid #f0f2f5; }
+    .pagination-controls-row .pagination-bar { flex: 1; border-top: none; padding: 8px 12px; }
+    .sort-controls { display: flex; gap: 6px; align-items: center; padding: 8px 12px; flex-shrink: 0; }
     .btn-sort { font-size: 0.75rem; background: #fff; border: 1px solid #3949ab; border-radius: 6px; padding: 3px 10px; cursor: pointer; color: #3949ab; }
     .btn-sort.active { background: #3949ab; color: #fff; border-color: #3949ab; }
     .count-select { font-size: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px; background: #fff; color: #4a4a6a; cursor: pointer; }
@@ -209,18 +211,6 @@
     <div class="section-title">
       ニュース
       <span class="count" id="articles-count-badge">{{ articles | length }} 件</span>
-      {% if articles %}
-      <div class="history-controls">
-        <button id="btn-art-desc" class="btn-sort active" onclick="setArticleOrder('desc')">新着順</button>
-        <button id="btn-art-asc"  class="btn-sort"        onclick="setArticleOrder('asc')">古い順</button>
-        <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
-          <option value="10" selected>10件</option>
-          <option value="20">20件</option>
-          <option value="30">30件</option>
-          <option value="50">50件</option>
-        </select>
-      </div>
-      {% endif %}
     </div>
 
     <div class="card">
@@ -237,7 +227,19 @@
           <button class="kw-filter-btn read-toggle" id="read-only-btn" onclick="toggleReadFilter()">既読のみ</button>
         </div>
 
-        <div class="pagination-bar" id="articles-pagination-top"></div>
+        <div class="pagination-controls-row">
+          <div class="pagination-bar" id="articles-pagination-top"></div>
+          <div class="sort-controls">
+            <button id="btn-art-desc" class="btn-sort active" onclick="setArticleOrder('desc')">新着順</button>
+            <button id="btn-art-asc"  class="btn-sort"        onclick="setArticleOrder('asc')">古い順</button>
+            <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
+              <option value="10" selected>10件</option>
+              <option value="20">20件</option>
+              <option value="30">30件</option>
+              <option value="50">50件</option>
+            </select>
+          </div>
+        </div>
         <div id="articles-container">
           {% for article in articles %}
           <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %}>
