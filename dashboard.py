@@ -774,6 +774,35 @@ def delete_alert_keyword():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
+@app.route("/api/add_exclude_keyword", methods=["POST"])
+@login_required
+def api_add_exclude_keyword():
+    user_id = session["user_id"]
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        return jsonify({"success": False, "message": "キーワードを入力してください"})
+    if len(keyword) > 100:
+        return jsonify({"success": False, "message": "キーワードは100文字以内で入力してください"})
+    result = db.add_exclude_keyword(user_id, keyword)
+    if result is False:
+        return jsonify({"success": False, "message": f"「{keyword}」はすでに登録済みです"})
+    return jsonify({"success": True, "keyword": keyword, "keyword_id": result})
+
+
+@app.route("/api/delete_exclude_keyword", methods=["POST"])
+@login_required
+def api_delete_exclude_keyword():
+    user_id = session["user_id"]
+    try:
+        keyword_id = int(request.form.get("keyword_id", "0"))
+    except ValueError:
+        return jsonify({"success": False, "message": "不正なリクエストです"})
+    if keyword_id <= 0:
+        return jsonify({"success": False, "message": "不正なリクエストです"})
+    db.delete_exclude_keyword(user_id, keyword_id)
+    return jsonify({"success": True})
+
+
 @app.route("/api/delete_keyword", methods=["POST"])
 @login_required
 def api_delete_keyword():
@@ -1356,6 +1385,7 @@ def news():
     all_articles = articles_data.get("articles", [])[:300]
     alert_kw_entries = db.load_alert_keywords(user_id)
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
+    exclude_kw_entries = db.get_exclude_keywords(user_id)
     for a in all_articles:
         a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws_set)
         a["published"] = a.get("published", "")
@@ -1374,6 +1404,7 @@ def news():
         keyword_counts=keyword_counts,
         keyword_collecting=keyword_collecting,
         alert_kw_entries=alert_kw_entries,
+        exclude_kw_entries=exclude_kw_entries,
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
     )

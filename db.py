@@ -136,6 +136,12 @@ def init_db():
                     last_checked_at      TIMESTAMPTZ,
                     error_notified_at    TIMESTAMPTZ
                 );
+                CREATE TABLE IF NOT EXISTS exclude_keywords (
+                    id      SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    keyword VARCHAR(100) NOT NULL,
+                    UNIQUE(user_id, keyword)
+                );
             """)
     _run_migrations()
 
@@ -1125,6 +1131,43 @@ def delete_alert_keyword(user_id: int, keyword_id: int) -> bool:
         with conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM alert_keywords WHERE id = %s AND user_id = %s",
+                (keyword_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
+def get_exclude_keywords(user_id: int) -> list:
+    """除外キーワード一覧を返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, keyword FROM exclude_keywords WHERE user_id = %s ORDER BY id",
+                (user_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def add_exclude_keyword(user_id: int, keyword: str):
+    """除外キーワードを追加する。成功時は新規ID(int)、重複時は False を返す"""
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO exclude_keywords (user_id, keyword) VALUES (%s, %s) RETURNING id",
+                    (user_id, keyword),
+                )
+                row = cur.fetchone()
+        return row[0] if row else True
+    except psycopg2.errors.UniqueViolation:
+        return False
+
+
+def delete_exclude_keyword(user_id: int, keyword_id: int) -> bool:
+    """除外キーワードを削除する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM exclude_keywords WHERE id = %s AND user_id = %s",
                 (keyword_id, user_id),
             )
             return cur.rowcount > 0

@@ -145,6 +145,8 @@
     .input-url:focus { border-color: #3949ab; }
     .alert-kw-tag { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 20px; padding: 3px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
     .alert-kw-tag:hover { background: #fee2e2; }
+    .exclude-kw-tag { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; border-radius: 20px; padding: 3px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+    .exclude-kw-tag:hover { background: #e5e7eb; }
     /* ── トースト ── */
     #toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
     .toast { background: #1a1a2e; color: #fff; border-radius: 8px; padding: 10px 20px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
@@ -342,6 +344,27 @@
           <button type="submit" class="btn btn-save">追加</button>
         </form>
         <div id="alert-kw-error" style="display:none; margin-top:6px; font-size:0.82rem; color:#dc2626;"></div>
+      </div>
+      <div style="border-top:2px solid #f0f2f5; padding:16px 20px 20px;">
+        <div style="font-size:0.85rem; font-weight:700; color:#4a4a6a; margin-bottom:10px;">除外キーワード</div>
+        <p style="font-size:0.82rem;color:#6b7280;margin:0 0 12px;">記事タイトルにこのキーワードが含まれる場合、収集時にスキップされます。</p>
+        {% if exclude_kw_entries %}
+        <div id="exclude-kw-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          {% for ek in exclude_kw_entries %}
+          <button type="button" class="exclude-kw-tag"
+                  data-exclude-kw-id="{{ ek.id }}"
+                  onclick="deleteExcludeKeyword(this, {{ ek.id }}, '{{ ek.keyword | e }}')">{{ ek.keyword }} ×</button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:0.82rem;color:#9ca3af;margin:0 0 12px;">除外キーワードが登録されていません</p>
+        {% endif %}
+        <form id="exclude-kw-add-form" style="display:flex; gap:8px; flex-wrap:wrap;" onsubmit="addExcludeKeyword(event)">
+          <input id="exclude-kw-input" type="text" name="keyword" placeholder="例: プレスリリース、CM" maxlength="100"
+            style="flex:1; min-width:160px; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; outline:none;">
+          <button type="submit" class="btn btn-save">追加</button>
+        </form>
+        <div id="exclude-kw-error" style="display:none; margin-top:6px; font-size:0.82rem; color:#dc2626;"></div>
       </div>
     </div>
   </section>
@@ -761,6 +784,62 @@ function deleteAlertKeyword(btn, keywordId, keyword) {
   var fd = new FormData();
   fd.append('keyword_id', keywordId);
   fetch('/api/delete_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
+      btn.style.transition = 'opacity 0.3s';
+      btn.style.opacity = '0';
+      setTimeout(function() { btn.remove(); }, 310);
+    })
+    .catch(function() { alert('削除に失敗しました'); btn.disabled = false; });
+}
+
+// ── 除外キーワードAJAX追加 ───────────────────────────────────────
+function addExcludeKeyword(e) {
+  e.preventDefault();
+  var input = document.getElementById('exclude-kw-input');
+  var errEl = document.getElementById('exclude-kw-error');
+  var keyword = input.value.trim();
+  if (!keyword) return;
+  var fd = new FormData();
+  fd.append('keyword', keyword);
+  fetch('/api/add_exclude_keyword', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) { errEl.textContent = data.message || '追加に失敗しました'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      input.value = '';
+      var list = document.getElementById('exclude-kw-list');
+      if (!list) {
+        var form = document.getElementById('exclude-kw-add-form');
+        list = document.createElement('div');
+        list.id = 'exclude-kw-list';
+        list.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;';
+        form.parentNode.insertBefore(list, form);
+        var emptyMsg = form.previousElementSibling;
+        if (emptyMsg && emptyMsg.tagName === 'P') emptyMsg.remove();
+      }
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'exclude-kw-tag';
+      btn.dataset.excludeKwId = data.keyword_id;
+      btn.textContent = data.keyword + ' ×';
+      btn.style.opacity = '0';
+      btn.style.transition = 'opacity 0.3s';
+      btn.onclick = function() { deleteExcludeKeyword(btn, data.keyword_id, data.keyword); };
+      list.appendChild(btn);
+      requestAnimationFrame(function() { btn.style.opacity = '1'; });
+    })
+    .catch(function() { errEl.textContent = '追加に失敗しました'; errEl.style.display = 'block'; });
+}
+
+// ── 除外キーワード削除 ───────────────────────────────────────────
+function deleteExcludeKeyword(btn, keywordId, keyword) {
+  if (!confirm('「' + keyword + '」を削除しますか？')) return;
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('keyword_id', keywordId);
+  fetch('/api/delete_exclude_keyword', { method: 'POST', body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }

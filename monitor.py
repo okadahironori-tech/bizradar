@@ -661,6 +661,7 @@ def check_all_keywords():
             continue
         seen_urls   = db.load_article_seen_urls(user_id)
         seen_titles = db.load_article_seen_titles(user_id)
+        exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
 
         for keyword, _notify_enabled_cached in keywords:
             if not keyword:
@@ -683,7 +684,11 @@ def check_all_keywords():
             new_articles = []
             for article in articles:
                 url       = article["url"]
-                title_key = f"{keyword}::{article.get('title', '')}"
+                title     = article.get("title", "")
+                title_key = f"{keyword}::{title}"
+                # 除外キーワードが含まれる記事はスキップ
+                if exclude_kws and any(ex in title.lower() for ex in exclude_kws):
+                    continue
                 if url and url not in seen_urls and title_key not in seen_titles:
                     article["found_at"] = now_str
                     new_articles.append(article)
