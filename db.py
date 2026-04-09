@@ -1551,19 +1551,27 @@ def get_company_summary(user_id: int, company_id: int, alert_kws: set) -> dict:
             )
             keyword_count = cur.fetchone()[0]
 
-            # 紐づくキーワードの記事を対象に未読・アラート集計
+            # 未読件数をSQLで直接カウント（LIMIT なし・正確な件数）
             cur.execute(
-                "SELECT a.title, a.is_read FROM articles a "
+                "SELECT COUNT(*) FROM articles a "
                 "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
-                "WHERE a.user_id=%s AND k.company_id=%s "
+                "WHERE a.user_id=%s AND k.company_id=%s AND a.is_read = FALSE",
+                (user_id, company_id),
+            )
+            unread_count = cur.fetchone()[0]
+
+            # アラート集計用に直近30件のタイトルを取得
+            cur.execute(
+                "SELECT a.title FROM articles a "
+                "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "WHERE a.user_id=%s AND k.company_id=%s AND a.is_read = FALSE "
                 "ORDER BY a.found_at DESC LIMIT 30",
                 (user_id, company_id),
             )
             rows = cur.fetchall()
-            unread_count = sum(1 for r in rows if not r[1])
             alert_count  = sum(
                 1 for r in rows
-                if any(kw in r[0].lower() for kw in alert_kws) and not r[1]
+                if any(kw in r[0].lower() for kw in alert_kws)
             )
 
             # 最終更新: 記事の最新 found_at か企業の updated_at の新しい方
