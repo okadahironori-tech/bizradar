@@ -410,13 +410,41 @@
 </header>
 
 {% if system_errors %}
-<div id="system-error-banner" style="background:#dc2626;color:#fff;padding:10px 20px;">
+<div id="system-error-banner" style="background:#dc2626;color:#fff;padding:4px 20px;">
   {% for err in system_errors %}
-  <div style="display:flex;align-items:center;gap:8px;padding:2px 0;font-size:0.85rem;">
-    <span style="font-weight:700;">⚠</span> {{ err }}
+  <div class="sys-err-row" data-err-key="{{ err | e }}" style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;">
+    <span style="font-weight:700;">⚠</span>
+    <span style="flex:1;">{{ err }}</span>
+    <button onclick="dismissAlert(this)" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);color:#fff;border-radius:5px;padding:2px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">了解しました</button>
   </div>
   {% endfor %}
 </div>
+<script>
+(function() {
+  var dismissed = JSON.parse(localStorage.getItem('dismissed_alerts') || '[]');
+  document.querySelectorAll('.sys-err-row').forEach(function(row) {
+    if (dismissed.indexOf(row.dataset.errKey) !== -1) row.style.display = 'none';
+  });
+  // 全行非表示ならバナー自体も隠す
+  var banner = document.getElementById('system-error-banner');
+  if (banner && !banner.querySelector('.sys-err-row:not([style*="display: none"]):not([style*="display:none"])')) {
+    banner.style.display = 'none';
+  }
+})();
+function dismissAlert(btn) {
+  var row = btn.closest('.sys-err-row');
+  var key = row.dataset.errKey;
+  var dismissed = JSON.parse(localStorage.getItem('dismissed_alerts') || '[]');
+  if (dismissed.indexOf(key) === -1) dismissed.push(key);
+  localStorage.setItem('dismissed_alerts', JSON.stringify(dismissed));
+  row.style.display = 'none';
+  // 全行非表示ならバナー自体も隠す
+  var banner = document.getElementById('system-error-banner');
+  if (banner && banner.querySelectorAll('.sys-err-row:not([style*="display: none"]):not([style*="display:none"])').length === 0) {
+    banner.style.display = 'none';
+  }
+}
+</script>
 {% endif %}
 
 <main>
