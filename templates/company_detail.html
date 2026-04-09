@@ -421,10 +421,8 @@
           <option value="0">全件</option>
         </select>
       </div>
+      <div id="all-read-message" class="empty-msg" style="padding:24px 0; display:none;">全ての記事を確認済みです。既読を含む全記事は「ニュース」から確認できます。</div>
       {% if articles %}
-        {% if not alert_articles and not normal_articles %}
-        <div id="all-read-message" class="empty-msg" style="padding:24px 0;">全ての記事を確認済みです。既読を含む全記事は「ニュース」から確認できます。</div>
-        {% endif %}
         <div class="pagination-bar news-pagination"></div>
         {% if alert_articles %}
           {# ── 重要記事セクション ── #}
@@ -863,11 +861,9 @@ function renderNews() {
   var items = document.querySelectorAll('#news-section .article-item:not(.article-read-done)');
   var total = items.length;
   var allReadMsg = document.getElementById('all-read-message');
-  console.log('[renderNews] total:', total, 'allReadMsg:', allReadMsg);
   // 記事が0件（全既読の空状態）はページネーションを非表示、メッセージを表示
   if (total === 0) {
     document.querySelectorAll('.news-pagination').forEach(function(b) { b.innerHTML = ''; b.style.display = 'none'; });
-    console.log('[renderNews] total===0, showing all-read-message');
     if (allReadMsg) allReadMsg.style.display = 'block';
     return;
   }
@@ -909,11 +905,7 @@ function renderHist() {
 function applyHistoryLimit(n) { _histLimit = n; _histPage = 1; renderHist(); }
 function goHistPage(d) { _histPage += d; renderHist(); }
 
-document.addEventListener('DOMContentLoaded', function() {
-  var el = document.getElementById('all-read-message');
-  console.log('all-read-message element:', el);
-  renderNews(); renderHist();
-});
+document.addEventListener('DOMContentLoaded', function() { renderNews(); renderHist(); });
 
 function toggleDiff(btn) {
   var block = btn.nextElementSibling;
