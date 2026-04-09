@@ -62,6 +62,7 @@
     .article-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
     .article-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
     .article-date { font-size: 0.72rem; color: #9ca3af; white-space: nowrap; flex-shrink: 0; }
+    .date-uncertain { color: #bdbdbd; }
     .article-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; text-decoration: none; display: block; line-height: 1.45; margin-bottom: 8px; }
     .article-title:hover { color: #3949ab; text-decoration: underline; }
     .article-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -245,7 +246,7 @@
                 {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
                 <span class="article-kw">{{ article.keyword }}</span>
               </div>
-              <span class="article-date">{{ article.published }}</span>
+              <span class="article-date {{ 'date-uncertain' if article.published.startswith('~') else '' }}">{{ article.published.lstrip('~') }}</span>
             </div>
             <!-- 中段：記事タイトル -->
             <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>

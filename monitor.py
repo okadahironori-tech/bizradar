@@ -212,14 +212,14 @@ def fetch_news_articles(keyword: str) -> list:
             dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed), tz=timezone.utc).astimezone(JST)
             published = dt.strftime("%Y-%m-%d %H:%M")
         else:
-            published = entry.get("published", "")
+            published = "~" + entry.get("published", "")
         published = _sanitize_text(published)
         # RSSから発行日時が取れない場合、記事ページから補完
-        if not published and url and "news.google.com" not in url:
+        if not published.lstrip("~") and url and "news.google.com" not in url:
             try:
                 fetched = _fetch_article_published_date(url)
                 if fetched:
-                    published = _sanitize_text(fetched[:16])
+                    published = _sanitize_text("~" + fetched[:16])
             except Exception:
                 pass
         articles.append({
@@ -283,14 +283,14 @@ def fetch_bing_news_articles(keyword: str) -> list:
             dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed), tz=timezone.utc).astimezone(JST)
             published = dt.strftime("%Y-%m-%d %H:%M")
         else:
-            published = entry.get("published", "")
+            published = "~" + entry.get("published", "")
         published = _sanitize_text(published)
         # 発行日時が取得できていない場合、記事ページから取得を試みる
-        if not published and url and "news.google.com" not in url:
+        if not published.lstrip("~") and url and "news.google.com" not in url:
             try:
                 fetched_date = _fetch_article_published_date(url)
                 if fetched_date:
-                    published = fetched_date[:16]
+                    published = "~" + fetched_date[:16]
             except Exception:
                 pass
         if title and url:
@@ -349,14 +349,14 @@ def fetch_prtimes_articles(keyword: str) -> list:
             dt = datetime.fromtimestamp(time_module.mktime(entry.published_parsed), tz=timezone.utc).astimezone(JST)
             published = dt.strftime("%Y-%m-%d %H:%M")
         else:
-            published = entry.get("published", "")
+            published = "~" + entry.get("published", "")
         published = _sanitize_text(published)
         # 発行日時が取得できていない場合、記事ページから取得を試みる
-        if not published and url and "news.google.com" not in url:
+        if not published.lstrip("~") and url and "news.google.com" not in url:
             try:
                 fetched_date = _fetch_article_published_date(url)
                 if fetched_date:
-                    published = fetched_date[:16]
+                    published = "~" + fetched_date[:16]
             except Exception:
                 pass
         if title and url:
