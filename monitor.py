@@ -293,11 +293,13 @@ def fetch_bing_news_articles(keyword: str) -> list:
 
 
 def fetch_prtimes_articles(keyword: str) -> list:
-    """PR TIMES RSSからキーワード関連プレスリリースを取得する（最新20件）
+    """PR TIMES 全件フィードからキーワードに一致するプレスリリースを返す。
 
+    旧検索エンドポイント (rss/search.rss) は廃止されたため、
+    全件フィード (index.rdf) を取得してタイトル・本文でキーワードフィルタリングする。
     取得に失敗しても例外を上位に伝播せず空リストを返す。
     """
-    rss_url = f"https://prtimes.jp/rss/search.rss?searchword={quote(keyword)}"
+    rss_url = "https://prtimes.jp/index.rdf"
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -318,11 +320,16 @@ def fetch_prtimes_articles(keyword: str) -> list:
     if not feed.entries:
         print(f"  [PR TIMES][警告] RSSの記事が0件です (HTTP {response.status_code}, keyword={keyword!r})")
     else:
-        print(f"  [PR TIMES] 取得完了: keyword={keyword!r} HTTP={response.status_code} 件数={len(feed.entries)}")
+        print(f"  [PR TIMES] 取得完了: keyword={keyword!r} HTTP={response.status_code} 全件数={len(feed.entries)}")
 
+    kw_lower = keyword.lower()
     articles = []
-    for entry in feed.entries[:20]:
-        title = _sanitize_text(entry.get("title", ""))
+    for entry in feed.entries:
+        title   = _sanitize_text(entry.get("title", ""))
+        summary = entry.get("summary", "") or ""
+        # タイトルまたは本文にキーワードが含まれるもののみ対象
+        if kw_lower not in title.lower() and kw_lower not in summary.lower():
+            continue
         url = _sanitize_text(_rss_entry_link(entry))
         published = ""
         if entry.get("published_parsed"):
@@ -347,6 +354,9 @@ def fetch_prtimes_articles(keyword: str) -> list:
                 "source":    "PR TIMES",
                 "published": published,
             })
+        if len(articles) >= 20:
+            break
+    print(f"  [PR TIMES] キーワードフィルタ後: keyword={keyword!r} 件数={len(articles)}")
     db.update_source_health("prtimes", True)
     return articles
 
