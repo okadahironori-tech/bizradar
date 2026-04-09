@@ -1626,7 +1626,7 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
                 "FROM articles a "
                 "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                 "WHERE a.user_id=%s AND k.company_id=%s "
-                "ORDER BY a.published DESC, a.id DESC LIMIT %s",
+                "ORDER BY a.is_read ASC, a.published DESC, a.id DESC LIMIT %s",
                 (user_id, company_id, limit),
             )
             return [dict(row) for row in cur.fetchall()]
