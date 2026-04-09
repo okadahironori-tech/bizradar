@@ -859,9 +859,14 @@ function _renderPagBars(cls, cur, total, goFn) {
 function renderNews() {
   var items = document.querySelectorAll('#news-section .article-item');
   var total = items.length;
+  // 記事が0件（全既読の空状態）はページネーションを非表示
+  if (total === 0) {
+    document.querySelectorAll('.news-pagination').forEach(function(b) { b.innerHTML = ''; b.style.display = 'none'; });
+    return;
+  }
   if (_newsLimit === 0) {
     items.forEach(function(el) { el.style.display = ''; });
-    document.querySelectorAll('.news-pagination').forEach(function(b) { b.innerHTML = ''; });
+    document.querySelectorAll('.news-pagination').forEach(function(b) { b.innerHTML = ''; b.style.display = 'none'; });
     return;
   }
   var totalPages = Math.max(1, Math.ceil(total / _newsLimit));
@@ -869,6 +874,10 @@ function renderNews() {
   if (_newsPage < 1) _newsPage = 1;
   var start = (_newsPage - 1) * _newsLimit;
   items.forEach(function(el, i) { el.style.display = (i >= start && i < start + _newsLimit) ? '' : 'none'; });
+  // 1ページ以下ならページネーション非表示
+  document.querySelectorAll('.news-pagination').forEach(function(b) {
+    b.style.display = totalPages <= 1 ? 'none' : '';
+  });
   _renderPagBars('news-pagination', _newsPage, totalPages, 'goNewsPage');
 }
 function applyNewsLimit(n) { _newsLimit = n; _newsPage = 1; renderNews(); }
