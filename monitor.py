@@ -71,36 +71,34 @@ def _rss_entry_link(entry) -> str:
 
 
 def _resolve_google_news_url(url: str) -> str:
-    """Google News のBase64エンコードURLから実際の記事URLを抽出する。"""
     if "news.google.com" not in url:
         return url
-    # まずBase64デコードを試みる
     try:
-        match = re.search(r'articles/([A-Za-z0-9_-]+)', url)
+        import base64, re
+        match = re.search(r'articles/([A-Za-z0-9_\-]+)', url)
         if match:
             encoded = match.group(1)
-            padded = encoded + '=' * (4 - len(encoded) % 4)
-            for encoding in ('utf-8', 'latin-1'):
-                try:
-                    decoded = base64.urlsafe_b64decode(padded).decode(encoding)
-                    url_match = re.search(r'https?://(?!news\.google\.com)[^\s\x00-\x1f"<>]+', decoded)
-                    if url_match:
-                        extracted = url_match.group(0).rstrip('.,)')
-                        if len(extracted) > 15:
-                            return extracted
-                except Exception:
-                    continue
+            padding = 4 - len(encoded) % 4
+            if padding != 4:
+                encoded += '=' * padding
+            try:
+                decoded = base64.urlsafe_b64decode(encoded)
+                candidates = re.findall(rb'https?://[^\x00-\x1f\x7f\s"\'<>]{15,}', decoded)
+                for candidate in candidates:
+                    candidate_str = candidate.decode('utf-8', errors='ignore')
+                    if 'google.com' not in candidate_str:
+                        return candidate_str.rstrip('.')
+            except Exception:
+                pass
     except Exception:
         pass
-    # フォールバック: GETリクエストでリダイレクト追跡
     try:
-        resp = requests.get(
-            url, allow_redirects=True, timeout=5, stream=True,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)"}
-        )
-        resp.close()
-        if "news.google.com" not in resp.url:
-            return resp.url
+        import requests
+        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        resp = requests.get(url, headers=headers, allow_redirects=True, timeout=10)
+        final_url = resp.url
+        if 'news.google.com' not in final_url:
+            return final_url
     except Exception:
         pass
     return url
