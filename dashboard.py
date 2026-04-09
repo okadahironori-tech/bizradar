@@ -1710,8 +1710,6 @@ def company_detail(company_id):
         all_keywords = db.load_keywords_with_company(user_id)
 
         summary = db.get_company_summary(user_id, company_id, alert_kws)
-        summary['unread_count'] = len(alert_articles) + len(normal_articles)
-        summary['alert_count'] = len(alert_articles)
 
         return render_template("company_detail.html",
                                company=company,
