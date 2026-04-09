@@ -423,9 +423,8 @@
       </div>
       <div id="all-read-message" class="empty-msg" style="padding:24px 0; display:none;">全ての記事を確認済みです。既読を含む全記事は「ニュース」から確認できます。</div>
       {% if articles %}
-        <div class="pagination-bar news-pagination"></div>
         {% if alert_articles %}
-          {# ── 重要記事セクション ── #}
+          {# ── 重要記事セクション（全件表示・ページネーションなし） ── #}
           <div class="articles-section-label" id="articles-alert-label">⚠ 重要記事 <span id="articles-alert-label-num">{{ alert_articles | length }}</span> 件</div>
           <div class="articles-container">
           {% for a in alert_articles %}
@@ -448,16 +447,16 @@
           </div>
           {% endfor %}
           </div>
-          {# 通常記事がある場合のみ区切り線を表示 #}
           {% if normal_articles %}
           <hr class="articles-section-divider">
           {% endif %}
         {% endif %}
-        {# ── 通常記事セクション ── #}
+        {# ── 通常記事セクション（ページネーション対象） ── #}
         {% if normal_articles %}
+          <div class="pagination-bar news-pagination"></div>
           <div class="articles-container">
           {% for a in normal_articles %}
-          <div class="article-item {% if a.is_read %}article-read{% endif %}" data-article-id="{{ a.id }}">
+          <div class="article-item normal-article-item{% if a.is_read %} article-read{% endif %}" data-article-id="{{ a.id }}">
             <div class="article-card-top">
               <div class="article-card-top-left">
                 <span class="article-source">{{ a.source if a.source else '' }}</span>
@@ -476,7 +475,6 @@
           {% endfor %}
           </div>
         {% endif %}
-        {# 重要記事のみで通常記事がない場合は何も追加しない #}
         <div class="pagination-bar news-pagination"></div>
         <div class="view-all-bar"><a href="/news" class="view-all-link">既読を含む全記事は「ニュース」へ →</a></div>
       {% else %}
@@ -858,13 +856,14 @@ function _renderPagBars(cls, cur, total, goFn) {
 }
 
 function renderNews() {
-  var items = document.querySelectorAll('#news-section .article-item:not(.article-read-done)');
+  var items = document.querySelectorAll('#news-section .normal-article-item:not(.article-read-done)');
   var total = items.length;
   var allReadMsg = document.getElementById('all-read-message');
-  // 記事が0件（全既読の空状態）はページネーションを非表示、メッセージを表示
+  var alertItems = document.querySelectorAll('#news-section .is-alert:not(.article-read-done)');
+  // 通常記事・重要記事ともに0件のときだけ空状態メッセージを表示
   if (total === 0) {
     document.querySelectorAll('.news-pagination').forEach(function(b) { b.innerHTML = ''; b.style.display = 'none'; });
-    if (allReadMsg) allReadMsg.style.display = 'block';
+    if (allReadMsg) allReadMsg.style.display = alertItems.length === 0 ? 'block' : 'none';
     return;
   }
   if (allReadMsg) allReadMsg.style.display = 'none';
