@@ -59,14 +59,29 @@ def _sanitize_text(value) -> str:
 
 
 def _rss_entry_link(entry) -> str:
-    """feedparser の entry から記事URLを取り出す（Google News の形式差に対応）"""
+    """feedparser の entry から記事URLを取り出す（Google News の形式差異に対応）"""
+    # まず summary/description フィールドの <a href> から実際のURLを取得する
+    for field in ("summary", "description", "content"):
+        text = ""
+        if field == "content":
+            content_list = entry.get("content", [])
+            if content_list:
+                text = content_list[0].get("value", "")
+        else:
+            text = entry.get(field, "")
+        if text:
+            import re
+            hrefs = re.findall(r'href=["\']([^"\']+)["\']', text)
+            for href in hrefs:
+                if "news.google.com" not in href and href.startswith("http"):
+                    return href.strip()
+    # フォールバック: entry.link から取得
     url = (entry.get("link") or "").strip()
     if url:
         return url
     for link in entry.get("links", []):
-        rel = (link.get("rel") or "").lower()
-        if rel in ("alternate", "self") and link.get("href"):
-            return str(link["href"]).strip()
+        if link.get("rel") in ("alternate", "self"):
+            return link.get("href", "").strip()
     return ""
 
 
