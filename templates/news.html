@@ -273,6 +273,13 @@
     <div class="section-title">
       キーワード管理
       <span class="count-badge">{{ keywords | length }} 件</span>
+      <span style="margin-left:auto;">
+        <select id="kw-count-select" class="count-select" onchange="changeKwPageSize()" style="display:none;">
+          <option value="10" selected>10件</option>
+          <option value="20">20件</option>
+          <option value="30">30件</option>
+        </select>
+      </span>
     </div>
     <div class="card">
       <table>
@@ -320,11 +327,6 @@
         <button id="kw-pag-prev" class="btn-page" onclick="goKwPage(-1)">← 前へ</button>
         <span id="kw-pag-info" class="page-info"></span>
         <button id="kw-pag-next" class="btn-page" onclick="goKwPage(1)">次へ →</button>
-        <select id="kw-count-select" class="count-select" onchange="changeKwPageSize()">
-          <option value="10" selected>10件</option>
-          <option value="20">20件</option>
-          <option value="30">30件</option>
-        </select>
       </div>
       <form class="add-form" id="kw-add-form" onsubmit="addKeyword(event)">
         <input class="input-url" id="kw-input" type="text" name="keyword"
@@ -622,7 +624,13 @@ function _renderKwTable() {
     row.style.display = (i >= start && i < end) ? '' : 'none';
   });
   var bar = document.getElementById('kw-pag-bar');
+  var sel = document.getElementById('kw-count-select');
   if (!bar) return;
+  if (total > 10) {
+    if (sel) sel.style.display = '';
+  } else {
+    if (sel) sel.style.display = 'none';
+  }
   if (total > _kwPageSize) {
     bar.style.display = 'flex';
     var info = document.getElementById('kw-pag-info');
