@@ -524,7 +524,7 @@ function dismissAlert(btn) {
   <!-- 前回ログイン以降の更新企業 -->
   {% if prev_login_at %}
   <section>
-    <div class="section-title">前回確認時（{{ prev_login_at.strftime('%m月%d日') }}）以降の更新企業</div>
+    <div class="section-title">前回確認時（{{ prev_login_at.strftime('%-m月%-d日') }}）以降の更新企業</div>
     <div class="today-companies-card">
       <div>
         {% if prev_login_company_list %}
