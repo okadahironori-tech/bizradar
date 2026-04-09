@@ -962,5 +962,15 @@ function deleteExcludeKeyword(btn, keywordId, keyword) {
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>
+<script>
+document.querySelectorAll('#kw-add-form input, #alert-kw-add-form input, #exclude-kw-add-form input').forEach(function(input) {
+  input.addEventListener('focus', function() {
+    var self = this;
+    setTimeout(function() {
+      self.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 400);
+  });
+});
+</script>
 </body>
 </html>
