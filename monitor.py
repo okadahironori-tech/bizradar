@@ -82,13 +82,15 @@ def _resolve_google_news_url(url: str) -> str:
         encoded = match.group(1)
         # Base64デコード（パディング調整）
         padded = encoded + '=' * (4 - len(encoded) % 4)
-        decoded = base64.urlsafe_b64decode(padded).decode('latin-1')
-        # デコード結果からhttps://で始まるURLを抽出
-        url_match = re.search(r'https?://[^\s\x00-\x1f]+', decoded)
-        if url_match:
-            extracted = url_match.group(0).rstrip('.')
-            if 'google.com' not in extracted:
-                return extracted
+        for encoding in ('utf-8', 'latin-1'):
+            try:
+                decoded = base64.urlsafe_b64decode(padded).decode(encoding)
+                url_match = re.search(r'https?://(?!news\.google\.com)[a-zA-Z0-9\-._~:/?#\[\]@!$&\'()*+,;=%]+', decoded)
+                if url_match:
+                    extracted = url_match.group(0).rstrip('.')
+                    return extracted
+            except Exception:
+                continue
     except Exception:
         pass
     return url
