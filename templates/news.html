@@ -724,6 +724,8 @@ function collectKeyword(btn, keyword) {
                 }
                 if (d.count > countBefore) {
                   showToast('新しい記事が追加されました。再読み込みで更新されます');
+                } else {
+                  showToast('新しい記事はありませんでした');
                 }
               })
               .catch(function() {});
