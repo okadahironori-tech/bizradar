@@ -329,34 +329,56 @@
       section .card thead { display: none; }
       section .card tbody { display: block; }
       section .card tr {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
+        display: block;
         border-bottom: 1px solid #f0f0f0;
         padding: 10px 0;
-        gap: 6px;
       }
       section .card tr:last-child { border-bottom: none; }
       section .card td {
-        display: inline-flex;
-        align-items: center;
+        display: block;
         border: none;
-        padding: 0;
+        padding: 2px 0;
         font-size: 13px;
       }
       section .card td:nth-child(1) {
         font-weight: bold;
         font-size: 14px;
-        flex: 0 0 auto;
-        margin-right: 8px;
+        margin-bottom: 2px;
       }
       section .card td:nth-child(2) {
-        flex: 1 1 auto;
         word-break: break-all;
         color: #3949ab;
         font-size: 12px;
+        margin-bottom: 6px;
       }
       section .card td:nth-child(3) {
+        display: flex;
+        gap: 8px;
+      }
+      .kw-linked-table tr {
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #f0f0f0;
+        padding: 10px 0;
+        gap: 8px;
+      }
+      .kw-linked-table td {
+        display: inline-flex;
+        align-items: center;
+        border: none;
+        padding: 0;
+      }
+      .kw-linked-table td:first-child {
+        flex: 1 1 auto;
+        font-weight: bold;
+        font-size: 14px;
+      }
+      .kw-linked-table td:nth-child(2) {
+        color: #4caf50;
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .kw-linked-table td:last-child {
         flex: 0 0 auto;
         margin-left: auto;
       }
