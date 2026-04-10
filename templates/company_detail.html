@@ -329,33 +329,38 @@
       section .card thead { display: none; }
       section .card tbody { display: block; }
       section .card tr {
-        display: block;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
         border-bottom: 1px solid #f0f0f0;
         padding: 10px 0;
+        gap: 4px;
       }
       section .card tr:last-child { border-bottom: none; }
       section .card td {
-        display: block;
+        display: inline-flex;
+        align-items: center;
         border: none;
-        padding: 2px 0;
+        padding: 0;
         font-size: 13px;
       }
       section .card td:nth-child(1) {
         font-weight: bold;
         font-size: 14px;
-        margin-bottom: 2px;
+        flex: 0 0 auto;
+        margin-right: 4px;
       }
       section .card td:nth-child(2) {
+        flex: 1 1 auto;
         word-break: break-all;
         color: #3949ab;
         font-size: 12px;
-        margin-bottom: 6px;
       }
       section .card td:nth-child(3) {
+        flex: 0 0 auto;
         display: flex;
         gap: 8px;
-        justify-content: flex-end;
-        width: 100%;
+        margin-left: auto;
       }
       .kw-linked-table tr {
         display: flex;
