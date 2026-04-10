@@ -87,6 +87,37 @@
     .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
     .bc-sep { color: #9ca3af; font-size: 0.75rem; }
     .bc-current { color: #1a1a2e; font-weight: 500; }
+    @media (max-width: 600px) {
+      .card table { display: block; }
+      .card thead { display: none; }
+      .card tbody { display: block; }
+      .card tr {
+        display: block;
+        background: white;
+        border: 1px solid #e8e8e8;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 12px;
+      }
+      .card td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: none;
+        padding: 4px 0;
+        font-size: 13px;
+      }
+      .card td:first-child {
+        font-weight: bold;
+        font-size: 14px;
+        display: block;
+        margin-bottom: 6px;
+      }
+      .card td:nth-child(2)::before { content: "サイト数: "; color: #888; }
+      .card td:nth-child(3)::before { content: "キーワード数: "; color: #888; }
+      .card td:nth-child(4)::before { content: "記事数: "; color: #888; }
+      .card td:nth-child(5)::before { content: "登録日時: "; color: #888; }
+    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
