@@ -321,6 +321,46 @@
     .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
     .bc-sep { color: #9ca3af; font-size: 0.75rem; }
     .bc-current { color: #1a1a2e; font-weight: 500; }
+    @media (max-width: 600px) {
+      .sites-table table,
+      section .card table {
+        display: block;
+      }
+      section .card thead { display: none; }
+      section .card tbody { display: block; }
+      section .card tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        border-bottom: 1px solid #f0f0f0;
+        padding: 10px 0;
+        gap: 6px;
+      }
+      section .card tr:last-child { border-bottom: none; }
+      section .card td {
+        display: inline-flex;
+        align-items: center;
+        border: none;
+        padding: 0;
+        font-size: 13px;
+      }
+      section .card td:nth-child(1) {
+        font-weight: bold;
+        font-size: 14px;
+        flex: 0 0 auto;
+        margin-right: 8px;
+      }
+      section .card td:nth-child(2) {
+        flex: 1 1 auto;
+        word-break: break-all;
+        color: #3949ab;
+        font-size: 12px;
+      }
+      section .card td:nth-child(3) {
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
