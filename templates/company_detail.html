@@ -354,6 +354,8 @@
       section .card td:nth-child(3) {
         display: flex;
         gap: 8px;
+        justify-content: flex-end;
+        width: 100%;
       }
       .kw-linked-table tr {
         display: flex;
@@ -367,11 +369,13 @@
         align-items: center;
         border: none;
         padding: 0;
+        white-space: nowrap;
       }
       .kw-linked-table td:first-child {
         flex: 1 1 auto;
         font-weight: bold;
         font-size: 14px;
+        white-space: normal;
       }
       .kw-linked-table td:nth-child(2) {
         color: #4caf50;
@@ -611,7 +615,7 @@
             <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;">
               <input type="hidden" name="site_url" value="{{ s.url }}">
               <input type="hidden" name="action" value="unlink">
-              <button type="submit" class="btn btn-ghost btn-sm">紐づけ解除</button>
+              <button type="submit" class="btn btn-ghost btn-sm">削除</button>
             </form>
           </td>
         </tr>
@@ -672,7 +676,7 @@
             <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;">
               <input type="hidden" name="keyword" value="{{ k.keyword }}">
               <input type="hidden" name="action" value="unlink">
-              <button type="submit" class="btn btn-ghost btn-sm">紐づけ解除</button>
+              <button type="submit" class="btn btn-ghost btn-sm">削除</button>
             </form>
           </td>
         </tr>
