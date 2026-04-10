@@ -410,7 +410,7 @@
     <div class="card">
       <div class="section-title">
         最新ニュース記事
-        <span class="count-badge">未読 <span id="news-unread-count">{{ (alert_articles | length) + (normal_articles | length) }}</span> 件 / 全 {{ articles | length }} 件</span>
+        <span class="count-badge">未読 <span id="news-unread-count">{{ summary.unread_count }}</span> 件 / 全 {{ articles | length }} 件</span>
 
         <select class="count-select" onchange="applyNewsLimit(+this.value)">
           <option value="5">5件</option>
