@@ -402,10 +402,10 @@
         <span id="kw-pag-info" class="page-info"></span>
         <button id="kw-pag-next" class="btn-page" onclick="goKwPage(1)">次へ →</button>
       </div>
-      <form class="add-form" id="kw-add-form" onsubmit="addKeyword(event)">
+      <form class="add-form" id="kw-add-form" onsubmit="addKeyword(event)" style="display:flex;flex-direction:row;gap:8px;align-items:center;">
         <input class="input-url" id="kw-input" type="text" name="keyword"
                placeholder="例: 山一ハガネ、半導体 市場動向" required>
-        <button type="submit" class="btn btn-add">+ 追加</button>
+        <button type="submit" class="btn btn-add">追加</button>
       </form>
       <div id="kw-add-error" style="display:none; padding:0 16px 8px; font-size:0.82rem; color:#dc2626;"></div>
       <div style="border-top:2px solid #f0f2f5; padding:16px 20px 20px;">
