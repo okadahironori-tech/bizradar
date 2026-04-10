@@ -159,6 +159,25 @@
       .btn { padding: 5px 8px; font-size: 0.75rem; }
       .row-actions { gap: 4px; flex-wrap: nowrap; }
     }
+    #kw-filter-bar {
+      max-height: 72px;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    #kw-filter-bar.expanded {
+      max-height: 600px;
+    }
+    .kw-filter-toggle {
+      display: block;
+      width: 100%;
+      background: none;
+      border: none;
+      color: #3949ab;
+      font-size: 13px;
+      padding: 4px 0 8px;
+      cursor: pointer;
+      text-align: center;
+    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -217,7 +236,7 @@
         <div id="alert-pinned-section" class="alert-pinned-section" style="display:none"></div>
 
         <div style="font-size:0.78rem; color:#9ca3af; padding: 8px 16px 0;">未読・既読を含むすべての記事を確認できます。「未読のみ」で絞り込むこともできます。</div>
-        <div class="kw-filter-bar">
+        <div class="kw-filter-bar" id="kw-filter-bar">
           <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
           {% for kw in keyword_entries %}
           <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
@@ -225,6 +244,7 @@
           <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
           <button class="kw-filter-btn read-toggle" id="read-only-btn" onclick="toggleReadFilter()">既読のみ</button>
         </div>
+        <button class="kw-filter-toggle" id="kw-filter-toggle" onclick="toggleFilterBar()">条件を絞り込む ▼</button>
 
         <div class="sort-controls">
           <button id="btn-art-desc" class="btn-sort active" onclick="setArticleOrder('desc')">新着順</button>
@@ -971,6 +991,19 @@ document.querySelectorAll('#kw-add-form input, #alert-kw-add-form input, #exclud
     }, 400);
   });
 });
+</script>
+<script>
+function toggleFilterBar() {
+  var bar = document.getElementById('kw-filter-bar');
+  var btn = document.getElementById('kw-filter-toggle');
+  if (bar.classList.contains('expanded')) {
+    bar.classList.remove('expanded');
+    btn.textContent = '条件を絞り込む ▼';
+  } else {
+    bar.classList.add('expanded');
+    btn.textContent = '閉じる ▲';
+  }
+}
 </script>
 </body>
 </html>
