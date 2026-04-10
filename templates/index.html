@@ -635,7 +635,7 @@ function dismissAlert(btn) {
     <div class="section-title news-section-title">
       <div class="news-title-left">
         <span>ニュース <span class="count" id="dash-news-count"></span></span>
-        <span class="news-hint">チェック済み記事はニュースで確認できます</span>
+        <span class="news-hint">既読にする記事はニュースで確認できます</span>
       </div>
       <div style="display:flex; gap:4px; flex-shrink:0;">
         <button id="btn-news-desc" class="btn-sort active" onclick="setNewsOrder('desc')">新着順</button>
@@ -689,7 +689,7 @@ function _articleItemHtml(article) {
       <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
       ${meta}
     </div>
-    <button class="btn-check-done" onclick="markRead(this)">チェック済み</button>
+    <button class="btn-check-done" onclick="markRead(this)">既読にする</button>
   </div>`;
 }
 

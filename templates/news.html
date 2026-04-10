@@ -348,7 +348,7 @@
               <span class="article-source">{{ article.source if article.source else '' }}</span>
               <div class="article-card-actions">
                 <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
-                <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>チェック済み</button>
+                <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>既読にする</button>
                 <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
               </div>
             </div>
@@ -626,7 +626,7 @@ function renderAlertPinnedSection() {
   sorted.slice(0, 5).forEach(item => {
     const clone = item.cloneNode(true);
     clone.style.cssText = '';
-    // 未読状態として表示（チェック済みボタンのみ表示）
+    // 未読状態として表示（既読にするボタンのみ表示）
     const mark = clone.querySelector('.article-read-mark');
     if (mark) mark.style.display = 'none';
     const cb = clone.querySelector('.btn-check-done');
