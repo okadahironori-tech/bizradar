@@ -179,6 +179,41 @@
       cursor: pointer;
       text-align: center;
     }
+    @media (max-width: 600px) {
+      #keywords-section table,
+      #keywords-section thead,
+      #keywords-section tbody,
+      #keywords-section th,
+      #keywords-section td,
+      #keywords-section tr {
+        display: block;
+        width: 100%;
+      }
+      #keywords-section thead { display: none; }
+      #keywords-section tr[data-kw-row] {
+        background: white;
+        border: 1px solid #e8e8e8;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 12px;
+      }
+      #keywords-section td {
+        padding: 4px 0;
+        border: none;
+      }
+      #keywords-section td:first-child {
+        font-weight: bold;
+        font-size: 15px;
+        margin-bottom: 4px;
+      }
+      #keywords-section td:nth-child(2)::before { content: "収集記事: "; color: #888; font-size: 13px; }
+      #keywords-section td:nth-child(2) { font-size: 13px; color: #555; }
+      #keywords-section td:last-child {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
