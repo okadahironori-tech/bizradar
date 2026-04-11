@@ -56,6 +56,8 @@
     .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
     .flash-error { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
     .empty-state { text-align: center; color: #9ca3af; font-size: 0.88rem; padding: 28px 0; }
+    .field-error { font-size: 0.78rem; color: #dc2626; min-height: 0; margin: 0; }
+    .field-error:empty { display: none; }
     .migrate-bar { padding: 10px 16px; border-top: 1px solid #f0f2f5; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
     .migrate-bar span { font-size: 0.82rem; color: #6b7280; }
 
@@ -158,12 +160,16 @@
     <div class="empty-state">ドメインオーバーライドが登録されていません</div>
     {% endif %}
 
-    <form method="POST" action="/admin/domain-overrides/add" style="padding:12px 16px;border-top:1px solid #f0f2f5;display:flex;flex-direction:column;gap:8px;">
-      <input type="text" name="company_name" placeholder="企業名" style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
-      <input type="text" name="company_name_kana" placeholder="ふりがな" style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
-      <input type="text" name="domain" placeholder="ドメイン" required style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
-      <input type="url" name="suggested_url" placeholder="推奨URL" required style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
-      <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;">登録</button>
+    <form id="add-form" method="POST" action="/admin/domain-overrides/add" style="padding:12px 16px;border-top:1px solid #f0f2f5;display:flex;flex-direction:column;gap:4px;" onsubmit="return validateForm('add')">
+      <input type="text" name="company_name" id="add-company-name" placeholder="企業名" style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
+      <div class="field-error" id="add-err-company-name"></div>
+      <input type="text" name="company_name_kana" id="add-company-name-kana" placeholder="ふりがな" style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
+      <div class="field-error" id="add-err-company-name-kana"></div>
+      <input type="text" name="domain" id="add-domain" placeholder="ドメイン（例: www.example.co.jp）" required style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
+      <div class="field-error" id="add-err-domain"></div>
+      <input type="text" name="suggested_url" id="add-url" placeholder="推奨URL（例: https://www.example.co.jp/news/）" required style="width:100%;padding:7px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;outline:none;">
+      <div class="field-error" id="add-err-url"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;margin-top:4px;">登録</button>
     </form>
 
     <div class="migrate-bar">
@@ -180,22 +186,26 @@
   <div class="modal-box" style="position:relative;">
     <button class="modal-close" onclick="closeEditModal()">x</button>
     <div class="modal-title">ドメインオーバーライドを編集</div>
-    <form method="POST" id="edit-form">
+    <form method="POST" id="edit-form" onsubmit="return validateForm('edit')">
       <div class="form-group">
         <label>企業名</label>
         <input type="text" name="company_name" id="edit-company-name">
+        <div class="field-error" id="edit-err-company-name"></div>
       </div>
       <div class="form-group">
         <label>ふりがな</label>
         <input type="text" name="company_name_kana" id="edit-company-name-kana">
+        <div class="field-error" id="edit-err-company-name-kana"></div>
       </div>
       <div class="form-group">
         <label>ドメイン <span style="color:#dc2626">*</span></label>
         <input type="text" name="domain" id="edit-domain" required>
+        <div class="field-error" id="edit-err-domain"></div>
       </div>
       <div class="form-group">
         <label>推奨URL <span style="color:#dc2626">*</span></label>
-        <input type="url" name="suggested_url" id="edit-url" required>
+        <input type="text" name="suggested_url" id="edit-url" required>
+        <div class="field-error" id="edit-err-url"></div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="closeEditModal()">キャンセル</button>
@@ -248,6 +258,62 @@ function openEditModal(id, domain, url, name, kana) {
 function closeEditModal() {
   document.getElementById('edit-modal').classList.remove('open');
   document.body.style.overflow = '';
+  // エラーをクリア
+  document.querySelectorAll('#edit-form .field-error').forEach(function(el) { el.textContent = ''; });
+}
+
+function validateForm(prefix) {
+  var ok = true;
+  var urlRe = /https?:\/\//i;
+
+  // エラー欄をクリア
+  document.querySelectorAll('[id^="' + prefix + '-err-"]').forEach(function(el) { el.textContent = ''; });
+
+  var name = document.getElementById(prefix + '-company-name');
+  var kana = document.getElementById(prefix + '-company-name-kana');
+  var domain = document.getElementById(prefix + '-domain');
+  var url = document.getElementById(prefix + '-url');
+
+  // 企業名にURLが入っていないか
+  if (name && urlRe.test(name.value)) {
+    document.getElementById(prefix + '-err-company-name').textContent = '企業名にURLを入力しないでください';
+    ok = false;
+  }
+
+  // ふりがなにURLが入っていないか
+  if (kana && urlRe.test(kana.value)) {
+    document.getElementById(prefix + '-err-company-name-kana').textContent = 'ふりがなにURLを入力しないでください';
+    ok = false;
+  }
+
+  // ドメイン: 必須 + URL形式を拒否
+  if (domain) {
+    var d = domain.value.trim();
+    if (!d) {
+      document.getElementById(prefix + '-err-domain').textContent = 'ドメインを入力してください';
+      ok = false;
+    } else if (urlRe.test(d)) {
+      document.getElementById(prefix + '-err-domain').textContent = 'ドメインにはhttp://やhttps://を含めないでください（例: www.example.co.jp）';
+      ok = false;
+    } else if (d.indexOf('/') !== -1) {
+      document.getElementById(prefix + '-err-domain').textContent = 'ドメインにはパス（/）を含めないでください';
+      ok = false;
+    }
+  }
+
+  // 推奨URL: 必須 + https://で始まること
+  if (url) {
+    var u = url.value.trim();
+    if (!u) {
+      document.getElementById(prefix + '-err-url').textContent = '推奨URLを入力してください';
+      ok = false;
+    } else if (!/^https:\/\//i.test(u)) {
+      document.getElementById(prefix + '-err-url').textContent = '推奨URLはhttps://で始めてください';
+      ok = false;
+    }
+  }
+
+  return ok;
 }
 </script>
 </body>
