@@ -463,17 +463,17 @@ function dismissAlert(btn) {
       <div class="summary-card-val">{{ summary_today_companies }}</div>
       <div class="summary-card-label">本日の更新企業数</div>
     </div>
-    <div class="summary-card card-unread">
-      <div class="summary-card-val">{{ summary_unread }}</div>
-      <div class="summary-card-label">未読記事</div>
+    <div class="summary-card">
+      <div class="summary-card-val" {% if prev_login_company_list | length > 0 %}style="color:#3949ab;"{% endif %}>{{ prev_login_company_list | length }}</div>
+      <div class="summary-card-label">前回確認時以降</div>
     </div>
     <div class="summary-card card-alert">
       <div class="summary-card-val">{{ summary_alert }}</div>
       <div class="summary-card-label">重要アラート</div>
     </div>
-    <div class="summary-card">
-      <div class="summary-card-val" {% if prev_login_company_list | length > 0 %}style="color:#3949ab;"{% endif %}>{{ prev_login_company_list | length }}</div>
-      <div class="summary-card-label">前回確認時以降</div>
+    <div class="summary-card card-unread">
+      <div class="summary-card-val">{{ summary_unread }}</div>
+      <div class="summary-card-label">未読記事</div>
     </div>
   </div>
   {% if is_admin and summary_error_sites > 0 %}
