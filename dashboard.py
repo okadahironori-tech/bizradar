@@ -1601,6 +1601,7 @@ def company_list():
     for c in companies:
         summary = db.get_company_summary(user_id, c["id"], alert_kws)
         c.update(summary)
+    companies = sorted(companies, key=lambda c: (0 if c.get('alert_count', 0) > 0 else 1, c.get('sort_order', 0)))
     return render_template("company_list.html",
                            companies=companies,
                            user_email=session.get("email", ""),
