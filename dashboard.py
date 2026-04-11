@@ -1483,28 +1483,6 @@ def admin_delete_domain_override(override_id):
     return redirect(url_for("admin_domain_overrides"))
 
 
-@app.route("/admin/domain-overrides/migrate", methods=["POST"])
-@admin_required
-def admin_migrate_domain_overrides():
-    """ハードコードされた_DOMAIN_OVERRIDESをDBに一括登録する"""
-    # _hardcoded が未設定の場合、ダミーリクエストで辞書を生成させる
-    if not getattr(api_suggest_url, '_hardcoded', None):
-        with app.test_request_context('/api/suggest_url?url=https://example.com'):
-            from flask import g
-            g._migrate_mode = True
-            session["user_id"] = session.get("user_id", 0) or 0
-            try:
-                api_suggest_url.__wrapped__()
-            except Exception:
-                pass
-    hardcoded = getattr(api_suggest_url, '_hardcoded', {})
-    count = 0
-    for domain, url in hardcoded.items():
-        db.add_domain_override(domain, url)
-        count += 1
-    flash(f"{count} 件のドメインオーバーライドをDBに登録しました", "success")
-    return redirect(url_for("admin_domain_overrides"))
-
 
 @app.route("/terms")
 def terms():
