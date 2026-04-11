@@ -673,7 +673,7 @@
       </div>
       <div class="section-desc">登録したキーワードのニュースを収集し、この企業の情報として表示・集計します。企業に紐づけないキーワードはニュースページのみに表示されます。</div>
       {% if keywords_linked %}
-      <table>
+      <table class="kw-linked-table">
         <thead><tr><th>キーワード</th><th>通知</th><th></th></tr></thead>
         <tbody>
         {% for k in keywords_linked %}
@@ -707,7 +707,7 @@
       {% set unlinked_kws = all_keywords | selectattr("company_id", "none") | list %}
       {% if unlinked_kws %}
       <div class="form-section-divider">既存キーワードから選んで紐づける</div>
-      <p class="section-desc" style="padding-bottom:6px;">他の企業で登録済みのキーワードをこの企業にも紐づけます。</p>
+      <p class="section-desc" style="padding-bottom:6px;">ニュースページで登録済みのキーワードをこの企業に紐づけます。</p>
       <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_keyword">
         <input type="hidden" name="action" value="link">
         <select name="keyword" required>
