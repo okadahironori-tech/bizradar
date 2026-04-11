@@ -521,9 +521,9 @@ function dismissAlert(btn) {
     </div>
   </section>
 
-  <!-- 前回ログイン以降の更新企業 -->
-  {% if prev_login_at %}
+  <!-- 前回確認時以降の更新企業 -->
   <section>
+  {% if prev_login_at %}
     <div class="section-title">前回確認時（{{ prev_login_at.strftime('%-m月%-d日') }}）以降の更新企業</div>
     <div class="today-companies-card">
       <div>
@@ -557,8 +557,13 @@ function dismissAlert(btn) {
       </div>
       <div class="view-all-bar"><a href="/company" class="view-all-link">一覧を見る →</a></div>
     </div>
-  </section>
+  {% else %}
+    <div class="section-title">前回確認時以降の更新企業</div>
+    <div class="today-companies-card">
+      <div style="font-size:0.88rem; color:#9ca3af; padding: 12px 0;">前回確認時のデータがありません</div>
+    </div>
   {% endif %}
+  </section>
 
   <!-- モニターサイト更新履歴（最新5件） -->
   <section>
