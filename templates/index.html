@@ -135,7 +135,7 @@
     /* サマリーカード */
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
       margin-bottom: 28px;
     }
@@ -471,11 +471,10 @@ function dismissAlert(btn) {
       <div class="summary-card-val">{{ summary_alert }}</div>
       <div class="summary-card-label">重要アラート</div>
     </div>
-    <div class="summary-card card-error">
-      <div class="summary-card-val">{{ summary_error_sites }}</div>
-      <div class="summary-card-label">取得エラーサイト</div>
-    </div>
   </div>
+  {% if is_admin and summary_error_sites > 0 %}
+  <div style="font-size:0.75rem; color:#d97706; text-align:right; margin-top:4px;">取得エラーサイト: {{ summary_error_sites }} 件</div>
+  {% endif %}
 
   <!-- 重要アラート（JS再描画） -->
   <section id="dash-alert-section" style="display:none">
