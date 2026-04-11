@@ -448,7 +448,7 @@ def check_and_notify_source_errors():
                 print(f"[check_and_notify_source_errors] 通知済み更新失敗: {e}")
 
 
-def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set = None):
+def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set = None, user_name: str = ""):
     """ダイジェストメールを送信する。
     articles_by_keyword: {keyword: [article, ...], ...}
     alert_kws: アラートキーワードの小文字セット
@@ -526,8 +526,10 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
             '</div>'
         )
 
+    salutation_name = user_name if user_name else user_email
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<p style="margin-bottom:12px">{salutation_name} 様</p>
 <h2 style="font-size:1.1em;margin-bottom:4px">BizRadar ダイジェスト</h2>
 <p style="color:#6b7280;font-size:0.85em;margin-top:0">集計日時: {now} ／ 新着記事 {total} 件</p>
 <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
@@ -581,7 +583,8 @@ def send_digest_for_user(user_id: int):
 
     if articles_by_keyword:
         alert_kws = db.get_alert_keywords_set(user_id)
-        send_digest_email(user_email, articles_by_keyword, alert_kws=alert_kws)
+        user_name = user.get("name", "") or ""
+        send_digest_email(user_email, articles_by_keyword, alert_kws=alert_kws, user_name=user_name)
 
     # 送信有無にかかわらず全未通知を通知済みにする（再送防止）
     db.mark_all_unnotified_notified(user_id)
@@ -630,6 +633,14 @@ def _article_row_html(i: int, a: dict, alert: bool) -> str:
 def send_news_email(keyword: str, articles: list, user_id: int = None):
     """新着ニュース記事をメールで通知する（HTMLメール）"""
     import html as _html
+    # ユーザー情報を取得して宛名・送信先を決定
+    user_email = ""
+    user_name = ""
+    if user_id:
+        user = db.get_user_by_id(user_id)
+        if user:
+            user_email = user.get("email", "")
+            user_name = user.get("name", "") or ""
     # タイトルで重複排除（同一タイトルは最初の1件のみ送信）
     seen_titles: set = set()
     unique_articles = []
@@ -667,8 +678,10 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
             '</div>'
         )
 
+    salutation_name = user_name if user_name else (user_email or EMAIL_SETTINGS["recipient_email"])
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<p style="margin-bottom:12px">{salutation_name} 様</p>
 <h2 style="font-size:1.1em;margin-bottom:4px">
   「{_html.escape(keyword)}」の新着記事 {len(sorted_articles)} 件
 </h2>
@@ -681,9 +694,10 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
 <p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
 </body></html>"""
 
+    recipient = user_email or EMAIL_SETTINGS["recipient_email"]
     msg = MIMEMultipart()
     msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
-    msg["To"]      = EMAIL_SETTINGS["recipient_email"]
+    msg["To"]      = recipient
     msg["Subject"] = subject
     msg.attach(MIMEText(html_body, "html", "utf-8"))
     try:
@@ -691,7 +705,7 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
             server.starttls()
             server.login(EMAIL_SETTINGS["sender_email"], EMAIL_SETTINGS["sender_password"])
             server.send_message(msg)
-        print(f"[通知] ニュースメールを送信しました → {EMAIL_SETTINGS['recipient_email']}")
+        print(f"[通知] ニュースメールを送信しました → {recipient}")
     except smtplib.SMTPException as e:
         print(f"[エラー] ニュースメール送信に失敗しました: {e}")
 
