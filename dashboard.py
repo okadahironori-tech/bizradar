@@ -152,6 +152,16 @@ def _start_digest_scheduler():
 _start_digest_scheduler()
 
 
+@app.before_request
+def track_user_activity():
+    user_id = session.get("user_id")
+    if not user_id:
+        return
+    last_active = db.get_user_last_active(user_id)
+    if last_active is None or (datetime.now(timezone.utc) - last_active).total_seconds() >= 1800:
+        db.update_last_active(user_id)
+
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -310,16 +320,13 @@ def index():
         system_errors.append(f"モニターサイトの取得エラーが {error_site_count} 件あります")
     today_companies    = len(today_company_list)
 
-    # ---- 前回ログイン以降の更新企業（今日0:00より前が対象） ----
-    from datetime import datetime, timezone, timedelta
-    jst = timezone(timedelta(hours=9))
-    today_jst_midnight = datetime.now(jst).replace(hour=0, minute=0, second=0, microsecond=0)
-    last_login_at = db.get_user_last_login(user_id)
-    if last_login_at and last_login_at < today_jst_midnight:
-        prev_login_company_list = db.load_active_companies_since(user_id, last_login_at)
+    # ---- 前回確認時以降の更新企業 ----
+    prev_active_at = db.get_user_prev_active(user_id)
+    if prev_active_at:
+        prev_login_company_list = db.load_active_companies_since(user_id, prev_active_at)
     else:
         prev_login_company_list = []
-    prev_login_at = last_login_at
+    prev_login_at = prev_active_at
 
     return render_template(
         "index.html",

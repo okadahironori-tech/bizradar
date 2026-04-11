@@ -356,6 +356,14 @@ def _run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "last_login_at TIMESTAMP WITH TIME ZONE;"
             )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "last_active_at TIMESTAMP WITH TIME ZONE;"
+            )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "prev_active_at TIMESTAMP WITH TIME ZONE;"
+            )
 
             # companies: 並び順カラム追加
             cur.execute(
@@ -447,6 +455,40 @@ def update_last_login(user_id: int):
                 "UPDATE users SET last_login_at = NOW() WHERE id = %s",
                 (user_id,)
             )
+
+
+def update_last_active(user_id: int):
+    """prev_active_at に現在の last_active_at をコピーし、last_active_at を現在時刻で更新する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET prev_active_at = last_active_at, last_active_at = NOW() WHERE id = %s",
+                (user_id,)
+            )
+
+
+def get_user_last_active(user_id: int):
+    """last_active_at を返す（datetime or None）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT last_active_at FROM users WHERE id = %s",
+                (user_id,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def get_user_prev_active(user_id: int):
+    """prev_active_at を返す（datetime or None）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT prev_active_at FROM users WHERE id = %s",
+                (user_id,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
 
 
 def update_user_password(user_id: int, new_password: str):
