@@ -991,8 +991,11 @@ def api_suggest_url():
     except Exception:
         return jsonify({"suggested": None})
 
-    # 0. ドメイン固有の特例ルール（サイトマップ検索より優先）
-    _DOMAIN_OVERRIDES = {
+    # 0. ドメイン固有の特例ルール（サイトマップ検索より優先）— DBから読み込み
+    _DOMAIN_OVERRIDES_DB = db.get_domain_overrides_dict()
+
+    # ハードコード分（DB未登録時のフォールバック／初回マイグレーション用）
+    _DOMAIN_OVERRIDES_HARDCODED = {
         "www.tohogas.co.jp":           "https://www.tohogas.co.jp/corporate-n/press/",
         "www.aisin.com":               "https://www.aisin.com/news/",
         "www.toyota-shokki.co.jp":     "https://www.toyota-shokki.co.jp/news/",
@@ -1279,6 +1282,10 @@ def api_suggest_url():
         "kk-matsuo-ss.co.jp":          "https://kk-matsuo-ss.co.jp/news/",
         "www.yamaichi-hagane.jp":      "https://www.yamaichi-hagane.jp/news/",
     }
+    # ハードコード辞書をマイグレーション用に関数属性として保存
+    api_suggest_url._hardcoded = _DOMAIN_OVERRIDES_HARDCODED
+    # DB優先、なければハードコードにフォールバック
+    _DOMAIN_OVERRIDES = {**_DOMAIN_OVERRIDES_HARDCODED, **_DOMAIN_OVERRIDES_DB}
     if parsed.netloc in _DOMAIN_OVERRIDES:
         return jsonify({"suggested": _DOMAIN_OVERRIDES[parsed.netloc]})
 
@@ -1426,6 +1433,59 @@ def admin():
     users = db.get_all_users()
     return render_template("admin.html", users=users,
                            user_email=session.get("email", ""))
+
+
+@app.route("/admin/domain-overrides")
+@admin_required
+def admin_domain_overrides():
+    overrides = db.get_all_domain_overrides()
+    return render_template("admin_domain_overrides.html",
+                           overrides=overrides,
+                           user_email=session.get("email", ""),
+                           is_admin=True)
+
+
+@app.route("/admin/domain-overrides/add", methods=["POST"])
+@admin_required
+def admin_add_domain_override():
+    domain = request.form.get("domain", "").strip().lower()
+    suggested_url = request.form.get("suggested_url", "").strip()
+    if domain and suggested_url:
+        db.add_domain_override(domain, suggested_url)
+        flash("ドメインオーバーライドを追加しました", "success")
+    else:
+        flash("ドメインと推奨URLを入力してください", "error")
+    return redirect(url_for("admin_domain_overrides"))
+
+
+@app.route("/admin/domain-overrides/delete/<int:override_id>", methods=["POST"])
+@admin_required
+def admin_delete_domain_override(override_id):
+    db.delete_domain_override(override_id)
+    flash("削除しました", "success")
+    return redirect(url_for("admin_domain_overrides"))
+
+
+@app.route("/admin/domain-overrides/migrate", methods=["POST"])
+@admin_required
+def admin_migrate_domain_overrides():
+    """ハードコードされた_DOMAIN_OVERRIDESをDBに一括登録する"""
+    hardcoded = getattr(api_suggest_url, '_hardcoded', None)
+    if not hardcoded:
+        # 関数属性が未設定の場合、一度APIを内部的に呼んで辞書を生成させる
+        with app.test_request_context('/api/suggest_url?url=https://example.com'):
+            session["user_id"] = session.get("user_id")
+            try:
+                api_suggest_url()
+            except Exception:
+                pass
+        hardcoded = getattr(api_suggest_url, '_hardcoded', {})
+    count = 0
+    for domain, url in hardcoded.items():
+        db.add_domain_override(domain, url)
+        count += 1
+    flash(f"{count} 件のドメインオーバーライドをDBに登録しました", "success")
+    return redirect(url_for("admin_domain_overrides"))
 
 
 @app.route("/terms")

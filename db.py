@@ -142,6 +142,12 @@ def init_db():
                     keyword VARCHAR(100) NOT NULL,
                     UNIQUE(user_id, keyword)
                 );
+                CREATE TABLE IF NOT EXISTS domain_overrides (
+                    id            SERIAL PRIMARY KEY,
+                    domain        TEXT NOT NULL UNIQUE,
+                    suggested_url TEXT NOT NULL,
+                    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
             """)
     _run_migrations()
 
@@ -1219,6 +1225,46 @@ def get_alert_keywords_set(user_id: int) -> set:
     """アラートキーワードを小文字セットで返す（マッチング用）"""
     rows = load_alert_keywords(user_id)
     return {r["keyword"].lower() for r in rows}
+
+
+# ============================================================
+# Domain Overrides
+# ============================================================
+
+def get_all_domain_overrides() -> list:
+    """全ドメインオーバーライドを返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT id, domain, suggested_url, created_at FROM domain_overrides ORDER BY domain")
+            return [dict(row) for row in cur.fetchall()]
+
+
+def get_domain_overrides_dict() -> dict:
+    """ドメインオーバーライドを {domain: suggested_url} の辞書で返す"""
+    rows = get_all_domain_overrides()
+    return {r["domain"]: r["suggested_url"] for r in rows}
+
+
+def add_domain_override(domain: str, suggested_url: str) -> dict:
+    """ドメインオーバーライドを追加する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO domain_overrides (domain, suggested_url) VALUES (%s, %s) "
+                "ON CONFLICT (domain) DO UPDATE SET suggested_url = EXCLUDED.suggested_url "
+                "RETURNING id",
+                (domain.strip().lower(), suggested_url.strip()),
+            )
+            row = cur.fetchone()
+            return {"id": row[0], "domain": domain.strip().lower(), "suggested_url": suggested_url.strip()}
+
+
+def delete_domain_override(override_id: int) -> bool:
+    """ドメインオーバーライドを削除する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM domain_overrides WHERE id = %s", (override_id,))
+            return cur.rowcount > 0
 
 
 # ============================================================
