@@ -158,7 +158,7 @@ def track_user_activity():
     if not user_id:
         return
     last_active = db.get_user_last_active(user_id)
-    if last_active is None or (datetime.now(timezone.utc) - last_active).total_seconds() >= 1800:
+    if last_active is None or (datetime.now(timezone.utc) - last_active).total_seconds() >= 900:
         db.update_last_active(user_id)
 
 
