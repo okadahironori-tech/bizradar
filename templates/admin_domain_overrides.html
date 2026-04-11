@@ -112,7 +112,8 @@
 
   <div class="section-title">
     ドメインオーバーライド一覧
-    <span class="count" id="filtered-count">{{ overrides | length }} 件</span>
+    <span class="count">全 {{ overrides | length }} 件</span>
+    <span class="count" id="filtered-count" style="display:none;"></span>
   </div>
 
   <div class="card">
@@ -120,8 +121,10 @@
       <input type="text" id="search-input" placeholder="企業名、ドメイン、URLで検索..." oninput="filterRows()">
     </div>
 
+    <div id="search-placeholder" class="empty-state">検索欄にキーワードを入力してください（登録: {{ overrides | length }} 件）</div>
+
     {% if overrides %}
-    <table id="overrides-table">
+    <table id="overrides-table" style="display:none;">
       <thead>
         <tr>
           <th>企業名</th>
@@ -204,16 +207,32 @@
 
 <script>
 function filterRows() {
-  var q = document.getElementById('search-input').value.toLowerCase();
+  var q = document.getElementById('search-input').value.toLowerCase().trim();
+  var table = document.getElementById('overrides-table');
+  var placeholder = document.getElementById('search-placeholder');
+  var badge = document.getElementById('filtered-count');
   var rows = document.querySelectorAll('#overrides-tbody tr');
+
+  if (!q) {
+    if (table) table.style.display = 'none';
+    if (placeholder) placeholder.style.display = '';
+    badge.style.display = 'none';
+    return;
+  }
+
   var count = 0;
   rows.forEach(function(row) {
     var text = row.getAttribute('data-search') || '';
-    var show = !q || text.indexOf(q) !== -1;
+    var show = text.indexOf(q) !== -1;
     row.style.display = show ? '' : 'none';
     if (show) count++;
   });
-  document.getElementById('filtered-count').textContent = count + ' 件';
+
+  if (table) table.style.display = count > 0 ? '' : 'none';
+  if (placeholder) placeholder.style.display = count > 0 ? 'none' : '';
+  if (count === 0 && placeholder) placeholder.textContent = '該当するレコードがありません';
+  badge.style.display = '';
+  badge.textContent = count + ' 件見つかりました';
 }
 
 function openEditModal(id, domain, url, name, kana) {
