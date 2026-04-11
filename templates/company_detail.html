@@ -1030,28 +1030,35 @@ function checkUrlHint(input, hintId) {
 }
 
 function _showUrlHint(hintId, suggested) {
-  var hintEl = document.getElementById(hintId);
-  if (!hintEl) return;
-  var msg = 'このサイトはこちらのページの登録をお勧めします：' + suggested;
   var safeHintId = hintId.replace(/'/g, "\\'");
   var safeSuggested = suggested.replace(/'/g, "\\'");
-  hintEl.innerHTML =
-    '<div style="margin-top:6px; padding:8px 12px; background:#fffbeb; border:1px solid #fcd34d;' +
-    ' border-radius:8px; font-size:0.82rem; color:#92400e; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
-    '<span>⚠️ ' + msg + '</span>' +
-    '<div style="margin-left:auto; display:flex; gap:8px; align-items:center;">' +
-    '<button type="button" onclick="document.getElementById(\'' + safeHintId + '\').innerHTML=\'\'"' +
-    ' style="background:#fff;color:#1a1a2e;border:1px solid #1a1a2e;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">' +
-    'キャンセル</button>' +
+  var overlay = document.createElement('div');
+  overlay.id = 'url-hint-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:14px;padding:24px 24px 20px;width:90%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.22);margin:16px;">' +
+    '<div style="font-size:1rem;font-weight:700;color:#1a1a2e;margin-bottom:12px;">URL提案</div>' +
+    '<p style="font-size:0.88rem;color:#4a4a6a;margin-bottom:8px;">このサイトはこちらのページの登録をお勧めします：</p>' +
+    '<p style="font-size:0.85rem;color:#3949ab;word-break:break-all;background:#f0f4ff;padding:8px 12px;border-radius:6px;margin-bottom:18px;">' + suggested + '</p>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+    '<button type="button" onclick="closeUrlHintModal()"' +
+    ' style="background:#fff;color:#1a1a2e;border:1px solid #d1d5db;border-radius:7px;padding:8px 16px;font-size:0.85rem;cursor:pointer;">キャンセル</button>' +
     '<button type="button" onclick="applyUrlHint(\'' + safeHintId + '\',\'' + safeSuggested + '\')"' +
-    ' style="background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">' +
-    'このURLに変更する</button></div></div>';
+    ' style="background:#1a1a2e;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:0.85rem;cursor:pointer;">このURLに変更する</button>' +
+    '</div></div>';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeUrlHintModal(); });
+  document.body.appendChild(overlay);
+}
+
+function closeUrlHintModal() {
+  var overlay = document.getElementById('url-hint-modal-overlay');
+  if (overlay) overlay.remove();
 }
 
 function applyUrlHint(hintId, suggested) {
   var inputs = document.querySelectorAll('[oninput*="' + hintId + '"]');
   if (inputs.length) inputs[0].value = suggested;
-  document.getElementById(hintId).innerHTML = '';
+  closeUrlHintModal();
 }
 </script>
 
