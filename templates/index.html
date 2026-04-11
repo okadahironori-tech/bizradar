@@ -135,7 +135,7 @@
     /* サマリーカード */
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
       margin-bottom: 28px;
     }
@@ -470,6 +470,10 @@ function dismissAlert(btn) {
     <div class="summary-card card-alert">
       <div class="summary-card-val">{{ summary_alert }}</div>
       <div class="summary-card-label">重要アラート</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-val" {% if prev_login_company_list | length > 0 %}style="color:#3949ab;"{% endif %}>{{ prev_login_company_list | length }}</div>
+      <div class="summary-card-label">前回確認時以降</div>
     </div>
   </div>
   {% if is_admin and summary_error_sites > 0 %}
