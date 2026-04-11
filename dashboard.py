@@ -1454,7 +1454,8 @@ def admin_add_domain_override():
     company_name_kana = request.form.get("company_name_kana", "").strip()
     if domain and suggested_url:
         db.add_domain_override(domain, suggested_url, company_name, company_name_kana)
-        flash("ドメインオーバーライドを追加しました", "success")
+        label = company_name or domain
+        flash(f"{label}を追加しました", "success")
     else:
         flash("ドメインと推奨URLを入力してください", "error")
     return redirect(url_for("admin_domain_overrides"))
