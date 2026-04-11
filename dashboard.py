@@ -1476,6 +1476,103 @@ def admin_edit_domain_override(override_id):
     return redirect(url_for("admin_domain_overrides"))
 
 
+@app.route("/admin/domain-overrides/csv-upload", methods=["POST"])
+@admin_required
+def admin_csv_upload_domain_overrides():
+    """CSVファイルからドメインオーバーライドを一括登録する"""
+    import csv
+    import io
+
+    file = request.files.get("csv_file")
+    if not file or not file.filename:
+        flash("ファイルを選択してください", "error")
+        return redirect(url_for("admin_domain_overrides"))
+
+    # ファイル読み込み（UTF-8 → Shift-JIS フォールバック）
+    raw = file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("shift_jis")
+        except UnicodeDecodeError:
+            flash("ファイルの文字コードを読み取れません（UTF-8またはShift-JISに対応）", "error")
+            return redirect(url_for("admin_domain_overrides"))
+
+    # 既存ドメインを取得（重複チェック用）
+    existing = db.get_domain_overrides_dict()
+
+    reader = csv.reader(io.StringIO(text))
+    registered = 0
+    skip_empty = 0
+    skip_domain_fmt = 0
+    skip_url_fmt = 0
+    skip_dup = 0
+
+    for i, row in enumerate(reader):
+        # ヘッダー行をスキップ（先頭行がドメインっぽくない場合）
+        if i == 0 and len(row) >= 3:
+            header_check = row[2].strip().lower()
+            if header_check in ("ドメイン", "domain", ""):
+                continue
+
+        if len(row) < 4:
+            # 3列の場合は企業名なしとして扱う
+            if len(row) == 3:
+                row = ["", ""] + row[0:1] + row[1:2]
+            elif len(row) == 2:
+                row = ["", ""] + row
+            else:
+                skip_empty += 1
+                continue
+
+        company_name = row[0].strip()
+        company_name_kana = row[1].strip()
+        domain = row[2].strip().lower()
+        suggested_url = row[3].strip()
+
+        # 企業名・ドメインが空
+        if not domain:
+            skip_empty += 1
+            continue
+
+        # ドメイン形式チェック
+        if "://" in domain or "/" in domain:
+            skip_domain_fmt += 1
+            continue
+
+        # 推奨URLチェック
+        if not suggested_url.startswith("https://"):
+            skip_url_fmt += 1
+            continue
+
+        # 重複チェック
+        if domain in existing:
+            skip_dup += 1
+            continue
+
+        db.add_domain_override(domain, suggested_url, company_name, company_name_kana)
+        existing[domain] = suggested_url
+        registered += 1
+
+    # 結果メッセージ
+    skipped = skip_empty + skip_domain_fmt + skip_url_fmt + skip_dup
+    details = []
+    if skip_empty:
+        details.append(f"空行: {skip_empty}")
+    if skip_domain_fmt:
+        details.append(f"ドメイン形式エラー: {skip_domain_fmt}")
+    if skip_url_fmt:
+        details.append(f"URL形式エラー: {skip_url_fmt}")
+    if skip_dup:
+        details.append(f"重複: {skip_dup}")
+    msg = f"{registered} 件登録"
+    if skipped:
+        msg += f"、{skipped} 件スキップ（{', '.join(details)}）"
+    flash(msg, "success" if registered > 0 else "warning")
+    return redirect(url_for("admin_domain_overrides"))
+
+
 @app.route("/admin/domain-overrides/delete/<int:override_id>", methods=["POST"])
 @admin_required
 def admin_delete_domain_override(override_id):

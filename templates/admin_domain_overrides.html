@@ -171,6 +171,15 @@
       <div class="field-error" id="add-err-url"></div>
       <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;margin-top:4px;">登録</button>
     </form>
+
+    <div style="border-top:2px solid #f0f2f5;padding:14px 16px;">
+      <div style="font-size:0.85rem;font-weight:700;color:#4a4a6a;margin-bottom:8px;">CSV一括登録</div>
+      <p style="font-size:0.78rem;color:#6b7280;margin-bottom:10px;">CSV形式: 企業名,ふりがな,ドメイン,推奨URL（ヘッダー行あり・なし両対応）</p>
+      <form method="POST" action="/admin/domain-overrides/csv-upload" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="file" name="csv_file" accept=".csv" required style="font-size:0.85rem;">
+        <button type="submit" class="btn btn-primary">アップロード</button>
+      </form>
+    </div>
   </div>
 </main>
 
