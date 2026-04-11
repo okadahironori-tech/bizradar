@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BizRadar — ドメインオーバーライド管理</title>
+  <title>BizRadar — 推奨URL設定</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
@@ -96,7 +96,7 @@
 <header>
   <a href="/" style="text-decoration:none;color:inherit;">
     <h1>BizRadar</h1>
-    <div class="subtitle">ドメインオーバーライド管理</div>
+    <div class="subtitle">推奨URL設定</div>
   </a>
 </header>
 <main>
@@ -109,11 +109,11 @@
   <nav class="breadcrumb">
     <a href="/">ホーム</a> <span>></span>
     <a href="/admin">管理者</a> <span>></span>
-    <span style="color:#1a1a2e;font-weight:500;">ドメインオーバーライド</span>
+    <span style="color:#1a1a2e;font-weight:500;">推奨URL設定</span>
   </nav>
 
   <div class="section-title">
-    ドメインオーバーライド一覧
+    推奨URL一覧
     <span class="count">全 {{ overrides | length }} 件</span>
     <span class="count" id="filtered-count" style="display:none;"></span>
   </div>
@@ -157,7 +157,7 @@
       </tbody>
     </table>
     {% else %}
-    <div class="empty-state">ドメインオーバーライドが登録されていません</div>
+    <div class="empty-state">推奨URLが登録されていません</div>
     {% endif %}
 
     <form id="add-form" method="POST" action="/admin/domain-overrides/add" style="padding:12px 16px;border-top:1px solid #f0f2f5;display:flex;flex-direction:column;gap:4px;" onsubmit="return validateForm('add')">
@@ -178,7 +178,7 @@
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEditModal()">
   <div class="modal-box" style="position:relative;">
     <button class="modal-close" onclick="closeEditModal()">x</button>
-    <div class="modal-title">ドメインオーバーライドを編集</div>
+    <div class="modal-title">推奨URLを編集</div>
     <form method="POST" id="edit-form" onsubmit="return validateForm('edit')">
       <div class="form-group">
         <label>企業名</label>
