@@ -995,6 +995,9 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
             raw_added += 1
             if len(text) < 5:
                 skip_short_a += 1; continue
+            tokens = text.replace('\u3000', ' ').split()
+            if len(tokens) >= 2 and all(len(t) <= 8 for t in tokens):
+                skip_short_a += 1; continue
             if _DIFF_DATE_RE.match(text):
                 skip_date_a += 1; continue
             if _is_nav(text):
@@ -1010,6 +1013,9 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
                 continue
             raw_removed += 1
             if len(text) < 5:
+                skip_short_r += 1; continue
+            tokens = text.replace('\u3000', ' ').split()
+            if len(tokens) >= 2 and all(len(t) <= 8 for t in tokens):
                 skip_short_r += 1; continue
             if _DIFF_DATE_RE.match(text):
                 skip_date_r += 1; continue
