@@ -319,6 +319,10 @@
         </div>
         <button class="kw-filter-toggle" id="kw-filter-toggle" onclick="toggleFilterBar()">条件を絞り込む ▼</button>
 
+        <div class="sort-controls">
+          <button id="btn-art-desc" class="btn-sort active" onclick="setArticleOrder('desc')">新着順</button>
+          <button id="btn-art-asc"  class="btn-sort"        onclick="setArticleOrder('asc')">古い順</button>
+        </div>
         <div class="sort-controls" style="justify-content:flex-end;">
           <select id="articles-count-select" class="count-select" onchange="changeArticlePageSize()">
             <option value="5" selected>5件</option>
@@ -327,10 +331,6 @@
             <option value="30">30件</option>
             <option value="50">50件</option>
           </select>
-        </div>
-        <div class="sort-controls">
-          <button id="btn-art-desc" class="btn-sort active" onclick="setArticleOrder('desc')">新着順</button>
-          <button id="btn-art-asc"  class="btn-sort"        onclick="setArticleOrder('asc')">古い順</button>
         </div>
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
