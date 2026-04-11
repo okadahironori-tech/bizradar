@@ -1450,11 +1450,28 @@ def admin_domain_overrides():
 def admin_add_domain_override():
     domain = request.form.get("domain", "").strip().lower()
     suggested_url = request.form.get("suggested_url", "").strip()
+    company_name = request.form.get("company_name", "").strip()
+    company_name_kana = request.form.get("company_name_kana", "").strip()
     if domain and suggested_url:
-        db.add_domain_override(domain, suggested_url)
+        db.add_domain_override(domain, suggested_url, company_name, company_name_kana)
         flash("ドメインオーバーライドを追加しました", "success")
     else:
         flash("ドメインと推奨URLを入力してください", "error")
+    return redirect(url_for("admin_domain_overrides"))
+
+
+@app.route("/admin/domain-overrides/edit/<int:override_id>", methods=["POST"])
+@admin_required
+def admin_edit_domain_override(override_id):
+    domain = request.form.get("domain", "").strip().lower()
+    suggested_url = request.form.get("suggested_url", "").strip()
+    company_name = request.form.get("company_name", "").strip()
+    company_name_kana = request.form.get("company_name_kana", "").strip()
+    if domain and suggested_url:
+        db.update_domain_override(override_id, domain, suggested_url, company_name, company_name_kana)
+        flash("更新しました", "success")
+    else:
+        flash("ドメインと推奨URLは必須です", "error")
     return redirect(url_for("admin_domain_overrides"))
 
 

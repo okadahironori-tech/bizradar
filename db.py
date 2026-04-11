@@ -381,6 +381,16 @@ def _run_migrations():
                 "UPDATE companies SET sort_order = id WHERE sort_order = 0;"
             )
 
+            # domain_overrides: 企業名カラム追加
+            cur.execute(
+                "ALTER TABLE domain_overrides ADD COLUMN IF NOT EXISTS "
+                "company_name TEXT NOT NULL DEFAULT '';"
+            )
+            cur.execute(
+                "ALTER TABLE domain_overrides ADD COLUMN IF NOT EXISTS "
+                "company_name_kana TEXT NOT NULL DEFAULT '';"
+            )
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -1235,7 +1245,10 @@ def get_all_domain_overrides() -> list:
     """全ドメインオーバーライドを返す"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT id, domain, suggested_url, created_at FROM domain_overrides ORDER BY domain")
+            cur.execute(
+                "SELECT id, domain, suggested_url, company_name, company_name_kana, created_at "
+                "FROM domain_overrides ORDER BY company_name_kana, domain"
+            )
             return [dict(row) for row in cur.fetchall()]
 
 
@@ -1245,18 +1258,36 @@ def get_domain_overrides_dict() -> dict:
     return {r["domain"]: r["suggested_url"] for r in rows}
 
 
-def add_domain_override(domain: str, suggested_url: str) -> dict:
+def add_domain_override(domain: str, suggested_url: str,
+                        company_name: str = "", company_name_kana: str = "") -> dict:
     """ドメインオーバーライドを追加する"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO domain_overrides (domain, suggested_url) VALUES (%s, %s) "
-                "ON CONFLICT (domain) DO UPDATE SET suggested_url = EXCLUDED.suggested_url "
+                "INSERT INTO domain_overrides (domain, suggested_url, company_name, company_name_kana) "
+                "VALUES (%s, %s, %s, %s) "
+                "ON CONFLICT (domain) DO UPDATE SET suggested_url = EXCLUDED.suggested_url, "
+                "company_name = EXCLUDED.company_name, company_name_kana = EXCLUDED.company_name_kana "
                 "RETURNING id",
-                (domain.strip().lower(), suggested_url.strip()),
+                (domain.strip().lower(), suggested_url.strip(),
+                 company_name.strip(), company_name_kana.strip()),
             )
             row = cur.fetchone()
             return {"id": row[0], "domain": domain.strip().lower(), "suggested_url": suggested_url.strip()}
+
+
+def update_domain_override(override_id: int, domain: str, suggested_url: str,
+                           company_name: str = "", company_name_kana: str = "") -> bool:
+    """ドメインオーバーライドを更新する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE domain_overrides SET domain = %s, suggested_url = %s, "
+                "company_name = %s, company_name_kana = %s WHERE id = %s",
+                (domain.strip().lower(), suggested_url.strip(),
+                 company_name.strip(), company_name_kana.strip(), override_id),
+            )
+            return cur.rowcount > 0
 
 
 def delete_domain_override(override_id: int) -> bool:

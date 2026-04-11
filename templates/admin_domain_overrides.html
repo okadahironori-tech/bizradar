@@ -10,48 +10,82 @@
     header { background: #1a1a2e; color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
     header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
     header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
-    main { max-width: 900px; margin: 32px auto; padding: 0 16px; }
+    main { max-width: 960px; margin: 32px auto; padding: 0 16px; }
     .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #6b7280; margin-bottom: 16px; }
     .breadcrumb a { color: #6b7280; text-decoration: none; }
     .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
     .section-title { font-size: 1rem; font-weight: 700; color: #4a4a6a; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
     .count { font-size: 0.78rem; font-weight: 600; color: #6b7280; background: #f3f4f6; border-radius: 10px; padding: 2px 10px; }
     .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+
+    /* 検索バー */
+    .search-bar { padding: 12px 16px; border-bottom: 1px solid #f0f2f5; }
+    .search-bar input { width: 100%; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.88rem; outline: none; }
+    .search-bar input:focus { border-color: #3949ab; }
+
+    /* テーブル */
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; font-size: 0.75rem; font-weight: 600; color: #6b7280; padding: 10px 16px; background: #f9fafb; border-bottom: 1px solid #f0f2f5; }
-    td { padding: 10px 16px; border-bottom: 1px solid #f0f2f5; font-size: 0.85rem; }
+    th { text-align: left; font-size: 0.72rem; font-weight: 600; color: #6b7280; padding: 8px 12px; background: #f9fafb; border-bottom: 1px solid #f0f2f5; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f0f2f5; font-size: 0.82rem; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     td a { color: #3949ab; text-decoration: none; word-break: break-all; }
     td a:hover { text-decoration: underline; }
-    .btn { border: none; border-radius: 7px; padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .domain-col { font-weight: 600; white-space: nowrap; }
+    .company-col { white-space: nowrap; }
+    .kana-col { font-size: 0.75rem; color: #9ca3af; }
+
+    /* ボタン */
+    .btn { border: none; border-radius: 7px; padding: 5px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
     .btn-primary { background: #1a1a2e; color: #fff; }
     .btn-primary:hover { background: #2d2d4e; }
     .btn-danger { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
     .btn-danger:hover { background: #fef2f2; }
+    .btn-edit { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
+    .btn-edit:hover { background: #c5cae9; }
     .btn-migrate { background: #f59e0b; color: #fff; border: none; }
     .btn-migrate:hover { background: #d97706; }
+    .row-actions { display: flex; gap: 4px; white-space: nowrap; }
+
+    /* 追加フォーム */
     .add-form { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #f0f2f5; flex-wrap: wrap; align-items: center; }
-    .add-form input { padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; }
+    .add-form input { padding: 7px 10px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; }
     .add-form input:focus { border-color: #3949ab; }
-    .input-domain { flex: 0 0 200px; }
-    .input-url { flex: 1; min-width: 200px; }
+
+    /* フラッシュ */
     .flash { padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 16px; }
     .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
     .flash-error { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
     .empty-state { text-align: center; color: #9ca3af; font-size: 0.88rem; padding: 28px 0; }
-    .migrate-bar { padding: 12px 16px; border-top: 1px solid #f0f2f5; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .migrate-bar { padding: 10px 16px; border-top: 1px solid #f0f2f5; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
     .migrate-bar span { font-size: 0.82rem; color: #6b7280; }
-    @media (max-width: 600px) {
+
+    /* 編集モーダル */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 14px; padding: 24px 24px 20px; width: 90%; max-width: 520px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); margin: 16px; }
+    .modal-title { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+    .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 1.3rem; color: #9ca3af; cursor: pointer; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.78rem; font-weight: 600; color: #4a4a6a; margin-bottom: 4px; }
+    .form-group input { width: 100%; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.88rem; outline: none; }
+    .form-group input:focus { border-color: #3949ab; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .btn-ghost { background: none; border: 1px solid #d1d5db; color: #6b7280; }
+    .btn-ghost:hover { border-color: #3949ab; color: #3949ab; }
+
+    @media (max-width: 768px) {
       header { padding: 12px 14px; }
       main { margin: 16px auto; }
-      .add-form { flex-direction: column; }
-      .input-domain, .input-url { flex: none; width: 100%; }
       table thead { display: none; }
       table, tbody { display: block; }
-      tr { display: block; border-bottom: 1px solid #f0f0f0; padding: 10px 0; }
-      td { display: block; border: none; padding: 4px 16px; }
-      td:first-child { font-weight: bold; font-size: 14px; }
-      td:nth-child(2) { font-size: 12px; color: #3949ab; word-break: break-all; }
+      tr { display: block; border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 10px; padding: 10px 12px; }
+      td { display: block; border: none; padding: 2px 0; }
+      td:nth-child(1)::before { content: "企業: "; color: #888; font-size: 0.75rem; }
+      td:nth-child(3)::before { content: "ドメイン: "; color: #888; font-size: 0.75rem; }
+      td:nth-child(4)::before { content: "URL: "; color: #888; font-size: 0.75rem; }
+      .add-form { flex-direction: column; }
+      .add-form input { width: 100%; }
+      input[type="text"], input[type="url"] { font-size: 16px !important; }
     }
   </style>
   <link rel="stylesheet" href="/static/base.css">
@@ -71,35 +105,47 @@
   {% endwith %}
 
   <nav class="breadcrumb">
-    <a href="/">ホーム</a> <span>›</span>
-    <a href="/admin">管理者</a> <span>›</span>
+    <a href="/">ホーム</a> <span>></span>
+    <a href="/admin">管理者</a> <span>></span>
     <span style="color:#1a1a2e;font-weight:500;">ドメインオーバーライド</span>
   </nav>
 
   <div class="section-title">
     ドメインオーバーライド一覧
-    <span class="count">{{ overrides | length }} 件</span>
+    <span class="count" id="filtered-count">{{ overrides | length }} 件</span>
   </div>
 
   <div class="card">
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="企業名、ドメイン、URLで検索..." oninput="filterRows()">
+    </div>
+
     {% if overrides %}
-    <table>
+    <table id="overrides-table">
       <thead>
         <tr>
+          <th>企業名</th>
+          <th>ふりがな</th>
           <th>ドメイン</th>
           <th>推奨URL</th>
           <th></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="overrides-tbody">
         {% for o in overrides %}
-        <tr>
-          <td>{{ o.domain }}</td>
+        <tr data-search="{{ o.company_name|lower }} {{ o.company_name_kana|lower }} {{ o.domain|lower }} {{ o.suggested_url|lower }}">
+          <td class="company-col">{{ o.company_name or '-' }}</td>
+          <td class="kana-col">{{ o.company_name_kana or '' }}</td>
+          <td class="domain-col">{{ o.domain }}</td>
           <td><a href="{{ o.suggested_url }}" target="_blank" rel="noopener">{{ o.suggested_url }}</a></td>
           <td>
-            <form method="POST" action="/admin/domain-overrides/delete/{{ o.id }}" style="display:inline;">
-              <button type="submit" class="btn btn-danger" onclick="return confirm('削除しますか？')">削除</button>
-            </form>
+            <div class="row-actions">
+              <button type="button" class="btn btn-edit"
+                onclick="openEditModal({{ o.id }}, '{{ o.domain | e }}', '{{ o.suggested_url | e }}', '{{ (o.company_name or '') | e }}', '{{ (o.company_name_kana or '') | e }}')">編集</button>
+              <form method="POST" action="/admin/domain-overrides/delete/{{ o.id }}" style="display:inline;">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('削除しますか？')">削除</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}
@@ -110,18 +156,80 @@
     {% endif %}
 
     <form class="add-form" method="POST" action="/admin/domain-overrides/add">
-      <input class="input-domain" type="text" name="domain" placeholder="ドメイン（例: www.example.co.jp）" required>
-      <input class="input-url" type="url" name="suggested_url" placeholder="推奨URL（例: https://www.example.co.jp/news/）" required>
+      <input type="text" name="company_name" placeholder="企業名" style="flex:0 0 140px;">
+      <input type="text" name="company_name_kana" placeholder="ふりがな" style="flex:0 0 140px;">
+      <input type="text" name="domain" placeholder="ドメイン" required style="flex:0 0 180px;">
+      <input type="url" name="suggested_url" placeholder="推奨URL" required style="flex:1;min-width:180px;">
       <button type="submit" class="btn btn-primary">登録</button>
     </form>
 
     <div class="migrate-bar">
-      <span>ハードコード済みのドメインオーバーライドをDBに一括登録:</span>
+      <span>ハードコード済みデータをDBに一括登録:</span>
       <form method="POST" action="/admin/domain-overrides/migrate" style="display:inline;">
         <button type="submit" class="btn btn-migrate" onclick="return confirm('ハードコード済みデータをDBに一括登録しますか？')">一括登録</button>
       </form>
     </div>
   </div>
 </main>
+
+<!-- 編集モーダル -->
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal-box" style="position:relative;">
+    <button class="modal-close" onclick="closeEditModal()">x</button>
+    <div class="modal-title">ドメインオーバーライドを編集</div>
+    <form method="POST" id="edit-form">
+      <div class="form-group">
+        <label>企業名</label>
+        <input type="text" name="company_name" id="edit-company-name">
+      </div>
+      <div class="form-group">
+        <label>ふりがな</label>
+        <input type="text" name="company_name_kana" id="edit-company-name-kana">
+      </div>
+      <div class="form-group">
+        <label>ドメイン <span style="color:#dc2626">*</span></label>
+        <input type="text" name="domain" id="edit-domain" required>
+      </div>
+      <div class="form-group">
+        <label>推奨URL <span style="color:#dc2626">*</span></label>
+        <input type="url" name="suggested_url" id="edit-url" required>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeEditModal()">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function filterRows() {
+  var q = document.getElementById('search-input').value.toLowerCase();
+  var rows = document.querySelectorAll('#overrides-tbody tr');
+  var count = 0;
+  rows.forEach(function(row) {
+    var text = row.getAttribute('data-search') || '';
+    var show = !q || text.indexOf(q) !== -1;
+    row.style.display = show ? '' : 'none';
+    if (show) count++;
+  });
+  document.getElementById('filtered-count').textContent = count + ' 件';
+}
+
+function openEditModal(id, domain, url, name, kana) {
+  document.getElementById('edit-form').action = '/admin/domain-overrides/edit/' + id;
+  document.getElementById('edit-domain').value = domain;
+  document.getElementById('edit-url').value = url;
+  document.getElementById('edit-company-name').value = name;
+  document.getElementById('edit-company-name-kana').value = kana;
+  document.getElementById('edit-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+</script>
 </body>
 </html>
