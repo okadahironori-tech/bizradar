@@ -301,6 +301,13 @@
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: ids })
+      }).then(function(r) {
+        console.log('status:', r.status);
+        return r.json();
+      }).then(function(d) {
+        console.log('response:', JSON.stringify(d));
+      }).catch(function(e) {
+        console.log('error:', e);
       });
     }
   });
