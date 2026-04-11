@@ -96,6 +96,8 @@
       cursor: grab; color: #d1d5db; font-size: 1.1rem;
       padding: 0 4px; flex-shrink: 0; user-select: none;
       display: flex; align-items: center;
+      touch-action: none;
+      -webkit-touch-callout: none;
     }
     .drag-handle:active { cursor: grabbing; }
     .sortable-ghost { opacity: 0.4; }
@@ -289,6 +291,9 @@
 (function () {
   var grid = document.querySelector('.company-grid');
   if (!grid) return;
+  document.querySelectorAll('.drag-handle').forEach(function(el) {
+    el.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+  });
   Sortable.create(grid, {
     handle: '.drag-handle',
     animation: 150,
