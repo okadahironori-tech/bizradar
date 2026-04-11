@@ -298,6 +298,7 @@
                      .map(function (el) { return parseInt(el.dataset.id, 10); });
       fetch('/companies/reorder', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: ids })
       });
