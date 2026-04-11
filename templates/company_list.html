@@ -71,6 +71,7 @@
     }
     .company-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.11); transform: translateY(-1px); }
     .company-card.has-alert { border-left-color: #dc2626; }
+    .company-card.has-unread { border-left: 4px solid #3949ab; }
     .company-avatar {
       width: 42px; height: 42px; border-radius: 10px;
       background: #e8eaf6; color: #3949ab;
@@ -210,7 +211,7 @@
     {% if companies %}
     <div class="company-grid">
       {% for c in companies %}
-      <a href="/companies/{{ c.id }}" class="company-card {% if c.alert_count > 0 %}has-alert{% endif %}" data-id="{{ c.id }}">
+      <a href="/companies/{{ c.id }}" class="company-card {% if c.alert_count > 0 %}has-alert{% elif c.unread_count > 0 %}has-unread{% endif %}" data-id="{{ c.id }}">
         <div class="drag-handle" title="ドラッグして並び替え">⠿</div>
         <div class="company-avatar">{{ c.name[0] }}</div>
         <div class="company-main">
