@@ -675,7 +675,7 @@ function dismissAlert(btn) {
   <section id="dash-news-section">
     <div class="section-title news-section-title">
       <div class="news-title-left">
-        <span>ニュース <span class="count" id="dash-news-count"></span></span>
+        <span>ニュース <span class="count" id="dash-news-count" data-server-count="{{ summary_unread }}">{{ summary_unread }} 件</span></span>
         <span class="news-hint">既読にする記事はニュースで確認できます</span>
       </div>
       <div style="display:flex; gap:4px; flex-shrink:0;">
@@ -768,6 +768,7 @@ function renderDashSections() {
   }
 
   // ── ニュース: 未読・非アラート 上位3件 ──
+  // 件数はサーバ計算値（summary_unread）を起点にクライアント既読トグル差分で補正
   const newsContainer = document.getElementById('dash-news-container');
   const newsCount     = document.getElementById('dash-news-count');
   if (newsContainer) {
@@ -776,7 +777,19 @@ function renderDashSections() {
       const da = new Date(a.published || 0), db = new Date(b.published || 0);
       return _newsOrder === 'asc' ? da - db : db - da;
     });
-    if (newsCount) newsCount.textContent = unreadNews.length + ' 件';
+    if (newsCount) {
+      const serverCount = parseInt(newsCount.dataset.serverCount || '0', 10);
+      const clientDelta = _dashArticles.reduce((acc, a) => {
+        if (a.is_alert) return acc;
+        const nowRead = !!_readState.get(a.id);
+        const initRead = !!a.is_read;
+        if (!initRead && nowRead) return acc - 1;   // 未読→既読
+        if (initRead && !nowRead) return acc + 1;   // 既読→未読
+        return acc;
+      }, 0);
+      const displayCount = Math.max(0, serverCount + clientDelta);
+      newsCount.textContent = displayCount + ' 件';
+    }
     newsContainer.innerHTML = unreadNews.length
       ? unreadNews.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR
       : '<div class="empty-state">未読記事はありません</div>' + _VIEW_ALL_BAR;
