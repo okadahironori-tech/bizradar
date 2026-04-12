@@ -222,7 +222,9 @@
     .article-alert-badge { font-size: 0.68rem; font-weight: 700; background: #dc2626; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
     .article-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
     .article-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-    .article-date { font-size: 0.72rem; color: #9ca3af; white-space: nowrap; flex-shrink: 0; }
+    .article-date { font-size: 0.72rem; color: #1a1a2e; white-space: nowrap; flex-shrink: 0; }
+    .article-date.date-uncertain { color: #bdbdbd; }
+    .article-source .article-date { font-size: inherit; }
     .article-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; text-decoration: none; display: block; line-height: 1.45; margin-bottom: 8px; }
     .article-title:hover { color: #3949ab; text-decoration: underline; }
     .article-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -539,7 +541,7 @@
               <span class="article-source">
                 {{ a.source if a.source else '' }}
                 {% if a.source %}・{% endif %}
-                <span class="article-date">{{ a.published }}</span>
+                <span class="article-date {{ 'date-uncertain' if a.published and a.published.startswith('~') else '' }}">{{ a.published.lstrip('~') if a.published else '' }}</span>
               </span>
               <div class="article-card-actions">
                 <button class="btn-check-done" onclick="markRead(this)"{% if a.is_read %} style="display:none"{% endif %}>既読にする</button>
@@ -563,7 +565,7 @@
               <div class="article-card-top-left">
                 <span class="article-source">{{ a.source if a.source else '' }}</span>
               </div>
-              <span class="article-date">{{ a.published }}</span>
+              <span class="article-date {{ 'date-uncertain' if a.published and a.published.startswith('~') else '' }}">{{ a.published.lstrip('~') if a.published else '' }}</span>
             </div>
             <a class="article-title" href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
             <div class="article-card-bottom">
