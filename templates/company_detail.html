@@ -1032,11 +1032,21 @@ function checkUrlHint(input, hintId) {
 function _showUrlHint(hintId, suggested) {
   var safeHintId = hintId.replace(/'/g, "\\'");
   var safeSuggested = suggested.replace(/'/g, "\\'");
+
+  // モーダル表示前にフォーカスを外してキーボードを閉じる（モバイル対策）
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+
   var overlay = document.createElement('div');
   overlay.id = 'url-hint-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;';
+  overlay.style.cssText =
+    'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;' +
+    'background:rgba(0,0,0,0.45);z-index:10000;' +
+    'display:flex;align-items:center;justify-content:center;' +
+    'overflow-y:auto;-webkit-overflow-scrolling:touch;';
   overlay.innerHTML =
-    '<div style="background:#fff;border-radius:14px;padding:24px 24px 20px;width:90%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.22);margin:16px;">' +
+    '<div style="background:#fff;border-radius:14px;padding:24px 24px 20px;width:90%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.22);margin:16px;max-height:90vh;overflow-y:auto;">' +
     '<div style="font-size:1rem;font-weight:700;color:#1a1a2e;margin-bottom:12px;">URL提案</div>' +
     '<p style="font-size:0.88rem;color:#4a4a6a;margin-bottom:8px;">このサイトはこちらのページの登録をお勧めします：</p>' +
     '<p style="font-size:0.85rem;color:#3949ab;word-break:break-all;background:#f0f4ff;padding:8px 12px;border-radius:6px;margin-bottom:18px;">' + suggested + '</p>' +
@@ -1048,11 +1058,14 @@ function _showUrlHint(hintId, suggested) {
     '</div></div>';
   overlay.addEventListener('click', function(e) { if (e.target === overlay) closeUrlHintModal(); });
   document.body.appendChild(overlay);
+  // 背景スクロールを抑止
+  document.body.style.overflow = 'hidden';
 }
 
 function closeUrlHintModal() {
   var overlay = document.getElementById('url-hint-modal-overlay');
   if (overlay) overlay.remove();
+  document.body.style.overflow = '';
 }
 
 function applyUrlHint(hintId, suggested) {
