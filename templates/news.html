@@ -745,7 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── キーワードテーブル ページネーション ──────────────────────────
 var _kwPage = 1;
-var _kwPageSize = 10;
+// スマホ（<=600px）では5件/ページ、PCでは10件/ページを初期値にする
+function _getDefaultKwPageSize() {
+  return (window.matchMedia && window.matchMedia('(max-width: 600px)').matches) ? 5 : 10;
+}
+var _kwPageSize = _getDefaultKwPageSize();
 
 function _renderKwTable() {
   var tbody = document.getElementById('kw-tbody');
