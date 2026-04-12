@@ -300,8 +300,10 @@ def index():
         a["published"] = a.get("published", "")
 
     # ---- サマリー集計 ---- (300件の表示制限に影響されないようDBから直接カウント)
-    unread_count       = db.count_unread_articles(user_id)
+    # 重要アラートと通常未読を独立してカウント（未読記事からアラート該当分は除外）
+    total_unread       = db.count_unread_articles(user_id)
     alert_count        = db.count_unread_alert_articles(user_id, alert_kws_set)
+    unread_count       = max(0, total_unread - alert_count)
     error_site_count   = sum(1 for s in sites if s["status"] == "error")
     today_company_list = db.load_active_companies_today(user_id)
 
