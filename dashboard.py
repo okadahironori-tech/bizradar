@@ -72,17 +72,17 @@ def _extract_domain(url: str) -> str:
 
 def _deduplicate_articles(articles, threshold=0.80):
     """同一キーワード内でタイトル類似度が threshold 以上の記事を重複排除する。
-    最も古い記事を残し、同日付の場合はソース名に Yahoo を含むものを優先する。"""
+    Yahoo!ニュースを最優先で残し、次点で古い記事を残す。"""
     from collections import defaultdict
 
     def _sim(a, b):
         return difflib.SequenceMatcher(None, a, b).ratio()
 
     def _sort_key(art):
-        published = art.get("published", "") or ""
-        # Yahoo含むソースを優先（0）、それ以外（1）
+        # Yahoo含むソースを最優先（0）、それ以外（1）
         is_yahoo = 0 if "yahoo" in (art.get("source", "") or "").lower() else 1
-        return (published, is_yahoo)
+        published = art.get("published", "") or ""
+        return (is_yahoo, published)
 
     by_kw = defaultdict(list)
     for idx, art in enumerate(articles):
@@ -284,6 +284,8 @@ def index():
 
     articles_data = db.load_articles_data(user_id)
     all_articles  = articles_data.get("articles", [])
+    # 重複排除（同一キーワード内でタイトル類似度が高い記事はYahoo優先で1件に集約）
+    all_articles  = _deduplicate_articles(all_articles)
     articles      = all_articles[:300]
     keyword_counts = {}
     for a in all_articles:
