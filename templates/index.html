@@ -601,7 +601,7 @@ function dismissAlert(btn) {
   {% endif %}
   </section>
 
-  <!-- モニターサイト更新履歴（最新5件） -->
+  <!-- モニターサイト更新履歴（最新3件） -->
   <section>
     {% set hist_ns = namespace(shown=0) %}
     {% set hist_events = [] %}
@@ -616,7 +616,7 @@ function dismissAlert(btn) {
           {% set ns.count = ns.count + 1 %}
         {% endif %}
       {% endfor %}
-      {% if ns.count > 0 and hist_ns.shown < 5 %}
+      {% if ns.count > 0 and hist_ns.shown < 3 %}
         {% if hist_events.append(event) %}{% endif %}
         {% set hist_ns.shown = hist_ns.shown + 1 %}
       {% endif %}
@@ -754,7 +754,7 @@ function renderDashSections() {
     alertContainer.innerHTML = unreadAlerts.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR;
   }
 
-  // ── ニュース: 未読・非アラート 上位5件 ──
+  // ── ニュース: 未読・非アラート 上位3件 ──
   const newsContainer = document.getElementById('dash-news-container');
   const newsCount     = document.getElementById('dash-news-count');
   if (newsContainer) {
@@ -765,7 +765,7 @@ function renderDashSections() {
     });
     if (newsCount) newsCount.textContent = unreadNews.length + ' 件';
     newsContainer.innerHTML = unreadNews.length
-      ? unreadNews.slice(0, 5).map(_articleItemHtml).join('') + _VIEW_ALL_BAR
+      ? unreadNews.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR
       : '<div class="empty-state">未読記事はありません</div>' + _VIEW_ALL_BAR;
   }
 }
