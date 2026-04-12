@@ -9,6 +9,7 @@ from urllib.parse import urlparse as _urlparse
 import os
 import re
 import sys
+import unicodedata
 import threading
 import time
 from datetime import datetime, timezone, timedelta
@@ -70,9 +71,54 @@ def _extract_domain(url: str) -> str:
         return ""
 
 
+def _normalize_title_for_dedup(title: str) -> str:
+    """重複判定専用のタイトル正規化（DB保存や表示には一切影響しない）。
+
+    手順:
+      1) NFKC 正規化で全角英数字・記号を半角に統一
+         （｜→|, （）→(), ＝→=, 全角英数字→半角英数字 など）
+      2) 末尾・冒頭にある媒体名マーカーを除去（最大3回ループで入れ子にも対応）
+         - 冒頭/末尾: 【媒体名】
+         - 末尾のみ: (媒体名) / |媒体名 / =媒体名 / "- 媒体名"（スペース必須）
+      3) 前後空白の除去
+      4) 小文字化
+
+    安全策: 正規化後の文字列が2文字以下になる場合は、元タイトルを
+    小文字化して返す（誤って無関係な記事を束ねないため）。
+    """
+    if not title:
+        return ""
+    # 1) NFKC 正規化（全角→半角などを統一）
+    s = unicodedata.normalize("NFKC", title)
+    # 2) 媒体名マーカーを最大3回まで繰り返し除去
+    for _ in range(3):
+        prev = s
+        # 冒頭: 【媒体名】
+        s = re.sub(r'^\s*【[^】]{1,30}】\s*', '', s)
+        # 末尾: 【媒体名】
+        s = re.sub(r'\s*【[^】]{1,30}】\s*$', '', s)
+        # 末尾: (媒体名)
+        s = re.sub(r'\s*\([^)]{1,30}\)\s*$', '', s)
+        # 末尾: |媒体名 / | 媒体名
+        s = re.sub(r'\s*\|\s*[^|]+$', '', s)
+        # 末尾: =媒体名
+        s = re.sub(r'\s*=\s*[^=]+$', '', s)
+        # 末尾: "- 媒体名"（スペース必須、日付の "2024-12-15" と区別）
+        s = re.sub(r'\s+-\s+[^-]+$', '', s)
+        if s == prev:
+            break
+    # 3) 前後空白除去 4) 小文字化
+    s = s.strip().lower()
+    # 安全策: 2文字以下になった場合は元タイトルを使う
+    if len(s) <= 2:
+        return title.strip().lower()
+    return s
+
+
 def _deduplicate_articles(articles, threshold=0.80):
     """同一キーワード内でタイトル類似度が threshold 以上の記事を重複排除する。
-    Yahoo!ニュースを最優先で残し、次点で古い記事を残す。"""
+    Yahoo!ニュースを最優先で残し、次点で古い記事を残す。
+    比較には媒体名を除去した正規化タイトルを使う（_normalize_title_for_dedup）。"""
     from collections import defaultdict
 
     def _sim(a, b):
@@ -91,16 +137,21 @@ def _deduplicate_articles(articles, threshold=0.80):
     keep = set()
     for kw, indices in by_kw.items():
         group = sorted([(idx, articles[idx]) for idx in indices], key=lambda x: _sort_key(x[1]))
+        # グループ内で正規化タイトルを事前計算（N² 比較中の再計算を回避）
+        normalized = {
+            idx: _normalize_title_for_dedup(art.get("title", "") or "")
+            for idx, art in group
+        }
         removed = set()
         for i, (idx_a, art_a) in enumerate(group):
             if idx_a in removed:
                 continue
             keep.add(idx_a)
-            title_a = art_a.get("title", "") or ""
+            title_a = normalized[idx_a]
             for idx_b, art_b in group[i + 1:]:
                 if idx_b in removed or idx_b in keep:
                     continue
-                title_b = art_b.get("title", "") or ""
+                title_b = normalized[idx_b]
                 if _sim(title_a, title_b) >= threshold:
                     removed.add(idx_b)
 
