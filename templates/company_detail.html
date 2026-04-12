@@ -518,6 +518,11 @@
             <div class="article-card-top">
               <div class="article-card-top-left">
                 <span class="article-alert-badge">重要</span>
+                {% if a.alert_matches %}
+                  {% for mkw in a.alert_matches %}
+                  <span style="font-size:0.7rem; background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; white-space:nowrap;">重要KW: {{ mkw }}</span>
+                  {% endfor %}
+                {% endif %}
                 <span class="article-source">{{ a.source if a.source else '' }}</span>
               </div>
               <span class="article-date">{{ a.published }}</span>

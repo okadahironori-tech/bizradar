@@ -294,9 +294,13 @@ def index():
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
 
     # 記事に重要フラグ付与・published をJSTに変換
+    # alert_kw_map: 小文字→元の表記 の対応
+    alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
     for a in articles:
         title_lower = a.get("title", "").lower()
-        a["is_alert"] = any(kw in title_lower for kw in alert_kws_set)
+        matched = [alert_kw_map[kw] for kw in alert_kws_set if kw in title_lower]
+        a["is_alert"] = bool(matched)
+        a["alert_matches"] = matched
         a["published"] = a.get("published", "")
 
     # ---- サマリー集計 ---- (300件の表示制限に影響されないようDBから直接カウント)
@@ -1393,9 +1397,13 @@ def news():
     all_articles = articles_data.get("articles", [])[:300]
     alert_kw_entries = db.load_alert_keywords(user_id)
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
+    alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
     exclude_kw_entries = db.get_exclude_keywords(user_id)
     for a in all_articles:
-        a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws_set)
+        title_lower = a.get("title", "").lower()
+        matched = [alert_kw_map[kw] for kw in alert_kws_set if kw in title_lower]
+        a["is_alert"] = bool(matched)
+        a["alert_matches"] = matched
         a["published"] = a.get("published", "")
     all_articles = _deduplicate_articles(all_articles)
     keyword_counts = {}
@@ -1840,6 +1848,8 @@ def company_detail(company_id):
             return redirect(url_for("management", _anchor="keywords-section"))
 
         alert_kws = db.get_alert_keywords_set(user_id)
+        alert_kw_entries = db.load_alert_keywords(user_id)
+        alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
 
         sites_linked    = db.load_company_sites(user_id, company_id)
         keywords_linked = db.load_company_keywords(user_id, company_id)
@@ -1848,7 +1858,10 @@ def company_detail(company_id):
 
         # 記事に重要フラグ付与
         for a in articles:
-            a["is_alert"] = any(kw in a.get("title", "").lower() for kw in alert_kws)
+            title_lower = a.get("title", "").lower()
+            matched = [alert_kw_map[kw] for kw in alert_kws if kw in title_lower]
+            a["is_alert"] = bool(matched)
+            a["alert_matches"] = matched
             a["published"] = a.get("published", "")
 
         # 重複記事除去

@@ -701,10 +701,13 @@ function _articleItemHtml(article) {
     : `<span class="article-kw">${_esc(article.keyword)}</span>`;
   const alertBadge = article.is_alert ? '<span class="article-alert-badge">重要</span>' : '';
   const alertClass = article.is_alert ? ' article-alert' : '';
+  const alertKwHtml = (article.alert_matches || [])
+    .map(kw => `<span class="article-alert-kw" style="font-size:0.7rem;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;white-space:nowrap;">重要KW: ${_esc(kw)}</span>`)
+    .join('');
   const parts = [article.source, article.published].filter(Boolean);
   const meta = parts.length ? `<div class="article-meta">${_esc(parts.join(' · '))}</div>` : '';
   return `<div class="article-item${alertClass}" data-article-id="${article.id}">
-    ${alertBadge}${kwHtml}
+    ${alertBadge}${kwHtml}${alertKwHtml}
     <div class="article-body">
       <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
       ${meta}
