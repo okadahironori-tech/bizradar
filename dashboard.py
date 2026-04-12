@@ -328,8 +328,11 @@ def index():
         prev_login_company_list = []
     prev_login_at = prev_active_at
 
+    total_companies = len(db.load_companies(user_id))
+
     return render_template(
         "index.html",
+        total_companies=total_companies,
         sites=sites,
         change_history=change_history,
         now=_now_jst_str(),
