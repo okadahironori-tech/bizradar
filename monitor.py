@@ -792,12 +792,29 @@ def check_all_keywords():
                 google_articles = fetch_news_articles(keyword)
                 db.update_source_health("google_news", True)
             except Exception as e:
-                print(f"  [エラー] Google News 取得失敗: {e}")
+                import traceback
+                print(f"  [エラー] Google News 取得失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                print(f"  [トレース] {traceback.format_exc()}")
                 db.update_source_health("google_news", False, str(e))
                 db.fail_running_task("keyword_check", keyword, str(e))
                 continue
-            yahoo_articles = fetch_bing_news_articles(keyword)
-            prtimes_articles = fetch_prtimes_articles(keyword)
+
+            try:
+                yahoo_articles = fetch_bing_news_articles(keyword)
+            except Exception as e:
+                import traceback
+                print(f"  [エラー] Yahoo/Bing News 取得失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                print(f"  [トレース] {traceback.format_exc()}")
+                yahoo_articles = []
+
+            try:
+                prtimes_articles = fetch_prtimes_articles(keyword)
+            except Exception as e:
+                import traceback
+                print(f"  [エラー] PR TIMES 取得失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                print(f"  [トレース] {traceback.format_exc()}")
+                prtimes_articles = []
+
             articles = google_articles + yahoo_articles + prtimes_articles
 
             now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
@@ -817,15 +834,27 @@ def check_all_keywords():
 
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
-                db.insert_articles(new_articles, user_id)
+                try:
+                    db.insert_articles(new_articles, user_id)
+                except Exception as e:
+                    import traceback
+                    print(f"  [エラー] DB保存失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                    print(f"  [トレース] {traceback.format_exc()}")
+                    db.remove_running_task("keyword_check", keyword)
+                    continue
                 # 通知設定はDBから直接確認する（キャッシュ値に頼らない）
                 notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
                 print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
                 if notify_ok:
                     timing = db.get_user_notify_timing(user_id)
                     if timing == "immediate":
-                        send_news_email(keyword, new_articles, user_id=user_id)
-                        db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+                        try:
+                            send_news_email(keyword, new_articles, user_id=user_id)
+                            db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+                        except Exception as e:
+                            import traceback
+                            print(f"  [エラー] メール送信失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                            print(f"  [トレース] {traceback.format_exc()}")
                     else:
                         print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
                 else:
