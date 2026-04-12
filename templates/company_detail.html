@@ -409,6 +409,13 @@
         width: 100%;
       }
     }
+    /* PC表示時: キーワードバッジは改行して2行目に表示 */
+    @media (min-width: 641px) {
+      .article-card-top-left .article-alert-kw {
+        flex-basis: 100%;
+        margin-top: 4px;
+      }
+    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -520,7 +527,7 @@
                 <span class="article-alert-badge">重要</span>
                 {% if a.alert_matches %}
                   {% for mkw in a.alert_matches %}
-                  <span style="font-size:0.7rem; background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; white-space:nowrap;">重要KW: {{ mkw }}</span>
+                  <span class="article-alert-kw" style="font-size:0.7rem; background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; white-space:nowrap;">キーワード: {{ mkw }}</span>
                   {% endfor %}
                 {% endif %}
                 <span class="article-source">{{ a.source if a.source else '' }}</span>
