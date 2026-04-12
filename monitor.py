@@ -1212,7 +1212,8 @@ def main():
 
     while True:
         check_all_sites()
-        check_all_keywords()
+        # キーワードチェックは Render Cron Job (scripts/run_keyword_check.py) に移管
+        # check_all_keywords()
         config   = db.load_config()
         interval = config.get("check_interval_seconds", DEFAULT_CHECK_INTERVAL)
         print(f"[待機中] 次回チェックまで {interval // 60} 分待機します...")
