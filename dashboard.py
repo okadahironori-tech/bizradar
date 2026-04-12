@@ -158,8 +158,27 @@ def _deduplicate_articles(articles, threshold=0.80):
     return [art for idx, art in enumerate(articles) if idx in keep]
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+
+# SECRET_KEY は必須。未設定なら起動失敗させる（デフォルト値フォールバック廃止）
+_secret = os.environ.get("SECRET_KEY", "").strip()
+if not _secret:
+    raise RuntimeError(
+        "SECRET_KEY 環境変数が設定されていません。"
+        "Render のダッシュボード → Service → Environment から SECRET_KEY を設定してください。"
+    )
+app.secret_key = _secret
+
+# セッションCookie のセキュリティ属性
+# - SECURE: Render (HTTPS) では True、ローカル HTTP では False に自動切替
+# - HTTPONLY: JS からのアクセスを禁止
+# - SAMESITE: Lax でCSRF耐性を向上（通常のリンク遷移は許可、クロスサイトPOSTはブロック）
+_is_prod = bool(os.environ.get("RENDER"))
+app.config.update(
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+    SESSION_COOKIE_SECURE=_is_prod,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
 
 # DB 初期化（テーブル作成 + マイグレーション）
 # Render 新インスタンス起動直後の一時的な接続失敗に備えてリトライする。
@@ -2048,5 +2067,7 @@ if os.environ.get("RENDER"):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    print(f"ダッシュボード起動: http://localhost:{port}")
-    app.run(debug=True, host="0.0.0.0", port=port, threaded=True)
+    # デバッグモードは環境変数 DEBUG=true/1/yes のときのみ有効。デフォルトは本番想定で無効。
+    debug_mode = os.environ.get("DEBUG", "").strip().lower() in ("true", "1", "yes")
+    print(f"ダッシュボード起動: http://localhost:{port} (debug={debug_mode})")
+    app.run(debug=debug_mode, host="0.0.0.0", port=port, threaded=True)
