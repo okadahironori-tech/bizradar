@@ -119,6 +119,35 @@ def _resolve_google_news_url(url: str) -> str:
     return url
 
 
+def _try_parse_uncertain_published(published: str) -> str:
+    """'~' 始まりの不確実 published 文字列を RFC822/2822 としてパース試行する。
+    成功した場合は 'YYYY-MM-DD HH:MM' (JST) に整形し、'~' を除去して返す。
+    失敗した場合は元の文字列をそのまま返す（'~' 付きのまま）。
+
+    例:
+      '~Mon, 01 Jan 2024 12:00:00 GMT' → '2024-01-01 21:00'
+      '~Fri, 12 Apr 2024 10:30:00 +0900' → '2024-04-12 10:30'
+      '~2024-04-12T10:30' → '~2024-04-12T10:30' （RFC822 でないのでそのまま）
+    """
+    if not published or not published.startswith("~"):
+        return published
+    raw = published.lstrip("~").strip()
+    if not raw:
+        return published
+    try:
+        from email.utils import parsedate_to_datetime
+        dt = parsedate_to_datetime(raw)
+        if dt is None:
+            return published
+        # タイムゾーン不明の場合は UTC とみなす（RFC822 は UT/GMT を想定しているため安全側）
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        jst_dt = dt.astimezone(JST)
+        return jst_dt.strftime("%Y-%m-%d %H:%M")
+    except (TypeError, ValueError, OverflowError):
+        return published
+
+
 def _fetch_article_published_date(url: str) -> str:
     """記事ページから実際の発行日時を取得する。取得できなければ空文字を返す。"""
     if "news.google.com" in url:
@@ -222,6 +251,8 @@ def fetch_news_articles(keyword: str) -> list:
                     published = _sanitize_text("~" + fetched[:16])
             except Exception:
                 pass
+        # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
+        published = _try_parse_uncertain_published(published)
         articles.append({
             "keyword":   keyword,
             "title":     title,
@@ -293,6 +324,8 @@ def fetch_bing_news_articles(keyword: str) -> list:
                     published = "~" + fetched_date[:16]
             except Exception:
                 pass
+        # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
+        published = _try_parse_uncertain_published(published)
         if title and url:
             articles.append({
                 "keyword":   keyword,
@@ -359,6 +392,8 @@ def fetch_prtimes_articles(keyword: str) -> list:
                     published = "~" + fetched_date[:16]
             except Exception:
                 pass
+        # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
+        published = _try_parse_uncertain_published(published)
         if title and url:
             articles.append({
                 "keyword":   keyword,
