@@ -418,15 +418,36 @@
       padding: 2px 7px;
       white-space: nowrap;
     }
-    /* PC: 2行目に改行＋背景最小限＋コンパクト */
+    /* PC: 重要アラート記事は2カラムレイアウト */
     @media (min-width: 641px) {
-      .article-card-top-left .article-alert-kw {
-        flex-basis: 100%;
-        margin-top: 2px;
+      .article-item.is-alert {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        column-gap: 14px;
+        align-items: start;
+      }
+      .article-item.is-alert .article-card-top { display: contents; }
+      .article-item.is-alert .article-card-top-left {
+        grid-column: 1;
+        grid-row: 1 / span 3;
+        display: block;
+      }
+      .article-item.is-alert .article-card-top-left > .article-alert-badge,
+      .article-item.is-alert .article-card-top-left > .article-source {
+        display: inline-flex;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      .article-item.is-alert .article-card-top-left > .article-alert-kw {
+        display: block;
+        margin-top: 4px;
         padding: 0;
         background: transparent;
         align-self: flex-start;
       }
+      .article-item.is-alert .article-date { grid-column: 2; grid-row: 1; justify-self: end; }
+      .article-item.is-alert .article-title { grid-column: 2; grid-row: 2; margin-top: 2px; }
+      .article-item.is-alert .article-card-bottom { grid-column: 2; grid-row: 3; }
     }
   </style>
   <link rel="stylesheet" href="/static/base.css">
