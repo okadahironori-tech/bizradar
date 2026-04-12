@@ -381,6 +381,18 @@
       padding: 2px 7px;
       white-space: nowrap;
     }
+    /* 重要アラート記事: badges行を上に、タイトル以降を下にする2段構成 */
+    .article-item.article-alert {
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .article-item.article-alert .article-badges-row {
+      flex: 0 0 100%;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -715,8 +727,11 @@ function _articleItemHtml(article) {
     .join('');
   const parts = [article.source, article.published].filter(Boolean);
   const meta = parts.length ? `<div class="article-meta">${_esc(parts.join(' · '))}</div>` : '';
+  const leftCol = article.is_alert
+    ? `<div class="article-badges-row">${alertBadge}${kwHtml}${alertKwHtml}</div>`
+    : `${alertBadge}${kwHtml}`;
   return `<div class="article-item${alertClass}" data-article-id="${article.id}">
-    ${alertBadge}${kwHtml}${alertKwHtml}
+    ${leftCol}
     <div class="article-body">
       <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
       ${meta}

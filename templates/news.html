@@ -356,13 +356,15 @@
                   {% endfor %}
                 {% endif %}
               </div>
-              <span class="article-date {{ 'date-uncertain' if article.published.startswith('~') else '' }}">{{ article.published.lstrip('~') }}</span>
             </div>
-            <!-- 中段：記事タイトル -->
+            <!-- 2行目：タイトル + メタ + ボタン -->
             <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
-            <!-- 下段：ソース名（左）＋ボタン（右） -->
             <div class="article-card-bottom">
-              <span class="article-source">{{ article.source if article.source else '' }}</span>
+              <span class="article-source">
+                {{ article.source if article.source else '' }}
+                {% if article.source %}・{% endif %}
+                <span class="article-date {{ 'date-uncertain' if article.published.startswith('~') else '' }}">{{ article.published.lstrip('~') }}</span>
+              </span>
               <div class="article-card-actions">
                 <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
                 <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>既読にする</button>

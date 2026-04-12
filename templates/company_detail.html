@@ -532,13 +532,15 @@
                   <span class="article-alert-kw">キーワード: {{ mkw }}</span>
                   {% endfor %}
                 {% endif %}
-                <span class="article-source">{{ a.source if a.source else '' }}</span>
               </div>
-              <span class="article-date">{{ a.published }}</span>
             </div>
             <a class="article-title" href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
             <div class="article-card-bottom">
-              <span></span>
+              <span class="article-source">
+                {{ a.source if a.source else '' }}
+                {% if a.source %}・{% endif %}
+                <span class="article-date">{{ a.published }}</span>
+              </span>
               <div class="article-card-actions">
                 <button class="btn-check-done" onclick="markRead(this)"{% if a.is_read %} style="display:none"{% endif %}>既読にする</button>
                 <button class="btn-unread" onclick="markUnread(this)"{% if not a.is_read %} style="display:none"{% endif %}>未読に戻す</button>
