@@ -299,9 +299,9 @@ def index():
         a["is_alert"] = any(kw in title_lower for kw in alert_kws_set)
         a["published"] = a.get("published", "")
 
-    # ---- サマリー集計 ----
-    unread_count       = sum(1 for a in articles if not a.get("is_read"))
-    alert_count        = sum(1 for a in articles if a.get("is_alert") and not a.get("is_read"))
+    # ---- サマリー集計 ---- (300件の表示制限に影響されないようDBから直接カウント)
+    unread_count       = db.count_unread_articles(user_id)
+    alert_count        = db.count_unread_alert_articles(user_id, alert_kws_set)
     error_site_count   = sum(1 for s in sites if s["status"] == "error")
     today_company_list = db.load_active_companies_today(user_id)
 
