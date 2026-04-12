@@ -381,36 +381,6 @@
       padding: 2px 7px;
       white-space: nowrap;
     }
-    /* モバイル: 左カラムラッパーは透過（インライン扱い） */
-    .article-left-col { display: contents; }
-    /* PC: 重要アラート記事は2カラムレイアウト */
-    @media (min-width: 601px) {
-      .article-item.article-alert {
-        display: grid;
-        grid-template-columns: 160px 1fr auto;
-        column-gap: 14px;
-        align-items: start;
-      }
-      .article-item.article-alert .article-left-col {
-        display: block;
-        grid-column: 1;
-        grid-row: 1 / -1;
-      }
-      .article-item.article-alert .article-left-col > .article-alert-badge,
-      .article-item.article-alert .article-left-col > .article-kw {
-        display: inline-flex;
-        vertical-align: middle;
-        margin-right: 4px;
-      }
-      .article-item.article-alert .article-left-col > .article-alert-kw {
-        display: block;
-        margin-top: 4px;
-        padding: 0;
-        background: transparent;
-      }
-      .article-item.article-alert .article-body { grid-column: 2; }
-      .article-item.article-alert .btn-check-done { grid-column: 3; align-self: center; }
-    }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -745,11 +715,8 @@ function _articleItemHtml(article) {
     .join('');
   const parts = [article.source, article.published].filter(Boolean);
   const meta = parts.length ? `<div class="article-meta">${_esc(parts.join(' · '))}</div>` : '';
-  const leftCol = article.is_alert
-    ? `<div class="article-left-col">${alertBadge}${kwHtml}${alertKwHtml}</div>`
-    : `${alertBadge}${kwHtml}`;
   return `<div class="article-item${alertClass}" data-article-id="${article.id}">
-    ${leftCol}
+    ${alertBadge}${kwHtml}${alertKwHtml}
     <div class="article-body">
       <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
       ${meta}
