@@ -997,6 +997,22 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
             )
 
 
+def delete_old_articles(days: int = 90) -> int:
+    """found_at が指定日数より古い記事を articles テーブルから削除する。
+    返り値: 削除件数。found_at が空文字のレコードは削除対象外。
+    注: change_history など他テーブルは一切影響を受けない。"""
+    from datetime import datetime, timedelta, timezone
+    jst = timezone(timedelta(hours=9))
+    cutoff = (datetime.now(jst) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM articles WHERE found_at != '' AND found_at < %s",
+                (cutoff,),
+            )
+            return cur.rowcount
+
+
 def mark_article_read(user_id: int, article_id: int) -> bool:
     """記事を既読にする（同一URLの全行を更新）"""
     with _conn() as conn:
