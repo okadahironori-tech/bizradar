@@ -28,12 +28,12 @@
     .login-wrap {
       width: 100%;
       max-width: 400px;
-      padding: 0 16px;
+      padding: 24px 16px;
     }
 
     .login-header {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 20px;
     }
     .login-header h1 {
       font-size: 1.8rem;
@@ -45,6 +45,56 @@
       font-size: 0.82rem;
       color: #8892b0;
       margin-top: 4px;
+    }
+
+    .service-intro {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+      padding: 20px 22px;
+      margin-bottom: 20px;
+    }
+    .service-intro .lead {
+      font-size: 0.88rem;
+      color: #4a4a6a;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .feature-list li {
+      position: relative;
+      padding-left: 22px;
+      font-size: 0.82rem;
+      color: #1a1a2e;
+      line-height: 1.5;
+    }
+    .feature-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 7px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #3949ab;
+    }
+    .feature-list li::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 10px;
+      width: 6px;
+      height: 3px;
+      border-left: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      transform: rotate(-45deg);
     }
 
     .card {
@@ -110,6 +160,14 @@
     <div class="login-header">
       <h1>BizRadar</h1>
       <p>企業情報モニタリングサービス</p>
+    </div>
+    <div class="service-intro">
+      <p class="lead">競合・取引先の動きを自動でキャッチする、中小企業向けの情報モニタリングサービスです。</p>
+      <ul class="feature-list">
+        <li>競合や取引先のウェブサイトに変更があったときに通知</li>
+        <li>キーワードに関連するニュースが出たときにアラート</li>
+        <li>ダッシュボードで一覧確認、メールでも通知</li>
+      </ul>
     </div>
     <div class="card">
       {% if error %}
