@@ -1412,8 +1412,8 @@ def news():
     deduped_articles = _deduplicate_articles(raw_articles)
     # サマリー件数（サーバ側で確定、表示スライスに影響されない）
     alert_count = sum(1 for a in deduped_articles if a.get("is_alert") and not a.get("is_read"))
-    # 表示用に先頭300件に絞る
-    all_articles = deduped_articles[:300]
+    # 300件の表示上限を撤廃（DBのLIMIT 3000 はそのまま）
+    all_articles = deduped_articles
     keyword_counts = {}
     for a in articles_data.get("articles", []):
         kw = a.get("keyword", "")
