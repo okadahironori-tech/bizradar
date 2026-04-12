@@ -907,7 +907,9 @@ def load_article_seen_titles(user_id: int) -> set:
 
 
 def count_unread_articles(user_id: int) -> int:
-    """ユーザーの未読記事数をDBから直接カウントする（上限なし）"""
+    """ユーザーの未読記事数をDBから直接カウントする（上限なし）。
+    注意: 重複排除（_deduplicate_articles）は反映されない。UI向けには
+    重複排除済みリストからカウントすること。"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -918,7 +920,8 @@ def count_unread_articles(user_id: int) -> int:
 
 
 def count_unread_alert_articles(user_id: int, alert_kws: set) -> int:
-    """ユーザーの未読かつ重要アラートキーワードを含む記事数をDBから直接カウントする"""
+    """ユーザーの未読かつ重要アラートキーワードを含む記事数をDBから直接カウントする。
+    注意: 重複排除（_deduplicate_articles）は反映されない。"""
     if not alert_kws:
         return 0
     with _conn() as conn:

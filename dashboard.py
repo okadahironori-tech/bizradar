@@ -298,17 +298,18 @@ def index():
     # 記事に重要フラグ付与・published をJSTに変換
     # alert_kw_map: 小文字→元の表記 の対応
     alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
-    for a in articles:
+    # まず重複排除済みの all_articles 全体にアラートフラグを付与（サマリー集計用）
+    for a in all_articles:
         title_lower = a.get("title", "").lower()
         matched = [alert_kw_map[kw] for kw in alert_kws_set if kw in title_lower]
         a["is_alert"] = bool(matched)
         a["alert_matches"] = matched
         a["published"] = a.get("published", "")
 
-    # ---- サマリー集計 ---- (300件の表示制限に影響されないようDBから直接カウント)
+    # ---- サマリー集計 ---- 重複排除後の all_articles をカウント
     # 重要アラートと通常未読を独立してカウント（未読記事からアラート該当分は除外）
-    total_unread       = db.count_unread_articles(user_id)
-    alert_count        = db.count_unread_alert_articles(user_id, alert_kws_set)
+    total_unread       = sum(1 for a in all_articles if not a.get("is_read"))
+    alert_count        = sum(1 for a in all_articles if a.get("is_alert") and not a.get("is_read"))
     unread_count       = max(0, total_unread - alert_count)
     error_site_count   = sum(1 for s in sites if s["status"] == "error")
     today_company_list = db.load_active_companies_today(user_id)
