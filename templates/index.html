@@ -372,12 +372,24 @@
 
       .news-section-heading-link { display: none; }
     }
-    /* PC表示時: キーワードバッジは改行して2行目に表示 */
+    /* 重要キーワードバッジ */
+    .article-alert-kw {
+      font-size: 0.7rem;
+      color: #991b1b;
+      background: #fee2e2;
+      border-radius: 4px;
+      padding: 2px 7px;
+      white-space: nowrap;
+    }
+    /* PC: 2行目に改行＋背景最小限＋コンパクト */
     @media (min-width: 601px) {
       .article-item { flex-wrap: wrap; }
       .article-item .article-alert-kw {
         flex-basis: 100%;
-        margin-top: 4px;
+        margin-top: 2px;
+        padding: 0;
+        background: transparent;
+        align-self: flex-start;
       }
     }
   </style>
@@ -710,7 +722,7 @@ function _articleItemHtml(article) {
   const alertBadge = article.is_alert ? '<span class="article-alert-badge">重要</span>' : '';
   const alertClass = article.is_alert ? ' article-alert' : '';
   const alertKwHtml = (article.alert_matches || [])
-    .map(kw => `<span class="article-alert-kw" style="font-size:0.7rem;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;white-space:nowrap;">キーワード: ${_esc(kw)}</span>`)
+    .map(kw => `<span class="article-alert-kw">キーワード: ${_esc(kw)}</span>`)
     .join('');
   const parts = [article.source, article.published].filter(Boolean);
   const meta = parts.length ? `<div class="article-meta">${_esc(parts.join(' · '))}</div>` : '';

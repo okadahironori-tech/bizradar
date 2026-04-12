@@ -251,11 +251,23 @@
         font-size: 16px !important;
       }
     }
-    /* PC表示時: キーワードバッジは改行して2行目に表示 */
+    /* 重要キーワードバッジ */
+    .article-alert-kw {
+      font-size: 0.7rem;
+      color: #991b1b;
+      background: #fee2e2;
+      border-radius: 4px;
+      padding: 2px 7px;
+      white-space: nowrap;
+    }
+    /* PC: 2行目に改行＋背景最小限＋コンパクト */
     @media (min-width: 601px) {
       .article-card-top-left .article-alert-kw {
         flex-basis: 100%;
-        margin-top: 4px;
+        margin-top: 2px;
+        padding: 0;
+        background: transparent;
+        align-self: flex-start;
       }
     }
   </style>
@@ -350,7 +362,7 @@
                 <span class="article-kw">{{ article.keyword }}</span>
                 {% if article.alert_matches %}
                   {% for mkw in article.alert_matches %}
-                  <span class="article-alert-kw" style="font-size:0.7rem; background:#fee2e2; color:#991b1b; border-radius:4px; padding:2px 7px; white-space:nowrap;">キーワード: {{ mkw }}</span>
+                  <span class="article-alert-kw">キーワード: {{ mkw }}</span>
                   {% endfor %}
                 {% endif %}
               </div>
