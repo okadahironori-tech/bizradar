@@ -647,7 +647,7 @@
       {% else %}
       <div style="padding:24px 20px; text-align:center;">
         <div class="empty-msg" style="padding:0; margin-bottom:8px;">紐づくサイトがありません</div>
-        <p style="font-size:0.85rem; color:#6b7280; margin-bottom:14px; line-height:1.6;">監視したいサイトのURLを登録してください</p>
+        <p style="font-size:0.85rem; color:#6b7280; margin-bottom:14px; line-height:1.6;">競合・取引先のサイト更新をリアルタイムで検知します。<br>監視したいサイトのURLを登録してください。</p>
         <button type="button" onclick="focusSiteUrlInput()" style="background:#1a1a2e; color:#fff; border:none; border-radius:8px; padding:9px 20px; font-size:0.88rem; font-weight:600; cursor:pointer;">サイトを登録する</button>
       </div>
       {% endif %}
@@ -710,13 +710,17 @@
         </tbody>
       </table>
       {% else %}
-      <div class="empty-msg">紐づくキーワードがありません</div>
+      <div style="padding:24px 20px; text-align:center;">
+        <div class="empty-msg" style="padding:0; margin-bottom:8px;">紐づくキーワードがありません</div>
+        <p style="font-size:0.85rem; color:#6b7280; margin-bottom:14px; line-height:1.6;">気になるキーワードのニュースを自動で収集します。<br>キーワードを登録してください。</p>
+        <button type="button" onclick="focusKwInput()" style="background:#1a1a2e; color:#fff; border:none; border-radius:8px; padding:9px 20px; font-size:0.88rem; font-weight:600; cursor:pointer;">キーワードを登録する</button>
+      </div>
       {% endif %}
 
       <!-- 新規キーワード登録フォーム -->
       <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
-        <input type="text" name="keyword" placeholder="例：ニデック、永守重信、EV市場" maxlength="200" required>
+        <input type="text" name="keyword" id="kw-input-detail" placeholder="例：ニデック、永守重信、EV市場" maxlength="200" required>
         <button type="submit" class="btn btn-primary">登録する</button>
       </form>
 
@@ -1014,6 +1018,13 @@ var _urlHintTimers = {};
 
 function focusSiteUrlInput() {
   var input = document.getElementById('site-url-input-detail');
+  if (!input) return;
+  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(function () { input.focus(); }, 350);
+}
+
+function focusKwInput() {
+  var input = document.getElementById('kw-input-detail');
   if (!input) return;
   input.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(function () { input.focus(); }, 350);
