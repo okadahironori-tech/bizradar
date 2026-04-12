@@ -514,10 +514,10 @@ function dismissAlert(btn) {
   {% endif %}
 
   <!-- 重要アラート（JS再描画） -->
-  <section id="dash-alert-section" style="display:none">
+  <section id="dash-alert-section"{% if not summary_alert %} style="display:none"{% endif %}>
     <div class="section-title">
       重要アラート
-      <span class="count" id="dash-alert-count"></span>
+      <span class="count" id="dash-alert-count" data-server-count="{{ summary_alert }}">{{ summary_alert }} 件</span>
     </div>
     <div class="alert-section-card" id="dash-alert-container"></div>
   </section>
@@ -744,13 +744,26 @@ const _VIEW_ALL_BAR = '<div class="view-all-bar"><a href="/news" class="view-all
 
 function renderDashSections() {
   // ── 重要アラート: 未読アラート 上位3件 ──
+  // 件数はサーバ計算値（summary_alert）を起点にクライアント既読トグル差分で補正
   const alertSection   = document.getElementById('dash-alert-section');
   const alertContainer = document.getElementById('dash-alert-container');
   const alertCount     = document.getElementById('dash-alert-count');
   if (alertContainer) {
     const unreadAlerts = _dashArticles.filter(a => a.is_alert && !_readState.get(a.id));
-    if (alertSection) alertSection.style.display = unreadAlerts.length ? '' : 'none';
-    if (alertCount)   alertCount.textContent = unreadAlerts.length + ' 件';
+    // 表示対象のアラート（_dashArticles は最大300件）
+    // ヘッダー件数: サーバ値 + （クライアントでの未読→既読切替数 - 既読→未読切替数）
+    const serverCount = parseInt(alertCount ? alertCount.dataset.serverCount || '0' : '0', 10);
+    const clientDelta = _dashArticles.reduce((acc, a) => {
+      if (!a.is_alert) return acc;
+      const nowRead = !!_readState.get(a.id);
+      const initRead = !!a.is_read;
+      if (!initRead && nowRead) return acc - 1;   // 未読→既読
+      if (initRead && !nowRead) return acc + 1;   // 既読→未読
+      return acc;
+    }, 0);
+    const displayCount = Math.max(0, serverCount + clientDelta);
+    if (alertSection) alertSection.style.display = displayCount > 0 ? '' : 'none';
+    if (alertCount)   alertCount.textContent = displayCount + ' 件';
     alertContainer.innerHTML = unreadAlerts.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR;
   }
 

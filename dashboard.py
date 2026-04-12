@@ -1397,18 +1397,23 @@ def news():
     kw_entries = db.load_keywords(user_id)
     keywords = [k["keyword"] for k in kw_entries]
     articles_data = db.load_articles_data(user_id)
-    all_articles = articles_data.get("articles", [])[:300]
+    raw_articles = articles_data.get("articles", [])
     alert_kw_entries = db.load_alert_keywords(user_id)
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
     alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
     exclude_kw_entries = db.get_exclude_keywords(user_id)
-    for a in all_articles:
+    # 先に全件にアラートフラグ付与 → 重複排除 → 件数集計 → 表示用スライス
+    for a in raw_articles:
         title_lower = a.get("title", "").lower()
         matched = [alert_kw_map[kw] for kw in alert_kws_set if kw in title_lower]
         a["is_alert"] = bool(matched)
         a["alert_matches"] = matched
         a["published"] = a.get("published", "")
-    all_articles = _deduplicate_articles(all_articles)
+    deduped_articles = _deduplicate_articles(raw_articles)
+    # サマリー件数（サーバ側で確定、表示スライスに影響されない）
+    alert_count = sum(1 for a in deduped_articles if a.get("is_alert") and not a.get("is_read"))
+    # 表示用に先頭300件に絞る
+    all_articles = deduped_articles[:300]
     keyword_counts = {}
     for a in articles_data.get("articles", []):
         kw = a.get("keyword", "")
@@ -1426,6 +1431,7 @@ def news():
         exclude_kw_entries=exclude_kw_entries,
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
+        alert_count=alert_count,
     )
 
 

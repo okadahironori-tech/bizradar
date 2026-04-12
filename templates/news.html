@@ -344,7 +344,7 @@
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
           {% for article in articles %}
-          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %}>
+          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %} data-init-read="{{ '1' if article.is_read else '0' }}">
             <!-- 上段：キーワードバッジ（左）＋日時（右） -->
             <div class="article-card-top">
               <div class="article-card-top-left">
@@ -626,13 +626,27 @@ function _renderArticlePaginationBar(id, cur, total) {
 
 // アラートpinnedセクションを _articleItems から再計算して再描画
 // 判定は data-is-alert 属性（サーバー側 is_alert フラグをそのまま使用）
+// 件数はサーバ計算値（alert_count）を起点にクライアント既読トグル差分で補正
+const _SERVER_ALERT_COUNT = {{ alert_count | default(0) }};
+function _getAlertDisplayCount() {
+  let delta = 0;
+  _articleItems.forEach(i => {
+    if (i.dataset.isAlert !== '1') return;
+    const initRead = i.dataset.initRead === '1';
+    const nowRead = i.classList.contains('article-read');
+    if (!initRead && nowRead) delta -= 1;   // 未読→既読
+    if (initRead && !nowRead) delta += 1;   // 既読→未読
+  });
+  return Math.max(0, _SERVER_ALERT_COUNT + delta);
+}
 function renderAlertPinnedSection() {
   const section = document.getElementById('alert-pinned-section');
   if (!section) return;
   const unreadAlerts = _articleItems.filter(
     i => i.dataset.isAlert === '1' && !i.classList.contains('article-read')
   );
-  if (unreadAlerts.length === 0) {
+  const displayCount = _getAlertDisplayCount();
+  if (displayCount === 0) {
     section.style.display = 'none';
     return;
   }
@@ -641,7 +655,7 @@ function renderAlertPinnedSection() {
     return pa < pb ? 1 : pa > pb ? -1 : 0;
   });
   section.style.display = '';
-  section.innerHTML = `<div class="alert-pinned-header">重要アラート　${unreadAlerts.length} 件</div>`;
+  section.innerHTML = `<div class="alert-pinned-header">重要アラート　${displayCount} 件</div>`;
   sorted.slice(0, 5).forEach(item => {
     const clone = item.cloneNode(true);
     clone.style.cssText = '';
