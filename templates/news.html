@@ -394,7 +394,7 @@
   <section id="keywords-section" style="margin-top:24px;">
     <div class="section-title">
       キーワード管理
-      <span class="count-badge">{{ keywords | length }} 件</span>
+      <span class="count-badge" id="kw-count-badge">{{ keywords | length }} 件</span>
       <span style="margin-left:auto;">
         <select id="kw-count-select" class="count-select" onchange="changeKwPageSize()" style="display:none;">
           <option value="10" selected>10件</option>
@@ -752,6 +752,9 @@ function _renderKwTable() {
   if (!tbody) return;
   var rows = Array.from(tbody.querySelectorAll('tr[data-kw-row]'));
   var total = rows.length;
+  // 見出し横の件数バッジを DOM 行数に同期（追加・削除のリアルタイム反映）
+  var countBadge = document.getElementById('kw-count-badge');
+  if (countBadge) countBadge.textContent = total + ' 件';
   var totalPages = Math.max(1, Math.ceil(total / _kwPageSize));
   if (_kwPage > totalPages) _kwPage = totalPages;
   var start = (_kwPage - 1) * _kwPageSize;
