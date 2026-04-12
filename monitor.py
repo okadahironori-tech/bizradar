@@ -86,8 +86,18 @@ def _rss_entry_link(entry) -> str:
 
 
 def _resolve_google_news_url(url: str) -> str:
+    """Google News RSS URL から実際の記事URLを解決する。
+
+    解決の優先順:
+      1. レガシー base64 形式の抽出（~2022 年の古い記事に有効・高速）
+      2. googlenewsdecoder ライブラリ（新フォーマット対応）
+      3. HTTP リダイレクト追跡（フォールバック）
+      4. 全て失敗した場合は news.google.com のURLをそのまま返す
+    """
     if "news.google.com" not in url:
         return url
+
+    # 1) レガシー base64 形式の抽出（古い記事向け）
     try:
         import base64, re
         match = re.search(r'articles/([A-Za-z0-9_\-]+)', url)
@@ -107,6 +117,22 @@ def _resolve_google_news_url(url: str) -> str:
                 pass
     except Exception:
         pass
+
+    # 2) googlenewsdecoder による解決（新フォーマット対応）
+    try:
+        from googlenewsdecoder import gnewsdecoder
+        result = gnewsdecoder(url, interval=1)
+        if isinstance(result, dict) and result.get("status"):
+            decoded_url = result.get("decoded_url") or ""
+            if decoded_url and "news.google.com" not in decoded_url:
+                return decoded_url
+    except ImportError:
+        # ライブラリ未インストール時は静かに次のステップへ
+        pass
+    except Exception as e:
+        print(f"  [警告] googlenewsdecoder 失敗: {e}")
+
+    # 3) HTTP リダイレクト追跡（最後のフォールバック）
     try:
         import requests
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
