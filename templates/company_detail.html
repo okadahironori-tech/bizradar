@@ -509,6 +509,53 @@
     </div>
   </div>
 
+  <!-- モニターサイト更新履歴 -->
+  <section id="history-section">
+    <div class="card">
+      <div class="section-title">
+        モニターサイト更新履歴
+        <span class="count-badge">最新 {{ history | length }} 件</span>
+        <select class="count-select" onchange="applyHistoryLimit(+this.value)">
+          <option value="5">5件</option>
+          <option value="10">10件</option>
+          <option value="0">全件</option>
+        </select>
+      </div>
+      {% if history %}
+        <div class="pagination-bar hist-pagination"></div>
+        {% for h in history %}
+        <div class="history-item">
+          <div class="history-ts">{{ h.timestamp }}</div>
+          <div class="history-url"><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
+          {% set ns = namespace(count=0) %}
+          {% set visible = [] %}
+          {% for d in h.diff %}
+            {% set clean = d.text | replace('\t', '') | trim %}
+            {% set is_date = (('年' in clean and '月' in clean and clean | length <= 12)
+                              or ('月' in clean and '日' in clean and clean | length <= 8)
+                              or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
+            {% if d.type == 'added' and clean | length >= 10 and not is_date %}
+              {% if visible.append(d) %}{% endif %}
+              {% set ns.count = ns.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.count > 0 %}
+          <button class="diff-toggle" onclick="toggleDiff(this)">差分を表示（{{ ns.count }} 件）</button>
+          <div class="diff-block">
+            {% for d in visible %}
+            <div class="diff-line diff-added">{{ d.text }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <div class="pagination-bar hist-pagination"></div>
+      {% else %}
+      <div class="empty-msg">モニターサイト更新履歴がありません</div>
+      {% endif %}
+    </div>
+  </section>
+
   <!-- 最新ニュース記事 -->
   <section id="news-section">
     <div class="card">
@@ -588,53 +635,6 @@
         <div class="view-all-bar"><a href="/news" class="view-all-link">既読を含む全記事は「ニュース」へ →</a></div>
       {% else %}
       <div class="empty-msg">記事がまだありません。キーワードを紐づけてニュースを収集してください。</div>
-      {% endif %}
-    </div>
-  </section>
-
-  <!-- モニターサイト更新履歴 -->
-  <section id="history-section">
-    <div class="card">
-      <div class="section-title">
-        モニターサイト更新履歴
-        <span class="count-badge">最新 {{ history | length }} 件</span>
-        <select class="count-select" onchange="applyHistoryLimit(+this.value)">
-          <option value="5">5件</option>
-          <option value="10">10件</option>
-          <option value="0">全件</option>
-        </select>
-      </div>
-      {% if history %}
-        <div class="pagination-bar hist-pagination"></div>
-        {% for h in history %}
-        <div class="history-item">
-          <div class="history-ts">{{ h.timestamp }}</div>
-          <div class="history-url"><a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.name or h.url }}</a></div>
-          {% set ns = namespace(count=0) %}
-          {% set visible = [] %}
-          {% for d in h.diff %}
-            {% set clean = d.text | replace('\t', '') | trim %}
-            {% set is_date = (('年' in clean and '月' in clean and clean | length <= 12)
-                              or ('月' in clean and '日' in clean and clean | length <= 8)
-                              or (clean | length <= 12 and clean[0:1] in ('1','2') and clean[4:5] in ('.','/','-'))) %}
-            {% if d.type == 'added' and clean | length >= 10 and not is_date %}
-              {% if visible.append(d) %}{% endif %}
-              {% set ns.count = ns.count + 1 %}
-            {% endif %}
-          {% endfor %}
-          {% if ns.count > 0 %}
-          <button class="diff-toggle" onclick="toggleDiff(this)">差分を表示（{{ ns.count }} 件）</button>
-          <div class="diff-block">
-            {% for d in visible %}
-            <div class="diff-line diff-added">{{ d.text }}</div>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </div>
-        {% endfor %}
-        <div class="pagination-bar hist-pagination"></div>
-      {% else %}
-      <div class="empty-msg">モニターサイト更新履歴がありません</div>
       {% endif %}
     </div>
   </section>
