@@ -233,6 +233,20 @@ def inject_csrf_token():
 
 
 @app.context_processor
+def inject_is_pro():
+    """全テンプレートで {{ is_pro }} を参照可能にする（ハンバーガーメニュー等）。
+    明示的に render_template(is_pro=...) を渡しているビューはそちらが優先される。"""
+    uid = session.get("user_id")
+    if not uid:
+        return {"is_pro": False}
+    try:
+        u = db.get_user_by_id(uid)
+        return {"is_pro": bool(u and u.get("plan") == "pro")}
+    except Exception:
+        return {"is_pro": False}
+
+
+@app.context_processor
 def inject_tdnet_banner():
     """TDnet API エラー時にユーザー属性に応じたバナー HTML を注入する"""
     banner = ""

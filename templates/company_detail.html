@@ -448,6 +448,7 @@
     <span style="display:block;padding:10px 18px 6px;font-size:0.75rem;color:#6b7280;border-bottom:1px solid #2a2a4e;">{{ user_email }}</span>
     <a href="/">ホーム</a>
     <a href="/company" class="active">企業</a>
+    {% if is_pro %}<a href="/tdnet">TDnet開示情報</a>{% endif %}
     <a href="/news">ニュース</a>
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
