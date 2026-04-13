@@ -427,6 +427,15 @@ def _run_migrations():
                 "CREATE INDEX IF NOT EXISTS idx_tdnet_securities_code "
                 "ON tdnet_disclosures (securities_code);"
             )
+            # 既存レコードの5桁コードを4桁に正規化する一度きりのマイグレーション。
+            # TDnet の5桁形式（末尾0付き 例: 72030）→ JPX 4桁（7203）。
+            # LENGTH=5 かつ末尾 '0' のものだけを先頭4桁に切り詰める（冪等）。
+            cur.execute(
+                "UPDATE tdnet_disclosures SET securities_code = LEFT(securities_code, 4) "
+                "WHERE securities_code IS NOT NULL "
+                "AND LENGTH(securities_code) = 5 "
+                "AND securities_code LIKE '%0';"
+            )
 
             # domain_overrides: 企業名カラム追加
             cur.execute(
@@ -1168,6 +1177,11 @@ def fetch_and_save_tdnet() -> list:
                 pubdate = clean(t.get("pubdate") or "").strip()
                 doc_url = clean(t.get("document_url") or "").strip()
                 sec_code = clean(str(t.get("company_code") or "")).strip()
+                # TDnet 5桁形式 → JPX 4桁に正規化（末尾0を除く）。
+                # 「60000」のようなコードを rstrip('0') で壊さないよう、
+                # 長さ5 かつ末尾 '0' のときだけ先頭4文字にする。
+                if len(sec_code) == 5 and sec_code.endswith("0"):
+                    sec_code = sec_code[:-1]
                 if not (doc_id and company and title and pubdate and doc_url):
                     continue
                 try:
