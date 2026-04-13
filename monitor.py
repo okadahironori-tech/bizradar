@@ -512,11 +512,19 @@ def check_and_notify_source_errors():
 def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set = None, user_name: str = ""):
     """ダイジェストメールを送信する。
     articles_by_keyword: {keyword: [article, ...], ...}
-    alert_kws: アラートキーワードの小文字セット
+    alert_kws: アラートキーワードの小文字セット（フォールバック用）
+    各記事に呼び出し元が is_alert を事前付与している場合はそれを優先して使用する
+    （per-company 判定を外側で済ませておくため）。
     """
     import html as _html
     if alert_kws is None:
         alert_kws = set()
+
+    def _art_alert(a):
+        if "is_alert" in a:
+            return bool(a["is_alert"])
+        return _is_alert(a.get("title", ""), alert_kws)
+
     total = sum(len(v) for v in articles_by_keyword.values())
     if total == 0:
         return
@@ -525,7 +533,7 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
     # 重要記事の総数を集計（件名用）
     total_alert = sum(
         1 for arts in articles_by_keyword.values()
-        for a in arts if _is_alert(a.get("title", ""), alert_kws)
+        for a in arts if _art_alert(a)
     )
     alert_prefix = "【重要あり】" if total_alert > 0 else ""
     subject = f"{alert_prefix}【BizRadar ダイジェスト】本日の新着記事 {total} 件"
@@ -536,8 +544,8 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
         if not arts:
             continue
         kw_esc = _html.escape(keyword)
-        important = [a for a in arts if _is_alert(a.get("title", ""), alert_kws)]
-        normal    = [a for a in arts if not _is_alert(a.get("title", ""), alert_kws)]
+        important = [a for a in arts if _art_alert(a)]
+        normal    = [a for a in arts if not _art_alert(a)]
         sorted_arts = important + normal
         rows = ""
         for a in sorted_arts:
@@ -551,7 +559,7 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
             if published:
                 meta_parts.append(f"日時: {published}")
             meta_html = "　".join(meta_parts)
-            is_alert_art = _is_alert(a.get("title", ""), alert_kws)
+            is_alert_art = _art_alert(a)
             alert_badge = (
                 '<span style="background:#dc2626;color:#fff;font-size:0.75em;'
                 'font-weight:700;padding:1px 7px;border-radius:4px;margin-right:6px;'
@@ -645,6 +653,23 @@ def send_digest_for_user(user_id: int):
     if articles_by_keyword:
         alert_kws = db.get_alert_keywords_set(user_id)
         user_name = user.get("name", "") or ""
+
+        # per-company アラート判定を各記事に事前付与する
+        # （send_digest_email 側は記事の "is_alert" を優先して参照する）
+        kw_rows = db.load_keywords_with_company(user_id)
+        kw_to_company = {
+            k["keyword"]: k["company_id"]
+            for k in kw_rows if k.get("company_id")
+        }
+        per_cid_alert: dict = {}
+        for e in db.get_all_company_alert_keywords_for_user(user_id):
+            per_cid_alert.setdefault(e["company_id"], set()).add(e["keyword"].lower())
+        for _kw, _arts in articles_by_keyword.items():
+            cid = kw_to_company.get(_kw)
+            effective = alert_kws | per_cid_alert.get(cid, set())
+            for _a in _arts:
+                _a["is_alert"] = _is_alert(_a.get("title", ""), effective)
+
         send_digest_email(user_email, articles_by_keyword, alert_kws=alert_kws, user_name=user_name)
 
     # 送信有無にかかわらず全未通知を通知済みにする（再送防止）
@@ -715,6 +740,14 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
         return
 
     alert_kws = db.get_alert_keywords_set(user_id) if user_id else set()
+    # 該当キーワードが紐づく企業の重要アラートキーワードも併用（per-company 判定）
+    if user_id:
+        cid = db.get_user_keyword_company_id(user_id, keyword)
+        if cid:
+            alert_kws = alert_kws | {
+                e["keyword"].lower()
+                for e in db.get_company_alert_keywords(cid)
+            }
 
     # 重要記事を上、通常記事を下に並び替え
     important = [a for a in articles if _is_alert(a.get("title", ""), alert_kws)]

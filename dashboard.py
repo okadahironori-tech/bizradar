@@ -115,6 +115,41 @@ def _normalize_title_for_dedup(title: str) -> str:
     return s
 
 
+def _flag_articles_alert(user_id, articles, kw_company_map=None):
+    """記事リストに is_alert / alert_matches を設定する（per-company 判定）。
+    各記事の keyword から company_id を解決し、ユーザー全体のアラートキーワードと
+    その企業の company_alert_keywords を合算して記事タイトルにマッチさせる。
+    未紐づけキーワードの記事はユーザー全体のアラートのみで判定する。
+    """
+    user_entries = db.load_alert_keywords(user_id)
+    user_map = {e["keyword"].lower(): e["keyword"] for e in user_entries}
+
+    # company_id → 結合済み {lower: original}
+    company_maps: dict = {}
+    for e in db.get_all_company_alert_keywords_for_user(user_id):
+        cid = e["company_id"]
+        m = company_maps.get(cid)
+        if m is None:
+            m = dict(user_map)
+            company_maps[cid] = m
+        m[e["keyword"].lower()] = e["keyword"]
+
+    if kw_company_map is None:
+        kw_rows = db.load_keywords_with_company(user_id)
+        kw_company_map = {
+            k["keyword"]: k["company_id"]
+            for k in kw_rows if k.get("company_id")
+        }
+
+    for a in articles:
+        cid = kw_company_map.get(a.get("keyword", ""))
+        m = company_maps.get(cid, user_map)
+        title_lower = a.get("title", "").lower()
+        matched = [m[k] for k in m if k in title_lower]
+        a["is_alert"] = bool(matched)
+        a["alert_matches"] = matched
+
+
 def _deduplicate_articles(articles, threshold=0.80):
     """同一キーワード内でタイトル類似度が threshold 以上の記事を重複排除する。
     Yahoo!ニュースを最優先で残し、次点で古い記事を残す。
@@ -720,18 +755,9 @@ def index():
         kw = a.get("keyword", "")
         keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
 
-    alert_kw_entries = db.load_alert_keywords(user_id)
-    alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
-
-    # 記事に重要フラグ付与・published をJSTに変換
-    # alert_kw_map: 小文字→元の表記 の対応
-    alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
-    # まず重複排除済みの all_articles 全体にアラートフラグを付与（サマリー集計用）
+    # 記事に重要フラグ付与（per-company 判定）・published は既存のまま
+    _flag_articles_alert(user_id, all_articles, kw_company_map)
     for a in all_articles:
-        title_lower = a.get("title", "").lower()
-        matched = [alert_kw_map[kw] for kw in alert_kws_set if kw in title_lower]
-        a["is_alert"] = bool(matched)
-        a["alert_matches"] = matched
         a["published"] = a.get("published", "")
 
     # ---- サマリー集計 ---- 重複排除後の all_articles をカウント
@@ -783,7 +809,6 @@ def index():
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
         notify_timing=db.get_user_notify_timing(user_id),
-        alert_kw_entries=alert_kw_entries,
         summary_unread=unread_count,
         summary_alert=alert_count,
         summary_error_sites=error_site_count,
@@ -1947,15 +1972,9 @@ def news():
     kw_entries = db.load_keywords(user_id)
     articles_data = db.load_articles_data(user_id)
     raw_articles = articles_data.get("articles", [])
-    alert_kw_entries = db.load_alert_keywords(user_id)
-    alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
-    alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
-    # 各記事にアラートフラグ付与 → 重複排除 → 未読アラート件数算出
+    # 各記事にアラートフラグ付与（per-company 判定） → 重複排除 → 未読アラート件数算出
+    _flag_articles_alert(user_id, raw_articles)
     for a in raw_articles:
-        title_lower = a.get("title", "").lower()
-        matched = [alert_kw_map[kw] for kw in alert_kws_set if kw in title_lower]
-        a["is_alert"] = bool(matched)
-        a["alert_matches"] = matched
         a["published"] = a.get("published", "")
     deduped_articles = _deduplicate_articles(raw_articles)
     alert_count = sum(1 for a in deduped_articles if a.get("is_alert") and not a.get("is_read"))
@@ -2436,10 +2455,15 @@ def api_status():
 @login_required
 def company_list():
     user_id = session["user_id"]
-    alert_kws = db.get_alert_keywords_set(user_id)
+    # per-company アラート判定: user-wide + 各企業の company_alert_keywords を結合
+    user_alert_kws = db.get_alert_keywords_set(user_id)
+    per_cid_alert: dict = {}
+    for e in db.get_all_company_alert_keywords_for_user(user_id):
+        per_cid_alert.setdefault(e["company_id"], set()).add(e["keyword"].lower())
     companies = db.load_companies(user_id)
     for c in companies:
-        summary = db.get_company_summary(user_id, c["id"], alert_kws)
+        effective = user_alert_kws | per_cid_alert.get(c["id"], set())
+        summary = db.get_company_summary(user_id, c["id"], effective)
         c.update(summary)
     companies = sorted(companies, key=lambda c: (
         0 if c.get('alert_count', 0) > 0 else (1 if c.get('unread_count', 0) > 0 else 2),
@@ -2518,10 +2542,6 @@ def company_detail(company_id):
             flash("企業が見つかりません", "error")
             return redirect(url_for("management", _anchor="keywords-section"))
 
-        alert_kws = db.get_alert_keywords_set(user_id)
-        alert_kw_entries = db.load_alert_keywords(user_id)
-        alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
-
         sites_linked    = db.load_company_sites(user_id, company_id)
         keywords_linked = db.load_company_keywords(user_id, company_id)
         company_exclude_words = db.get_company_exclude_words(company_id)
@@ -2529,7 +2549,12 @@ def company_detail(company_id):
         articles        = db.load_company_articles(user_id, company_id, limit=30)
         history         = db.load_company_change_history(user_id, company_id, limit=10)
 
-        # 記事に重要フラグ付与
+        # 記事に重要フラグ付与（この企業に紐づく記事なので user-wide + この企業のアラート）
+        user_alert_entries = db.load_alert_keywords(user_id)
+        alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in user_alert_entries}
+        for e in company_alert_words:
+            alert_kw_map[e["keyword"].lower()] = e["keyword"]
+        alert_kws = set(alert_kw_map.keys())
         for a in articles:
             title_lower = a.get("title", "").lower()
             matched = [alert_kw_map[kw] for kw in alert_kws if kw in title_lower]

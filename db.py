@@ -1639,20 +1639,41 @@ def get_all_running_tasks() -> dict:
 # ============================================================
 
 def load_alert_keywords(user_id: int) -> list:
-    """ユーザーのアラートキーワード一覧を返す。
-    企業単位の重要アラートキーワード（company_alert_keywords）も合わせて返すため、
-    記事タイトルのアラート判定（get_alert_keywords_set 等）が自動的に両方をカバーする。
-    """
+    """ユーザー全体のアラートキーワード一覧を返す（user-wide のみ）。
+    企業単位の重要アラート（company_alert_keywords）は per-company 判定側で参照する。"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, keyword FROM alert_keywords WHERE user_id = %s "
-                "UNION ALL "
-                "SELECT id, keyword FROM company_alert_keywords WHERE user_id = %s "
-                "ORDER BY id",
-                (user_id, user_id),
+                "SELECT id, keyword FROM alert_keywords WHERE user_id = %s ORDER BY id",
+                (user_id,),
             )
             return [dict(row) for row in cur.fetchall()]
+
+
+def get_all_company_alert_keywords_for_user(user_id: int) -> list:
+    """ユーザーが所有する全企業の company_alert_keywords を一括取得する。
+    返り値: [{id, company_id, keyword}, ...]
+    per-article アラート判定で {company_id: set[lower_kw]} を組むための元データ。"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, company_id, keyword FROM company_alert_keywords "
+                "WHERE user_id = %s ORDER BY company_id, id",
+                (user_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def get_user_keyword_company_id(user_id: int, keyword: str):
+    """ユーザーの指定キーワードに紐づく company_id を返す（未紐づけ時は None）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT company_id FROM keywords WHERE user_id=%s AND keyword=%s LIMIT 1",
+                (user_id, keyword),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
 
 
 def add_alert_keyword(user_id: int, keyword: str):
