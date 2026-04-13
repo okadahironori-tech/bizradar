@@ -228,71 +228,11 @@ def _ratelimit_handler(e):
         return msg, 429
 
 
-# ---- ブルートフォース対策: ログイン失敗回数をメモリで管理 ----
-# 5回失敗で15分ロック。gunicorn --workers 1 前提。
-import threading  # noqa: E402
-_login_attempts: dict = {}
-_login_attempts_lock = threading.Lock()
+# ---- ブルートフォース対策 ----
+# ログイン失敗はクライアント毎の Flask session で管理する
+# （Render の LB 環境で IP が毎リクエスト変わる問題を回避）
 _LOGIN_MAX_FAILS = 5
-_LOGIN_WINDOW_SEC = 15 * 60    # 最初の失敗からのウィンドウ
-_LOGIN_LOCK_SEC = 15 * 60      # ロック期間
-
-
-def _login_lock_remaining(ip: str) -> int:
-    """IPがロック中なら残り秒数を返す。非ロック時は0。"""
-    import time
-    now = time.time()
-    with _login_attempts_lock:
-        rec = _login_attempts.get(ip)
-        if not rec:
-            return 0
-        locked_until = rec.get("locked_until", 0)
-        if locked_until > now:
-            return int(locked_until - now)
-        return 0
-
-
-def _record_login_failure(ip: str) -> int:
-    """IPのログイン失敗を記録。閾値到達でロック。残り試行回数を返す(0=ロック開始)。"""
-    import time
-    with _login_attempts_lock:
-        now = time.time()
-        # 無制限の膨張防止: 24h以上前のエントリを遅延削除（新規記録時のみ）
-        stale = [k for k, v in _login_attempts.items() if now - v.get("first_at", 0) > 86400]
-        for k in stale:
-            _login_attempts.pop(k, None)
-
-        rec = _login_attempts.get(ip)
-
-        # ロックが解除済みなら新しいウィンドウを開始
-        if rec and rec.get("locked_until", 0) > 0 and rec["locked_until"] <= now:
-            rec = None
-
-        # 初回失敗
-        if not rec:
-            _login_attempts[ip] = {"count": 1, "first_at": now, "locked_until": 0}
-            return _LOGIN_MAX_FAILS - 1
-
-        # ウィンドウ外（15分以上前の失敗）なら新しいウィンドウ
-        if now - rec["first_at"] > _LOGIN_WINDOW_SEC and rec.get("locked_until", 0) == 0:
-            _login_attempts[ip] = {"count": 1, "first_at": now, "locked_until": 0}
-            return _LOGIN_MAX_FAILS - 1
-
-        # カウントアップ
-        rec["count"] += 1
-        remaining = max(0, _LOGIN_MAX_FAILS - rec["count"])
-
-        # 閾値到達でロック
-        if rec["count"] >= _LOGIN_MAX_FAILS:
-            rec["locked_until"] = now + _LOGIN_LOCK_SEC
-
-        return remaining
-
-
-def _clear_login_attempts(ip: str) -> None:
-    """ログイン成功時に該当IPの記録をクリア"""
-    with _login_attempts_lock:
-        _login_attempts.pop(ip, None)
+_LOGIN_LOCK_SEC = 15 * 60  # ロック期間
 
 # DB 初期化（テーブル作成 + マイグレーション）
 # Render 新インスタンス起動直後の一時的な接続失敗に備えてリトライする。
@@ -370,33 +310,55 @@ def admin_required(f):
 @app.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute", methods=["POST"])
 def login():
-    error = None
+    next_url = request.form.get("next") or request.args.get("next", "")
     if request.method == "POST":
-        ip = get_remote_address() or ""
-        # ブルートフォース: ロック中のIPは即拒否
-        locked = _login_lock_remaining(ip)
-        if locked > 0:
-            mins = (locked + 59) // 60
-            error = f"ログイン失敗が続いたためロックされています。{mins}分後に再度お試しください。"
-            return render_template("login.html", error=error, next=request.args.get("next", ""))
+        now = time.time()
+
+        # ロック確認
+        locked_until = session.get("login_locked_until", 0)
+        if locked_until > now:
+            remaining_sec = int(locked_until - now)
+            remaining_min = max(1, remaining_sec // 60)
+            flash(f"{remaining_min}分後に再度お試しください。", "danger")
+            return render_template("login.html", next=next_url)
+
+        # ロック解除済みならリセット
+        if locked_until > 0 and locked_until <= now:
+            session.pop("login_fail_count", None)
+            session.pop("login_fail_first_at", None)
+            session.pop("login_locked_until", None)
+
         email = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
         user = db.get_user_by_email(email)
         if user and db.verify_user_password(user, password):
-            _clear_login_attempts(ip)
+            # 認証成功 → 失敗カウントをクリア
+            session.pop("login_fail_count", None)
+            session.pop("login_fail_first_at", None)
+            session.pop("login_locked_until", None)
             session.permanent = True
             session["user_id"] = user["id"]
             session["email"] = user["email"]
             session["is_admin"] = user["is_admin"]
             db.update_last_login(user["id"])
-            next_url = request.form.get("next", "")
             return redirect(next_url if next_url.startswith("/") else url_for("index"))
-        remaining = _record_login_failure(ip)
-        if remaining == 0:
-            error = "ログイン失敗が続いたためロックしました。15分後に再度お試しください。"
+
+        # 認証失敗
+        fail_count = session.get("login_fail_count", 0) + 1
+        session["login_fail_count"] = fail_count
+        if "login_fail_first_at" not in session:
+            session["login_fail_first_at"] = now
+
+        remaining = max(0, _LOGIN_MAX_FAILS - fail_count)
+
+        if fail_count >= _LOGIN_MAX_FAILS:
+            session["login_locked_until"] = now + _LOGIN_LOCK_SEC
+            flash("ログイン試行が多すぎます。15分後に再度お試しください。", "danger")
         else:
-            error = f"メールアドレスまたはパスワードが正しくありません（残り{remaining}回）"
-    return render_template("login.html", error=error, next=request.args.get("next", ""))
+            flash(f"メールアドレスまたはパスワードが正しくありません（残り{remaining}回）", "danger")
+
+        return render_template("login.html", next=next_url)
+    return render_template("login.html", next=next_url)
 
 
 @app.route("/register", methods=["GET", "POST"])

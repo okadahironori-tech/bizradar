@@ -147,6 +147,11 @@
       </ul>
     </div>
     <div class="card">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="error">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
       {% if error %}
       <div class="error">{{ error }}</div>
       {% endif %}
