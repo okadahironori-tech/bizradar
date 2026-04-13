@@ -1059,6 +1059,21 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
             )
 
 
+def fix_tdnet_company_names() -> int:
+    """一時関数: tdnet_disclosures.company_name の文字間スペース（半角/全角）を除去。
+    既存データの一括修正用。完了後は本関数を削除してよい。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE tdnet_disclosures "
+                "SET company_name = REPLACE(REPLACE(company_name, ' ', ''), '　', '') "
+                "WHERE company_name LIKE '% %' OR company_name LIKE '%　%'"
+            )
+            n = cur.rowcount
+            logger.info("[fix_tdnet_company_names] updated=%d", n)
+            return n
+
+
 def fetch_and_save_tdnet() -> int:
     """やのしんAPIから最新100件の TDnet 適時開示を取得し、tdnet_disclosures に保存する。
     重複（document_id 一致）は ON CONFLICT DO NOTHING でスキップ。保存件数を返す。"""
@@ -1078,7 +1093,8 @@ def fetch_and_save_tdnet() -> int:
             for item in items:
                 t = item.get("Tdnet") or {}
                 doc_id = str(t.get("id") or "").strip()
-                company = (t.get("company_name") or "").strip()
+                # 企業名の文字間スペース（半角/全角）を除去
+                company = (t.get("company_name") or "").replace(" ", "").replace("\u3000", "").strip()
                 title = (t.get("title") or "").strip()
                 pubdate = (t.get("pubdate") or "").strip()
                 doc_url = (t.get("document_url") or "").strip()
