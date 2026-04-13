@@ -561,21 +561,30 @@ def _run_tdnet_cycle():
 
 
 def _start_tdnet_scheduler():
-    """TDnet 適時開示情報を定期取得するバックグラウンドスレッド（15分間隔・起動時即時1回）"""
+    """TDnet 適時開示情報を定期取得するバックグラウンドスレッド（15分間隔・起動時即時1回）。
+    while ループ全体を try/except で保護し、いかなる Exception が発生しても
+    スレッドが終了しないようにする（従来は sleep 中の例外でスレッドが死んでいた）。
+    """
     def _run():
         try:
             _run_tdnet_cycle()  # 起動時に1回
-        except Exception as e:
-            logger.error("TDnet 初回取得エラー: %s", e)
+        except Exception:
+            logger.exception("[tdnet-scheduler] 初回取得で例外発生（継続します）")
         while True:
-            time.sleep(15 * 60)
             try:
+                time.sleep(15 * 60)
                 _run_tdnet_cycle()
-            except Exception as e:
-                logger.error("TDnet 定期取得エラー: %s", e)
+            except Exception:
+                logger.exception("[tdnet-scheduler] サイクル内で例外発生（継続します）")
+                # 連続失敗時のログスパム抑制＆短クールダウン
+                try:
+                    time.sleep(60)
+                except Exception:
+                    pass
 
     t = threading.Thread(target=_run, daemon=True, name="tdnet-scheduler")
     t.start()
+    logger.info("[tdnet-scheduler] thread started name=%s", t.name)
 
 
 _start_tdnet_scheduler()
