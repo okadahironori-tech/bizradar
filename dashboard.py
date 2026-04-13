@@ -197,6 +197,39 @@ def inject_csrf_token():
     return {"csrf_token": generate_csrf}
 
 
+@app.context_processor
+def inject_tdnet_banner():
+    """TDnet API エラー時にユーザー属性に応じたバナー HTML を注入する"""
+    banner = ""
+    try:
+        status = db.get_system_status("tdnet_status") or "ok"
+    except Exception:
+        status = "ok"
+    if status == "error":
+        is_admin = bool(session.get("is_admin"))
+        is_pro = False
+        uid = session.get("user_id")
+        if uid and not is_admin:
+            try:
+                u = db.get_user_by_id(uid)
+                is_pro = bool(u and u.get("plan") == "pro")
+            except Exception:
+                is_pro = False
+        if is_admin:
+            banner = (
+                '<div style="background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;'
+                'border-radius:8px;padding:10px 14px;font-size:0.88rem;margin:12px auto;'
+                'max-width:1040px;">⚠ TDnet APIエラーが発生しています</div>'
+            )
+        elif is_pro:
+            banner = (
+                '<div style="background:#fffbeb;color:#92400e;border:1px solid #fcd34d;'
+                'border-radius:8px;padding:10px 14px;font-size:0.88rem;margin:12px auto;'
+                'max-width:1040px;">現在TDnet情報の取得に問題が発生しています</div>'
+            )
+    return {"tdnet_banner": banner}
+
+
 @app.errorhandler(CSRFError)
 def _handle_csrf_error(e):
     """CSRFトークン切れ・不一致時はログイン画面へ誘導"""
@@ -369,19 +402,107 @@ def _notify_tdnet_new(new_doc_ids: list):
             logger.error("[tdnet-alert] user_id=%s error=%s", uid, e)
 
 
+def _send_simple_mail(to_email: str, subject: str, html_body: str):
+    """汎用 SMTP メール送信（TDnet API エラー・復旧通知用）"""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.utils import formataddr as _formataddr
+
+    smtp_server   = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port     = int(os.environ.get("SMTP_PORT", "587"))
+    sender_email  = os.environ.get("SENDER_EMAIL", "")
+    sender_pass   = os.environ.get("SENDER_PASSWORD", "")
+    if not sender_email or not sender_pass or not to_email:
+        return
+    msg = MIMEMultipart()
+    msg["From"]    = _formataddr(("BizRadar", sender_email))
+    msg["To"]      = to_email
+    msg["Subject"] = subject
+    msg["X-Mailer"] = "BizRadar"
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_pass)
+            server.send_message(msg)
+    except Exception as e:
+        logger.error("[simple-mail] send failed to=%s err=%s", to_email, e)
+
+
+def _notify_tdnet_service_error(error_msg: str):
+    """TDnet API 連続エラー発生時に管理者+Proユーザーへ通知"""
+    subj = "【BizRadar】TDnet情報の取得に問題が発生しています"
+    body = (
+        "<p>現在TDnet適時開示情報の取得に問題が発生しています。"
+        "復旧次第ご連絡します。</p>"
+        f"<p style='color:#9ca3af;font-size:0.85em'>エラー: {error_msg}</p>"
+    )
+    recipients = {u["email"] for u in db.get_admin_users()}
+    recipients |= {u["email"] for u in db.get_pro_users()}
+    for email in recipients:
+        _send_simple_mail(email, subj, body)
+    logger.info("[tdnet-service] error notification sent to %d users", len(recipients))
+
+
+def _notify_tdnet_service_recovery():
+    """TDnet API 復旧時に管理者+Proユーザーへ通知"""
+    subj = "【BizRadar】TDnet情報の取得が復旧しました"
+    body = "<p>TDnet適時開示情報の取得が正常に復旧しました。</p>"
+    recipients = {u["email"] for u in db.get_admin_users()}
+    recipients |= {u["email"] for u in db.get_pro_users()}
+    for email in recipients:
+        _send_simple_mail(email, subj, body)
+    logger.info("[tdnet-service] recovery notification sent to %d users", len(recipients))
+
+
+# 連続失敗カウンタ（gunicorn --workers 1 前提）
+_tdnet_error_count = 0
+
+
+def _run_tdnet_cycle():
+    """TDnet 取得の1サイクル。エラー時は3連続で通知、復旧時も通知。"""
+    global _tdnet_error_count
+    try:
+        new_ids = db.fetch_and_save_tdnet()
+    except db.TdnetFetchError as e:
+        _tdnet_error_count += 1
+        logger.error("[tdnet] fetch failed (#%d): %s", _tdnet_error_count, e)
+        if _tdnet_error_count >= 3:
+            # 3回連続失敗 → 状態が未 error なら遷移させて通知
+            try:
+                prev = db.get_system_status("tdnet_status")
+                if prev != "error":
+                    db.set_system_status("tdnet_status", "error")
+                    db.set_system_status("tdnet_error_msg", str(e))
+                    _notify_tdnet_service_error(str(e))
+            except Exception as ee:
+                logger.error("[tdnet] failed to record error status: %s", ee)
+        return
+    # 取得成功
+    _tdnet_error_count = 0
+    try:
+        prev = db.get_system_status("tdnet_status")
+        if prev == "error":
+            db.set_system_status("tdnet_status", "ok")
+            db.set_system_status("tdnet_error_msg", "")
+            _notify_tdnet_service_recovery()
+    except Exception as e:
+        logger.error("[tdnet] failed to record ok status: %s", e)
+    _notify_tdnet_new(new_ids)
+
+
 def _start_tdnet_scheduler():
     """TDnet 適時開示情報を定期取得するバックグラウンドスレッド（15分間隔・起動時即時1回）"""
     def _run():
         try:
-            new_ids = db.fetch_and_save_tdnet()  # 起動時に1回
-            _notify_tdnet_new(new_ids)
+            _run_tdnet_cycle()  # 起動時に1回
         except Exception as e:
             logger.error("TDnet 初回取得エラー: %s", e)
         while True:
             time.sleep(15 * 60)
             try:
-                new_ids = db.fetch_and_save_tdnet()
-                _notify_tdnet_new(new_ids)
+                _run_tdnet_cycle()
             except Exception as e:
                 logger.error("TDnet 定期取得エラー: %s", e)
 

@@ -134,6 +134,11 @@ def init_db():
                     document_url  TEXT NOT NULL,
                     created_at    TIMESTAMP NOT NULL DEFAULT NOW()
                 );
+                CREATE TABLE IF NOT EXISTS system_status (
+                    key        VARCHAR(50) PRIMARY KEY,
+                    value      TEXT,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
                 CREATE TABLE IF NOT EXISTS alert_keywords (
                     id         SERIAL PRIMARY KEY,
                     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1091,16 +1096,31 @@ def fix_tdnet_company_names() -> int:
 def fetch_and_save_tdnet() -> list:
     """やのしんAPIから最新100件の TDnet 適時開示を取得し、tdnet_disclosures に保存する。
     重複（document_id 一致）は ON CONFLICT DO NOTHING でスキップ。
-    返り値: 今回新規保存した document_id の list。"""
+    返り値: 今回新規保存した document_id の list。
+    HTTPエラー / タイムアウト / 空レスポンス / JSON解析失敗 は TdnetFetchError を送出する。"""
     import requests as _requests
     url = "https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100"
     try:
         resp = _requests.get(url, timeout=15)
-        resp.raise_for_status()
+    except _requests.Timeout as e:
+        logger.error("[tdnet] timeout: %s", e)
+        raise TdnetFetchError(f"timeout: {e}")
+    except _requests.RequestException as e:
+        logger.error("[tdnet] request error: %s", e)
+        raise TdnetFetchError(f"request error: {e}")
+    if resp.status_code >= 400:
+        logger.error("[tdnet] HTTP %s", resp.status_code)
+        raise TdnetFetchError(f"HTTP {resp.status_code}")
+    if not resp.content:
+        logger.error("[tdnet] empty response")
+        raise TdnetFetchError("empty response")
+    try:
         data = resp.json()
-    except Exception as e:
-        logger.error("[tdnet] 取得失敗: %s", e)
-        return []
+    except ValueError as e:
+        logger.error("[tdnet] JSON parse failed: %s", e)
+        raise TdnetFetchError(f"JSON parse failed: {e}")
+    if not isinstance(data, dict):
+        raise TdnetFetchError("unexpected response shape")
     items = data.get("items") or []
     saved_ids: list = []
 
@@ -1172,6 +1192,44 @@ def get_pro_users() -> list:
                 "SELECT id, email FROM users WHERE plan = 'pro' AND email <> ''"
             )
             return [dict(r) for r in cur.fetchall()]
+
+
+def get_admin_users() -> list:
+    """is_admin = TRUE の全ユーザーを返す（通知用）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, email FROM users WHERE is_admin = TRUE AND email <> ''"
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+# ---- system_status ----
+def set_system_status(key: str, value: str) -> None:
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO system_status (key, value, updated_at) "
+                "VALUES (%s, %s, NOW()) "
+                "ON CONFLICT (key) DO UPDATE "
+                "SET value = EXCLUDED.value, updated_at = NOW()",
+                (key, value),
+            )
+
+
+def get_system_status(key: str) -> str | None:
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT value FROM system_status WHERE key = %s", (key,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+class TdnetFetchError(Exception):
+    """TDnet API 取得時のエラーを示す例外"""
+    pass
 
 
 def get_tdnet_for_user(user_id: int) -> list:
