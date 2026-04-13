@@ -198,6 +198,18 @@
   {% endif %}
   {% endwith %}
 
+  {% if companies | length == 1 %}
+  <div class="flash" style="background:#eff6ff; color:#1e3a8a; border:1px solid #bfdbfe; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <span style="flex:1; min-width:220px;">
+      <strong>次のステップ：</strong>企業詳細ページでキーワードやモニターサイトのURLを登録すると、ニュースやサイト更新を自動でキャッチできます。
+    </span>
+    <a href="{{ url_for('company_detail', company_id=companies[0].id) }}"
+       style="background:#1e3a8a; color:#fff; text-decoration:none; padding:6px 14px; border-radius:7px; font-size:0.82rem; font-weight:600; white-space:nowrap;">
+      企業詳細を開く
+    </a>
+  </div>
+  {% endif %}
+
   <nav class="breadcrumb">
     <a href="{{ url_for('index') }}">ホーム</a>
     <span class="bc-sep">›</span>
