@@ -513,6 +513,37 @@ def _start_tdnet_scheduler():
 _start_tdnet_scheduler()
 
 
+def _next_monday_6am_jst():
+    """次の月曜日 JST 06:00 を返す"""
+    jst = timezone(timedelta(hours=9))
+    now = datetime.now(jst)
+    days_ahead = (0 - now.weekday()) % 7  # 月曜=0
+    target = now.replace(hour=6, minute=0, second=0, microsecond=0) + timedelta(days=days_ahead)
+    if target <= now:
+        target += timedelta(days=7)
+    return target
+
+
+def _start_securities_master_scheduler():
+    """JPX 上場銘柄一覧を毎週月曜 06:00 JST に取得するバックグラウンドスレッド（起動時の即時実行なし）"""
+    def _run():
+        while True:
+            jst = timezone(timedelta(hours=9))
+            next_run = _next_monday_6am_jst()
+            sleep_sec = (next_run - datetime.now(jst)).total_seconds()
+            time.sleep(max(60, sleep_sec))
+            try:
+                db.fetch_and_save_securities_master()
+            except Exception as e:
+                logger.error("[securities_master] weekly fetch error: %s", e)
+
+    t = threading.Thread(target=_run, daemon=True, name="securities-master-scheduler")
+    t.start()
+
+
+_start_securities_master_scheduler()
+
+
 @app.before_request
 def track_user_activity():
     user_id = session.get("user_id")
@@ -1279,13 +1310,25 @@ def api_articles():
 @app.route("/api/tdnet/company", methods=["GET"])
 @csrf.exempt
 def api_tdnet_company():
-    """証券コードから tdnet_disclosures の企業名候補を返す。
+    """証券コードから企業名候補を返す（securities_master と tdnet_disclosures の両方を検索）。
     Query: code (例: 7203)
     Response: {"companies": ["トヨタ自動車", ...]} （最大5件・ヒットなしは空リスト）"""
     code = (request.args.get("code") or "").strip()
     if not code:
         return jsonify({"companies": []})
+    merged: list = []
+    seen: set = set()
+
+    def _add(names):
+        for n in names:
+            if n and n not in seen:
+                seen.add(n)
+                merged.append(n)
+
     try:
+        # 1) JPX 上場銘柄マスタ
+        _add(db.lookup_securities_master_by_code(code))
+        # 2) TDnet 実開示データ
         with db._conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -1294,11 +1337,11 @@ def api_tdnet_company():
                     "ORDER BY company_name LIMIT 5",
                     (f"%{code}%",),
                 )
-                companies = [r[0] for r in cur.fetchall() if r[0]]
+                _add([r[0] for r in cur.fetchall()])
     except Exception as e:
         logger.error("[api_tdnet_company] error: %s", e)
         return jsonify({"companies": []})
-    return jsonify({"companies": companies})
+    return jsonify({"companies": merged[:5]})
 
 
 @app.route("/api/suggest_url")
@@ -2033,6 +2076,16 @@ def admin_delete_domain_override(override_id):
     flash("削除しました", "success")
     return redirect(url_for("admin_domain_overrides"))
 
+
+@app.route("/admin/fetch_securities_master", methods=["POST"])
+@admin_required
+def admin_fetch_securities_master():
+    try:
+        n = db.fetch_and_save_securities_master()
+        return jsonify({"saved": n})
+    except Exception as e:
+        logger.error("[admin_fetch_securities_master] %s", e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/terms")

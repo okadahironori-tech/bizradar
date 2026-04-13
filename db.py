@@ -139,6 +139,13 @@ def init_db():
                     value      TEXT,
                     updated_at TIMESTAMP DEFAULT NOW()
                 );
+                CREATE TABLE IF NOT EXISTS securities_master (
+                    code       VARCHAR(10) PRIMARY KEY,
+                    name       VARCHAR(255) NOT NULL,
+                    name_kana  VARCHAR(255),
+                    market     VARCHAR(50),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
                 CREATE TABLE IF NOT EXISTS alert_keywords (
                     id         SERIAL PRIMARY KEY,
                     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1237,6 +1244,65 @@ def get_system_status(key: str) -> str | None:
 class TdnetFetchError(Exception):
     """TDnet API 取得時のエラーを示す例外"""
     pass
+
+
+JPX_XLS_URL = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
+
+
+def fetch_and_save_securities_master() -> int:
+    """JPX上場銘柄一覧の XLS を取得して securities_master に保存する。
+    ON CONFLICT(code) DO UPDATE で更新。取得件数を返す。"""
+    import requests as _requests
+    import xlrd as _xlrd
+
+    resp = _requests.get(JPX_XLS_URL, timeout=60)
+    resp.raise_for_status()
+    wb = _xlrd.open_workbook(file_contents=resp.content)
+    sh = wb.sheet_by_index(0)
+    saved = 0
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            for i in range(1, sh.nrows):
+                row = sh.row_values(i)
+                if len(row) < 3:
+                    continue
+                # code は float の場合があるので int 経由で文字列化
+                raw_code = row[1]
+                if isinstance(raw_code, float):
+                    code = str(int(raw_code))
+                else:
+                    code = str(raw_code).strip()
+                name = str(row[2]).strip() if len(row) > 2 else ""
+                market = str(row[3]).strip() if len(row) > 3 else ""
+                if not code or not name:
+                    continue
+                try:
+                    cur.execute(
+                        "INSERT INTO securities_master (code, name, market, updated_at) "
+                        "VALUES (%s, %s, %s, NOW()) "
+                        "ON CONFLICT (code) DO UPDATE SET "
+                        "name = EXCLUDED.name, market = EXCLUDED.market, updated_at = NOW()",
+                        (code, name, market),
+                    )
+                    saved += 1
+                except Exception as e:
+                    logger.warning("[securities_master] skip code=%s err=%s", code, e)
+    logger.info("[securities_master] saved=%d", saved)
+    return saved
+
+
+def lookup_securities_master_by_code(code: str) -> list:
+    """securities_master から code LIKE '%code%' で企業名を最大5件返す"""
+    if not code:
+        return []
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT name FROM securities_master "
+                "WHERE code LIKE %s ORDER BY name LIMIT 5",
+                (f"%{code}%",),
+            )
+            return [r[0] for r in cur.fetchall() if r[0]]
 
 
 def get_tdnet_for_user(user_id: int) -> list:
