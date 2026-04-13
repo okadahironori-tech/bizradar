@@ -1055,6 +1055,8 @@ def count_unread_alert_articles(user_id: int, alert_kws: set) -> int:
 def load_articles_data(user_id=None) -> dict:
     # キーワード単位の除外ワード (keyword_exclude_keywords) を含む記事を
     # 表示時にも弾くため NOT EXISTS 句を使う。
+    # 注: psycopg2 は cur.execute(sql, params) 経由で % を placeholder と解釈するため、
+    # SQL リテラル中の '%' は '%%' にエスケープする。
     excl_clause = (
         " AND NOT EXISTS ("
         "   SELECT 1 FROM keyword_exclude_keywords kek"
@@ -1062,7 +1064,7 @@ def load_articles_data(user_id=None) -> dict:
         "       SELECT id FROM keywords "
         "       WHERE keyword = a.keyword AND user_id = a.user_id LIMIT 1"
         "   )"
-        "   AND LOWER(a.title) LIKE '%' || LOWER(kek.exclude_word) || '%'"
+        "   AND LOWER(a.title) LIKE '%%' || LOWER(kek.exclude_word) || '%%'"
         " )"
     )
     with _conn() as conn:
@@ -1078,10 +1080,12 @@ def load_articles_data(user_id=None) -> dict:
                 cur.execute("SELECT url FROM articles WHERE user_id = %s", (user_id,))
                 seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
+                # 空タプルでも psycopg2 の % 置換が走り、'%%' → '%' に解決される
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
                     "FROM articles a WHERE 1=1" + excl_clause +
-                    " ORDER BY published DESC LIMIT 3000"
+                    " ORDER BY published DESC LIMIT 3000",
+                    (),
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
@@ -2386,7 +2390,8 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
                 "AND NOT EXISTS ("
                 "    SELECT 1 FROM keyword_exclude_keywords kek "
                 "    WHERE kek.keyword_id = k.id "
-                "    AND LOWER(a.title) LIKE '%' || LOWER(kek.exclude_word) || '%'"
+                # psycopg2: SQL リテラル中の '%' は '%%' にエスケープ必須
+                "    AND LOWER(a.title) LIKE '%%' || LOWER(kek.exclude_word) || '%%'"
                 ") "
                 "ORDER BY a.is_read ASC, a.published DESC, a.id DESC LIMIT %s",
                 (user_id, company_id, limit),
