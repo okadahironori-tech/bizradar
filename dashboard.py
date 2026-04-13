@@ -287,17 +287,101 @@ def _start_digest_scheduler():
 _start_digest_scheduler()
 
 
+def _send_tdnet_alert(to_email: str, disclosures: list):
+    """新規 TDnet 開示情報をメール通知する"""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    import html as _html
+
+    smtp_server   = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port     = int(os.environ.get("SMTP_PORT", "587"))
+    sender_email  = os.environ.get("SENDER_EMAIL", "")
+    sender_pass   = os.environ.get("SENDER_PASSWORD", "")
+    if not sender_email or not sender_pass:
+        logger.error("メール送信設定が不足しています (SENDER_EMAIL / SENDER_PASSWORD)")
+        return
+    if not disclosures:
+        return
+
+    rows_html = ""
+    for d in disclosures:
+        company = _html.escape(d.get("company_name") or "")
+        title   = _html.escape(d.get("title") or "")
+        pubdate = d.get("disclosed_at")
+        pubdate_s = pubdate.strftime("%Y-%m-%d %H:%M") if hasattr(pubdate, "strftime") else _html.escape(str(pubdate or ""))
+        url     = _html.escape(d.get("document_url") or "")
+        rows_html += (
+            f'<div style="padding:12px 0;border-bottom:1px solid #e5e7eb;">'
+            f'<div style="font-weight:700;color:#1a1a2e">{company}</div>'
+            f'<div style="margin-top:4px">{title}</div>'
+            f'<div style="color:#6b7280;font-size:0.85em;margin-top:4px">開示日時: {pubdate_s}</div>'
+            f'<div style="margin-top:6px"><a href="{url}" style="color:#3949ab">PDFを見る →</a></div>'
+            f'</div>'
+        )
+
+    html_body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<h2 style="font-size:1.1em">BizRadar 適時開示情報</h2>
+<p style="color:#4a4a6a">以下の企業から新しい適時開示情報があります。</p>
+{rows_html}
+<hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px">
+<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
+
+    msg = MIMEMultipart()
+    from email.utils import formataddr as _formataddr
+    msg["From"]    = _formataddr(("BizRadar", sender_email))
+    msg["To"]      = to_email
+    msg["Subject"] = "【BizRadar】適時開示情報があります"
+    msg["X-Mailer"] = "BizRadar"
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_pass)
+            server.send_message(msg)
+        logger.info("[tdnet-alert] sent to=%s count=%d", to_email, len(disclosures))
+    except smtplib.SMTPException as e:
+        logger.error("[tdnet-alert] send failed to=%s err=%s", to_email, e)
+
+
+def _notify_tdnet_new(new_doc_ids: list):
+    """新規保存された document_id について、Proユーザーの登録企業にマッチする分をメール通知する"""
+    if not new_doc_ids:
+        return
+    # 新規開示の詳細を取得（securities_code 付き）
+    new_items = db.get_tdnet_by_document_ids(new_doc_ids)
+    if not new_items:
+        return
+    pro_users = db.get_pro_users()
+    for u in pro_users:
+        uid = u["id"]
+        email = u["email"]
+        try:
+            # 該当ユーザーが受け取れる全開示を取得し、その中から新規分だけに絞る
+            user_items = db.get_tdnet_for_user(uid)
+            user_doc_ids = {i.get("document_id") for i in user_items}
+            matched = [i for i in new_items if i.get("document_id") in user_doc_ids]
+            if matched:
+                _send_tdnet_alert(email, matched)
+        except Exception as e:
+            logger.error("[tdnet-alert] user_id=%s error=%s", uid, e)
+
+
 def _start_tdnet_scheduler():
-    """TDnet 適時開示情報を定期取得するバックグラウンドスレッド（30分間隔・起動時即時1回）"""
+    """TDnet 適時開示情報を定期取得するバックグラウンドスレッド（15分間隔・起動時即時1回）"""
     def _run():
         try:
-            db.fetch_and_save_tdnet()  # 起動時に1回
+            new_ids = db.fetch_and_save_tdnet()  # 起動時に1回
+            _notify_tdnet_new(new_ids)
         except Exception as e:
             logger.error("TDnet 初回取得エラー: %s", e)
         while True:
-            time.sleep(30 * 60)
+            time.sleep(15 * 60)
             try:
-                db.fetch_and_save_tdnet()
+                new_ids = db.fetch_and_save_tdnet()
+                _notify_tdnet_new(new_ids)
             except Exception as e:
                 logger.error("TDnet 定期取得エラー: %s", e)
 

@@ -1088,20 +1088,21 @@ def fix_tdnet_company_names() -> int:
             return n
 
 
-def fetch_and_save_tdnet() -> int:
-    """やのしんAPIから最新500件の TDnet 適時開示を取得し、tdnet_disclosures に保存する。
-    重複（document_id 一致）は ON CONFLICT DO NOTHING でスキップ。保存件数を返す。"""
+def fetch_and_save_tdnet() -> list:
+    """やのしんAPIから最新100件の TDnet 適時開示を取得し、tdnet_disclosures に保存する。
+    重複（document_id 一致）は ON CONFLICT DO NOTHING でスキップ。
+    返り値: 今回新規保存した document_id の list。"""
     import requests as _requests
-    url = "https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=500"
+    url = "https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100"
     try:
         resp = _requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:
         logger.error("[tdnet] 取得失敗: %s", e)
-        return 0
+        return []
     items = data.get("items") or []
-    saved = 0
+    saved_ids: list = []
 
     import re as _re
 
@@ -1141,11 +1142,36 @@ def fetch_and_save_tdnet() -> int:
                         (doc_id, company, title, pubdate, doc_url, sec_code or None),
                     )
                     if cur.rowcount > 0:
-                        saved += 1
+                        saved_ids.append(doc_id)
                 except Exception as e:
                     logger.warning("[tdnet] insert skipped doc_id=%s err=%s", doc_id, e)
-    logger.info("[tdnet] fetched=%d saved=%d", len(items), saved)
-    return saved
+    logger.info("[tdnet] fetched=%d saved=%d", len(items), len(saved_ids))
+    return saved_ids
+
+
+def get_tdnet_by_document_ids(doc_ids: list) -> list:
+    """document_id のリストから tdnet_disclosures を取得する（通知用）"""
+    if not doc_ids:
+        return []
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT document_id, company_name, title, disclosed_at, document_url, securities_code "
+                "FROM tdnet_disclosures WHERE document_id = ANY(%s) "
+                "ORDER BY disclosed_at DESC",
+                (doc_ids,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def get_pro_users() -> list:
+    """plan = 'pro' の全ユーザーを返す（通知用）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, email FROM users WHERE plan = 'pro' AND email <> ''"
+            )
+            return [dict(r) for r in cur.fetchall()]
 
 
 def get_tdnet_for_user(user_id: int) -> list:
