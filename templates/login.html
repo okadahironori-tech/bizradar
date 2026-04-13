@@ -164,7 +164,12 @@
         </div>
         <div class="form-group">
           <label for="password">パスワード</label>
-          <input type="password" id="password" name="password" autocomplete="current-password" required>
+          <div style="position:relative;">
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+            <button type="button" onclick="togglePassword()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#6b7280; font-size:0.85rem; padding:4px;">
+              表示
+            </button>
+          </div>
         </div>
         <button type="submit" class="btn-login">ログイン</button>
       </form>
@@ -193,6 +198,19 @@
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+}
+</script>
+<script>
+function togglePassword() {
+  const input = document.getElementById('password');
+  const btn = event.currentTarget;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '隠す';
+  } else {
+    input.type = 'password';
+    btn.textContent = '表示';
+  }
 }
 </script>
 </body>
