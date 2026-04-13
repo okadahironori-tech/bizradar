@@ -137,6 +137,7 @@
     <a href="/settings">設定</a>
     <a href="/admin" class="active">管理者</a>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>

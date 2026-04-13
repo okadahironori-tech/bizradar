@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>ニュース — BizRadar</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
@@ -284,6 +285,7 @@
     {% if is_admin %}<a href="/admin" class="nav-link">管理者</a>{% endif %}
     <span class="nav-email">{{ user_email }}</span>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="nav-btn">ログアウト</button>
     </form>
   </div>
@@ -296,6 +298,7 @@
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>
@@ -421,6 +424,7 @@
             <td style="text-align:right; color:#6b7280; font-size:0.85rem">{{ keyword_counts.get(kw.keyword, 0) }} 件</td>
             <td style="text-align:center">
               <form method="POST" action="/toggle_keyword_notify">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="keyword" value="{{ kw.keyword }}">
                 <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
                 <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}"
@@ -505,6 +509,11 @@
 <div id="toast-container"></div>
 
 <script>
+// CSRF トークン取得ヘルパー（meta タグから取得）
+function _csrfToken() {
+  var m = document.querySelector('meta[name="csrf-token"]');
+  return m ? m.getAttribute('content') : '';
+}
 // ============================================================
 // 記事 既読 / 未読 トグル（非同期・再描画）
 // ============================================================
@@ -512,7 +521,7 @@ async function markRead(btn) {
   const item = btn.closest('.article-item');
   const id = item.dataset.articleId;
   try {
-    const res = await fetch(`/mark_read/${id}`, { method: 'POST' });
+    const res = await fetch(`/mark_read/${id}`, { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() } });
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
@@ -536,7 +545,7 @@ async function markUnread(btn) {
   const item = btn.closest('.article-item');
   const id = item.dataset.articleId;
   try {
-    const res = await fetch(`/mark_unread/${id}`, { method: 'POST' });
+    const res = await fetch(`/mark_unread/${id}`, { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() } });
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
@@ -848,7 +857,7 @@ function collectKeyword(btn, keyword) {
       var countBefore = before.count || 0;
       var fd = new FormData();
       fd.append('keyword', keyword);
-      fetch('/api/collect_keyword', { method: 'POST', body: fd })
+      fetch('/api/collect_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (!data.success) { btn.textContent = origText; btn.disabled = false; alert(data.message || '収集に失敗しました'); return; }
@@ -880,7 +889,7 @@ function collectKeyword(btn, keyword) {
       // 事前件数取得失敗時はそのまま収集開始（件数比較なし）
       var fd = new FormData();
       fd.append('keyword', keyword);
-      fetch('/api/collect_keyword', { method: 'POST', body: fd })
+      fetch('/api/collect_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (!data.success) { btn.textContent = origText; btn.disabled = false; alert(data.message || '収集に失敗しました'); return; }
@@ -903,7 +912,7 @@ function addKeyword(e) {
   if (!keyword) return;
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/add_keyword', { method: 'POST', body: fd })
+  fetch('/api/add_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { errEl.textContent = data.message || '追加に失敗しました'; errEl.style.display = 'block'; return; }
@@ -924,6 +933,7 @@ function addKeyword(e) {
         '<td style="text-align:right; color:#6b7280; font-size:0.85rem">0 件</td>' +
         '<td style="text-align:center">' +
           '<form method="POST" action="/toggle_keyword_notify">' +
+            '<input type="hidden" name="csrf_token" value="' + _csrfToken() + '">' +
             '<input type="hidden" name="keyword" value="' + safeKw + '">' +
             '<input type="hidden" name="notify_enabled" value="0">' +
             '<button type="submit" class="btn-notify-toggle on" title="通知ON"></button>' +
@@ -965,7 +975,7 @@ function addAlertKeyword(e) {
   if (!keyword) return;
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/add_alert_keyword', { method: 'POST', body: fd })
+  fetch('/api/add_alert_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { errEl.textContent = data.message || '追加に失敗しました'; errEl.style.display = 'block'; return; }
@@ -1001,7 +1011,7 @@ function deleteKeyword(btn, keyword) {
   btn.disabled = true;
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+  fetch('/api/delete_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
@@ -1020,7 +1030,7 @@ function deleteAlertKeyword(btn, keywordId, keyword) {
   btn.disabled = true;
   var fd = new FormData();
   fd.append('keyword_id', keywordId);
-  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+  fetch('/api/delete_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
@@ -1040,7 +1050,7 @@ function addExcludeKeyword(e) {
   if (!keyword) return;
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/add_exclude_keyword', { method: 'POST', body: fd })
+  fetch('/api/add_exclude_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { errEl.textContent = data.message || '追加に失敗しました'; errEl.style.display = 'block'; return; }
@@ -1076,7 +1086,7 @@ function deleteExcludeKeyword(btn, keywordId, keyword) {
   btn.disabled = true;
   var fd = new FormData();
   fd.append('keyword_id', keywordId);
-  fetch('/api/delete_exclude_keyword', { method: 'POST', body: fd })
+  fetch('/api/delete_exclude_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }

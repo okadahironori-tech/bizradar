@@ -180,6 +180,24 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
+# ---- CSRF 保護 ----
+# 全 POST/PUT/DELETE/PATCH エンドポイントに自動でCSRFトークン検証を適用
+from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf  # noqa: E402
+csrf = CSRFProtect(app)
+
+
+@app.context_processor
+def inject_csrf_token():
+    """テンプレート内で {{ csrf_token() }} として利用できるようにする"""
+    return {"csrf_token": generate_csrf}
+
+
+@app.errorhandler(CSRFError)
+def _handle_csrf_error(e):
+    """CSRFトークン切れ・不一致時はログイン画面へ誘導"""
+    from flask import redirect, url_for
+    return redirect(url_for("login"))
+
 # DB 初期化（テーブル作成 + マイグレーション）
 # Render 新インスタンス起動直後の一時的な接続失敗に備えてリトライする。
 try:

@@ -151,6 +151,7 @@
       <div class="error">{{ error }}</div>
       {% endif %}
       <form method="POST" action="/login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="next" value="{{ next }}">
         <div class="form-group">
           <label for="username">メールアドレス</label>

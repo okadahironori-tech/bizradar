@@ -1,6 +1,7 @@
 requests
 beautifulsoup4
 flask
+Flask-WTF
 python-dotenv
 gunicorn
 urllib3

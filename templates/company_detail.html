@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{{ company.name }} — BizRadar</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
@@ -437,6 +438,7 @@
     {% endif %}
     <span class="nav-email">{{ user_email }}</span>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="nav-btn">ログアウト</button>
     </form>
   </div>
@@ -450,6 +452,7 @@
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>
@@ -487,6 +490,7 @@
       <button type="button" class="btn btn-edit btn-sm" onclick="openEditModal()">編集</button>
       <form method="POST" action="/companies/{{ company.id }}/delete"
             onsubmit="return confirm('「{{ company.name }}」の企業情報を削除します。紐づいたモニターサイトやキーワードの紐づけは解除されますが、サイト・キーワード・記事のデータ自体は削除されません。')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger btn-sm">削除</button>
       </form>
     </div>
@@ -653,6 +657,7 @@
             <button type="button" class="btn btn-edit btn-sm"
                     onclick="openSiteEditModal('{{ s.url | e }}', '{{ (s.name or '') | e }}')">編集</button>
             <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="site_url" value="{{ s.url }}">
               <input type="hidden" name="action" value="unlink">
               <button type="submit" class="btn btn-ghost btn-sm">削除</button>
@@ -673,6 +678,7 @@
       <!-- 新規サイト登録フォーム -->
       <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_site">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
         <input type="url" name="url" id="site-url-input-detail" placeholder="https://example.com/news" maxlength="500" required
                oninput="checkUrlHint(this, 'url-hint-detail')">
@@ -685,6 +691,7 @@
       {% if unlinked_sites %}
       <div class="form-section-divider">既存サイトから選んで紐づける</div>
       <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_site">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="link">
         <select name="site_url" required>
           <option value="">サイトを選択して紐づける…</option>
@@ -718,6 +725,7 @@
           </td>
           <td>
             <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="keyword" value="{{ k.keyword }}">
               <input type="hidden" name="action" value="unlink">
               <button type="submit" class="btn btn-ghost btn-sm">削除</button>
@@ -738,6 +746,7 @@
       <!-- 新規キーワード登録フォーム -->
       <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="keyword" id="kw-input-detail" placeholder="例：ニデック、永守重信、EV市場" maxlength="200" required>
         <button type="submit" class="btn btn-primary">登録する</button>
       </form>
@@ -747,6 +756,7 @@
       <div class="form-section-divider">既存キーワードから選んで紐づける</div>
       <p class="section-desc" style="padding-bottom:6px;">ニュースページで登録済みのキーワードをこの企業に紐づけます。</p>
       <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_keyword">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="link">
         <select name="keyword" required>
           <option value="">キーワードを選択して紐づける…</option>
@@ -794,6 +804,7 @@
     <button class="modal-close" onclick="closeEditModal()" aria-label="閉じる">×</button>
     <div class="modal-title">企業情報を編集</div>
     <form method="POST" action="/companies/{{ company.id }}/edit">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-group">
           <label>企業名 <span style="color:#dc2626">*</span></label>
@@ -820,6 +831,11 @@
   </div>
 </div>
 <script>
+// CSRF トークン取得ヘルパー（meta タグから取得）
+function _csrfToken() {
+  var m = document.querySelector('meta[name="csrf-token"]');
+  return m ? m.getAttribute('content') : '';
+}
 function _updateReadCounters(isAlert) {
   // 1. 未読記事サマリー
   var unreadEl = document.getElementById('summary-unread-val');
@@ -851,7 +867,7 @@ async function markRead(btn) {
   const id = item.dataset.articleId;
   const isAlert = item.classList.contains('is-alert');
   try {
-    const res = await fetch(`/mark_read/${id}`, { method: 'POST' });
+    const res = await fetch(`/mark_read/${id}`, { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() } });
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
@@ -871,7 +887,7 @@ async function markUnread(btn) {
   const item = btn.closest('.article-item');
   const id = item.dataset.articleId;
   try {
-    const res = await fetch(`/mark_unread/${id}`, { method: 'POST' });
+    const res = await fetch(`/mark_unread/${id}`, { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() } });
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
@@ -1118,6 +1134,7 @@ function applyUrlHint(hintId, suggested) {
 <div style="text-align:center; padding: 40px 0 24px;">
   <form method="POST" action="/companies/{{ company.id }}/delete"
         onsubmit="return confirm('「{{ company.name }}」の企業情報を削除します。紐づいたモニターサイトやキーワードの紐づけは解除されますが、サイト・キーワード・記事のデータ自体は削除されません。')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit"
             style="background:none; border:none; color:#dc2626; font-size:0.85rem; cursor:pointer; text-decoration:underline; padding:4px 8px;">
       このページを削除する

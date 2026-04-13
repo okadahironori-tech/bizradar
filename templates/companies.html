@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>モニター管理 — BizRadar</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
@@ -246,6 +247,7 @@
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>
@@ -284,6 +286,7 @@
                 <span class="site-name">{{ site.name if site.name else '—' }}</span>
               </div>
               <form id="card-name-form-{{ loop.index0 }}" class="site-name-edit-wrap" method="POST" action="/update_site_name">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="url" value="{{ site.url }}">
                 <input type="text" name="name" value="{{ site.name }}" class="input-site-name" placeholder="会社名">
                 <button type="submit" class="btn btn-save">保存</button>
@@ -376,6 +379,7 @@
             <td style="text-align:right; color:#6b7280; font-size:0.85rem">{{ keyword_counts.get(kw.keyword, 0) }} 件</td>
             <td style="text-align:center">
               <form method="POST" action="/toggle_keyword_notify">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="keyword" value="{{ kw.keyword }}">
                 <input type="hidden" name="notify_enabled" value="{{ 0 if kw.notify_enabled else 1 }}">
                 <button type="submit" class="btn-notify-toggle {% if kw.notify_enabled %}on{% else %}off{% endif %}"
@@ -433,6 +437,11 @@
 </main>
 
 <script>
+// CSRF トークン取得ヘルパー（meta タグから取得）
+function _csrfToken() {
+  var m = document.querySelector('meta[name="csrf-token"]');
+  return m ? m.getAttribute('content') : '';
+}
 // ── モニターサイトAJAX追加 ──────────────────────────────────────
 function addSite(e) {
   e.preventDefault();
@@ -450,7 +459,7 @@ function addSite(e) {
   var fd = new FormData();
   fd.append('url', url);
   fd.append('name', name);
-  fetch('/api/add_site', { method: 'POST', body: fd })
+  fetch('/api/add_site', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) {
@@ -500,6 +509,7 @@ function addSite(e) {
               '<span class="site-name">' + safeName + '</span>' +
             '</div>' +
             '<form id="card-name-form-' + idx + '" class="site-name-edit-wrap" method="POST" action="/update_site_name" style="display:none">' +
+              '<input type="hidden" name="csrf_token" value="' + _csrfToken() + '">' +
               '<input type="hidden" name="url" value="' + safeUrl + '">' +
               '<input type="text" name="name" value="' + safeName + '" class="input-site-name" placeholder="会社名">' +
               '<button type="submit" class="btn btn-save">保存</button>' +
@@ -584,7 +594,7 @@ function checkSite(btn, url) {
   btn.textContent = '収集中...';
   var fd = new FormData();
   fd.append('url', url);
-  fetch('/api/check_site', { method: 'POST', body: fd })
+  fetch('/api/check_site', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) {
@@ -609,7 +619,7 @@ function collectKeyword(btn, keyword) {
   btn.textContent = '収集中...';
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/collect_keyword', { method: 'POST', body: fd })
+  fetch('/api/collect_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) {
@@ -633,7 +643,7 @@ function deleteSite(btn, url, name) {
   btn.disabled = true;
   var fd = new FormData();
   fd.append('url', url);
-  fetch('/api/delete_site', { method: 'POST', body: fd })
+  fetch('/api/delete_site', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
@@ -655,7 +665,7 @@ function toggleSite(btn, url) {
   btn.disabled = true;
   var fd = new FormData();
   fd.append('url', url);
-  fetch('/api/toggle_site', { method: 'POST', body: fd })
+  fetch('/api/toggle_site', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       btn.disabled = false;
@@ -684,7 +694,7 @@ function addKeyword(e) {
   if (!keyword) return;
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/add_keyword', { method: 'POST', body: fd })
+  fetch('/api/add_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) {
@@ -711,6 +721,7 @@ function addKeyword(e) {
         '<td style="text-align:right; color:#6b7280; font-size:0.85rem">0 件</td>' +
         '<td style="text-align:center">' +
           '<form method="POST" action="/toggle_keyword_notify">' +
+            '<input type="hidden" name="csrf_token" value="' + _csrfToken() + '">' +
             '<input type="hidden" name="keyword" value="' + safeKw + '">' +
             '<input type="hidden" name="notify_enabled" value="1">' +
             '<button type="submit" class="btn-notify-toggle off" title="通知OFF"></button>' +
@@ -740,7 +751,7 @@ function addAlertKeyword(e) {
   if (!keyword) return;
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/add_alert_keyword', { method: 'POST', body: fd })
+  fetch('/api/add_alert_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) {
@@ -785,7 +796,7 @@ function deleteKeyword(btn, keyword) {
   btn.disabled = true;
   var fd = new FormData();
   fd.append('keyword', keyword);
-  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+  fetch('/api/delete_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }
@@ -804,7 +815,7 @@ function deleteAlertKeyword(btn, keywordId, keyword) {
   btn.disabled = true;
   var fd = new FormData();
   fd.append('keyword_id', keywordId);
-  fetch('/api/delete_keyword', { method: 'POST', body: fd })
+  fetch('/api/delete_keyword', { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() }, body: fd })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.success) { alert(data.message || '削除に失敗しました'); btn.disabled = false; return; }

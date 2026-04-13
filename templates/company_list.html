@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>企業 — BizRadar</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
@@ -181,6 +182,7 @@
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>
@@ -259,6 +261,7 @@
     <button class="modal-close" onclick="closeAddCompanyModal()" aria-label="閉じる">×</button>
     <div class="modal-title">企業を追加</div>
     <form method="POST" action="/companies/add">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-group">
           <label>企業名 <span style="color:#dc2626">*</span></label>
@@ -306,10 +309,13 @@
     onEnd: function () {
       var ids = Array.from(grid.querySelectorAll('.company-card[data-id]'))
                      .map(function (el) { return parseInt(el.dataset.id, 10); });
+      var _csrf = (document.querySelector('meta[name="csrf-token"]') || {}).getAttribute
+                    ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    : '';
       fetch('/companies/reorder', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf },
         body: JSON.stringify({ ids: ids })
       }).then(function(r) {
         console.log('status:', r.status);

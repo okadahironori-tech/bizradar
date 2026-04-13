@@ -105,6 +105,7 @@
     <a href="/settings" class="active">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>
@@ -131,6 +132,7 @@
     <div class="section-title">チェック間隔</div>
     <div class="card">
       <form class="settings-panel" method="POST" action="/set_interval">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>チェック間隔（管理者）</label>
         <div class="interval-options">
           {% for lbl, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
@@ -151,6 +153,7 @@
     <div class="section-title">ニュース通知タイミング</div>
     <div class="card">
       <form class="settings-panel" method="POST" action="/set_notify_timing" style="flex-direction:column; align-items:flex-start; gap:16px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
           <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
             <input type="checkbox" id="timing-immediate" name="notify_timing" value="immediate"
@@ -181,6 +184,7 @@
     <div class="section-title">パスワード変更</div>
     <div class="card">
       <form class="settings-panel" method="POST" action="/change_password">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="pw-change-fields">
           <input type="password" name="current_password" placeholder="現在のパスワード" required>
           <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required>

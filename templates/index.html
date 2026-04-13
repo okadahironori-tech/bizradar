@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>BizRadar</title>
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
@@ -414,6 +415,7 @@
     {% endif %}
     <span class="nav-email">{{ user_email }}</span>
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="nav-btn">ログアウト</button>
     </form>
   </div>
@@ -427,6 +429,7 @@
     <a href="/settings">設定</a>
     {% if is_admin %}<a href="/admin">管理者</a>{% endif %}
     <form method="POST" action="/logout" onsubmit="return confirm('ログアウトしてもよろしいですか？')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="hm-btn">ログアウト</button>
     </form>
   </div>
@@ -693,6 +696,11 @@ function dismissAlert(btn) {
 </main>
 
 <script>
+// CSRF トークン取得ヘルパー（meta タグから取得）
+function _csrfToken() {
+  var m = document.querySelector('meta[name="csrf-token"]');
+  return m ? m.getAttribute('content') : '';
+}
 // ============================================================
 // ダッシュボード記事管理（全記事をJS配列で保持・セクション再描画）
 // ============================================================
@@ -812,7 +820,7 @@ async function markRead(btn) {
   item.style.transition = 'opacity 0.2s';
   item.style.opacity = '0';
   try {
-    const res  = await fetch(`/mark_read/${id}`, { method: 'POST' });
+    const res  = await fetch(`/mark_read/${id}`, { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() } });
     if (!res.ok) { item.style.opacity = ''; item.style.transition = ''; return; }
     const data = await res.json();
     if (!data.ok) { item.style.opacity = ''; item.style.transition = ''; return; }
@@ -827,7 +835,7 @@ async function markUnread(btn) {
   const item = btn.closest('.article-item');
   const id   = parseInt(item.dataset.articleId, 10);
   try {
-    const res  = await fetch(`/mark_unread/${id}`, { method: 'POST' });
+    const res  = await fetch(`/mark_unread/${id}`, { method: 'POST', headers: { 'X-CSRFToken': _csrfToken() } });
     if (!res.ok) return;
     const data = await res.json();
     if (!data.ok) return;
