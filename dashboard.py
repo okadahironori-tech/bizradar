@@ -2126,9 +2126,10 @@ def add_company():
     if not name:
         flash("企業名を入力してください", "error")
         return redirect(url_for("management", _anchor="keywords-section"))
-    name_kana   = request.form.get("name_kana", "").strip()
-    website_url = request.form.get("website_url", "").strip()
-    memo        = request.form.get("memo", "").strip()
+    name_kana       = request.form.get("name_kana", "").strip()
+    website_url     = request.form.get("website_url", "").strip()
+    memo            = request.form.get("memo", "").strip()
+    securities_code = request.form.get("securities_code", "").strip()
 
     # 同一ドメインの既存企業があれば登録をブロック
     if website_url:
@@ -2141,7 +2142,8 @@ def add_company():
                     flash(f"このドメインはすでに登録されています：{c['name']}（{c_url}）", "error")
                     return redirect(url_for("company_list"))
 
-    company_id = db.create_company(user_id, name, name_kana, website_url, memo)
+    company_id = db.create_company(user_id, name, name_kana, website_url, memo,
+                                   securities_code=securities_code)
     if request.form.get("add_as_keyword"):
         created = db.add_keyword_if_not_exists(user_id, name)
         if created:
@@ -2226,10 +2228,12 @@ def edit_company(company_id):
     if not name:
         flash("企業名を入力してください", "error")
         return redirect(url_for("company_detail", company_id=company_id))
-    name_kana   = request.form.get("name_kana", "").strip()
-    website_url = request.form.get("website_url", "").strip()
-    memo        = request.form.get("memo", "").strip()
-    db.update_company(user_id, company_id, name, name_kana, website_url, memo)
+    name_kana       = request.form.get("name_kana", "").strip()
+    website_url     = request.form.get("website_url", "").strip()
+    memo            = request.form.get("memo", "").strip()
+    securities_code = request.form.get("securities_code", "").strip()
+    db.update_company(user_id, company_id, name, name_kana, website_url, memo,
+                      securities_code=securities_code)
     flash("企業情報を更新しました", "success")
     return redirect(url_for("company_detail", company_id=company_id))
 

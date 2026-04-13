@@ -401,6 +401,20 @@ def _run_migrations():
             cur.execute(
                 "UPDATE companies SET sort_order = id WHERE sort_order = 0;"
             )
+            # companies: 証券コード（上場企業用、任意）
+            cur.execute(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "securities_code VARCHAR(10);"
+            )
+            # tdnet_disclosures: 証券コード（TDnet API の company_code を保存）
+            cur.execute(
+                "ALTER TABLE tdnet_disclosures ADD COLUMN IF NOT EXISTS "
+                "securities_code VARCHAR(10);"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_tdnet_securities_code "
+                "ON tdnet_disclosures (securities_code);"
+            )
 
             # domain_overrides: 企業名カラム追加
             cur.execute(
@@ -1115,15 +1129,16 @@ def fetch_and_save_tdnet() -> int:
                 title = clean(t.get("title") or "").strip()
                 pubdate = clean(t.get("pubdate") or "").strip()
                 doc_url = clean(t.get("document_url") or "").strip()
+                sec_code = clean(str(t.get("company_code") or "")).strip()
                 if not (doc_id and company and title and pubdate and doc_url):
                     continue
                 try:
                     cur.execute(
                         "INSERT INTO tdnet_disclosures "
-                        "(document_id, company_name, title, disclosed_at, document_url) "
-                        "VALUES (%s, %s, %s, %s, %s) "
+                        "(document_id, company_name, title, disclosed_at, document_url, securities_code) "
+                        "VALUES (%s, %s, %s, %s, %s, %s) "
                         "ON CONFLICT (document_id) DO NOTHING",
-                        (doc_id, company, title, pubdate, doc_url),
+                        (doc_id, company, title, pubdate, doc_url, sec_code or None),
                     )
                     if cur.rowcount > 0:
                         saved += 1
@@ -1134,22 +1149,73 @@ def fetch_and_save_tdnet() -> int:
 
 
 def get_tdnet_for_user(user_id: int) -> list:
-    """ユーザーの登録企業名に部分一致する TDnet 開示情報を disclosed_at 降順で返す。
-    ヒットしない企業については先頭4文字でのフォールバック検索も行う。"""
+    """ユーザーの登録企業に紐づく TDnet 開示情報を disclosed_at 降順で返す。
+      1) 証券コード登録済みの企業: tdnet_disclosures.securities_code で前方一致
+         （ユーザーが4桁入力、TDnet側は通常5桁なので LIKE 'NNNN%' で一致させる）
+      2) 証券コード未登録の企業: 従来どおり company_name の LIKE 部分一致 + 先頭4/2文字フォールバック
+    """
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # 登録企業名一覧
+            # 登録企業一覧（name と securities_code）
             cur.execute(
-                "SELECT name FROM companies WHERE user_id = %s AND name <> ''",
+                "SELECT name, securities_code FROM companies "
+                "WHERE user_id = %s AND name <> ''",
                 (user_id,),
             )
-            names = [r["name"] for r in cur.fetchall()]
-            logger.info("[tdnet] user_id=%s companies=%s", user_id, names)
+            rows = cur.fetchall()
+            names = [r["name"] for r in rows]
+            codes = [(r["securities_code"] or "").strip() for r in rows]
+            logger.info(
+                "[tdnet] user_id=%s companies=%s codes=%s",
+                user_id, names, codes,
+            )
             if not names:
                 return []
 
+            merged: dict = {}
+
+            def _add_rows(rs):
+                for r in rs:
+                    d = dict(r)
+                    merged.setdefault(d["document_id"], d)
+
+            # 0) 証券コード優先マッチ
+            code_patterns = [c for c in codes if c]
+            if code_patterns:
+                # 4桁入力想定 → TDnet側5桁に対して前方一致で見つける（4桁も許容）
+                like_params = [f"{c}%" for c in code_patterns]
+                where = " OR ".join(["securities_code LIKE %s"] * len(like_params))
+                cur.execute(
+                    "SELECT document_id, company_name, title, disclosed_at, document_url "
+                    f"FROM tdnet_disclosures WHERE {where} "
+                    "ORDER BY disclosed_at DESC LIMIT 500",
+                    like_params,
+                )
+                found = cur.fetchall()
+                _add_rows(found)
+                try:
+                    q = cur.query.decode() if isinstance(cur.query, bytes) else str(cur.query)
+                    logger.info("[tdnet] code-match SQL: %s", q)
+                except Exception:
+                    pass
+                logger.info(
+                    "[tdnet] code-match patterns=%s got=%d",
+                    code_patterns, len(found),
+                )
+
+            # 以降のLIKE照合は「証券コード未登録の企業のみ」を対象にする
+            names = [r["name"] for r in rows if not (r["securities_code"] or "").strip()]
+            if not names:
+                results = sorted(
+                    merged.values(),
+                    key=lambda r: r.get("disclosed_at") or "",
+                    reverse=True,
+                )[:500]
+                logger.info("[tdnet] user_id=%s found=%d (code only)", user_id, len(results))
+                return results
+
             # 第1段: フル名 LIKE '%name%' で全件検索 & 各企業のヒット状況を把握
-            merged: dict = {}  # document_id -> row
+            # merged は 証券コード段で既に使用しているため再代入しない
             hit_flags: dict = {n: False for n in names}
 
             def _search(patterns: list, label: str) -> int:
@@ -1876,7 +1942,7 @@ def load_companies(user_id: int) -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order, securities_code "
                 "FROM companies WHERE user_id = %s ORDER BY sort_order ASC, id ASC",
                 (user_id,),
             )
@@ -1889,7 +1955,7 @@ def get_company(user_id: int, company_id: int) -> dict | None:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, securities_code "
                 "FROM companies WHERE id = %s AND user_id = %s",
                 (company_id, user_id),
             )
@@ -1898,7 +1964,8 @@ def get_company(user_id: int, company_id: int) -> dict | None:
 
 
 def create_company(user_id: int, name: str, name_kana: str = "",
-                   website_url: str = "", memo: str = "") -> int:
+                   website_url: str = "", memo: str = "",
+                   securities_code: str = "") -> int:
     """企業を追加して id を返す。sort_order は既存の最大値+1 にする。"""
     with _conn() as conn:
         with conn.cursor() as cur:
@@ -1908,9 +1975,10 @@ def create_company(user_id: int, name: str, name_kana: str = "",
             )
             next_order = cur.fetchone()[0] + 1
             cur.execute(
-                "INSERT INTO companies (user_id, name, name_kana, website_url, memo, sort_order) "
-                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-                (user_id, name, name_kana, website_url, memo, next_order),
+                "INSERT INTO companies (user_id, name, name_kana, website_url, memo, sort_order, securities_code) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                (user_id, name, name_kana, website_url, memo, next_order,
+                 (securities_code or None)),
             )
             return cur.fetchone()[0]
 
@@ -1927,14 +1995,16 @@ def update_companies_order(user_id: int, ids: list) -> None:
 
 
 def update_company(user_id: int, company_id: int, name: str, name_kana: str = "",
-                   website_url: str = "", memo: str = "") -> bool:
+                   website_url: str = "", memo: str = "",
+                   securities_code: str = "") -> bool:
     """企業情報を更新する"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE companies SET name=%s, name_kana=%s, website_url=%s, memo=%s, "
-                "updated_at=NOW() WHERE id=%s AND user_id=%s",
-                (name, name_kana, website_url, memo, company_id, user_id),
+                "securities_code=%s, updated_at=NOW() WHERE id=%s AND user_id=%s",
+                (name, name_kana, website_url, memo,
+                 (securities_code or None), company_id, user_id),
             )
             return cur.rowcount > 0
 
