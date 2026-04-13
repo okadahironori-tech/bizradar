@@ -997,7 +997,7 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
             )
 
 
-def delete_old_articles(days: int = 90) -> int:
+def delete_old_articles(days: int = 30) -> int:
     """found_at が指定日数より古い記事を articles テーブルから削除する。
     返り値: 削除件数。found_at が空文字のレコードは削除対象外。
     注: change_history など他テーブルは一切影響を受けない。"""
