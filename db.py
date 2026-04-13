@@ -114,6 +114,14 @@ def init_db():
                     expires_at TIMESTAMPTZ NOT NULL,
                     used       BOOLEAN NOT NULL DEFAULT FALSE
                 );
+                CREATE TABLE IF NOT EXISTS magic_tokens (
+                    id         SERIAL PRIMARY KEY,
+                    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    token      VARCHAR(64) NOT NULL UNIQUE,
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    expires_at TIMESTAMP NOT NULL,
+                    used_at    TIMESTAMP
+                );
                 CREATE TABLE IF NOT EXISTS alert_keywords (
                     id         SERIAL PRIMARY KEY,
                     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1429,6 +1437,42 @@ def invalidate_reset_token(token: str):
                 "UPDATE password_reset_tokens SET used = TRUE WHERE token = %s",
                 (token,),
             )
+
+
+def create_magic_token(user_id: int, ttl_minutes: int = 15) -> str:
+    """マジックリンク用トークンを生成してDBに保存し、トークン文字列を返す。
+    既存の未使用トークンは削除してから新規作成する。"""
+    token = secrets.token_urlsafe(32)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM magic_tokens WHERE user_id = %s AND used_at IS NULL", (user_id,))
+            cur.execute(
+                "INSERT INTO magic_tokens (user_id, token, expires_at) "
+                "VALUES (%s, %s, NOW() + (INTERVAL '1 minute' * %s))",
+                (user_id, token, ttl_minutes),
+            )
+    return token
+
+
+def consume_magic_token(token: str):
+    """マジックリンクトークンを検証し、有効なら used_at をセットして user_id を返す。
+    無効・期限切れ・使用済みの場合は None を返す。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, user_id FROM magic_tokens "
+                "WHERE token = %s AND used_at IS NULL AND expires_at > NOW()",
+                (token,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            token_id, user_id = row
+            cur.execute(
+                "UPDATE magic_tokens SET used_at = NOW() WHERE id = %s",
+                (token_id,),
+            )
+            return user_id
 
 
 # ============================================================

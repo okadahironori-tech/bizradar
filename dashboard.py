@@ -1865,6 +1865,104 @@ def _send_reset_email(to_email: str, reset_url: str):
         logger.error("パスワードリセットメール送信に失敗しました: %s", e)
 
 
+def _send_magic_login_email(to_email: str, login_url: str):
+    """マジックリンクログインURLをメールで送信する"""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    import html as _html
+
+    smtp_server   = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port     = int(os.environ.get("SMTP_PORT", "587"))
+    sender_email  = os.environ.get("SENDER_EMAIL", "")
+    sender_pass   = os.environ.get("SENDER_PASSWORD", "")
+    if not sender_email or not sender_pass:
+        logger.error("メール送信設定が不足しています (SENDER_EMAIL / SENDER_PASSWORD)")
+        return
+
+    url_esc = _html.escape(login_url)
+    html_body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:560px;margin:0 auto;padding:16px">
+<h2 style="font-size:1.1em">BizRadar ログイン用リンク</h2>
+<p>ログイン用URLをお送りします。<br>
+以下のリンクをクリックしてログインしてください。</p>
+<p style="margin:20px 0">
+  <a href="{url_esc}" style="background:#1a1a2e;color:#fff;padding:10px 20px;
+     border-radius:8px;text-decoration:none;font-weight:600">
+    ログインする
+  </a>
+</p>
+<p style="font-size:0.85em;color:#6b7280">
+  このリンクは<strong>15分間</strong>有効です。<br>
+  身に覚えのない場合はこのメールを無視してください。<br>
+  リンク: {url_esc}
+</p>
+<hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px">
+<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
+
+    msg = MIMEMultipart()
+    from email.utils import formataddr as _formataddr
+    msg["From"]    = _formataddr(("BizRadar", sender_email))
+    msg["To"]      = to_email
+    msg["Subject"] = "【BizRadar】ログイン用リンク"
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_pass)
+            server.send_message(msg)
+        logger.info("マジックログインメールを送信しました → %s", to_email)
+    except smtplib.SMTPException as e:
+        logger.error("マジックログインメール送信に失敗しました: %s", e)
+
+
+@app.route("/magic-login", methods=["GET", "POST"])
+@limiter.limit("3 per hour", methods=["POST"])
+def magic_login_request():
+    """マジックリンク送信フォーム + 送信処理"""
+    if request.method == "GET":
+        return render_template("magic_login.html")
+
+    email = request.form.get("email", "").strip().lower()
+    # ユーザー列挙攻撃対策: 存在有無に関わらず同じメッセージを返す
+    user = db.get_user_by_email(email) if email else None
+    if user:
+        try:
+            token = db.create_magic_token(user["id"], ttl_minutes=15)
+            login_url = url_for("magic_login_verify", token=token, _external=True)
+            _send_magic_login_email(email, login_url)
+        except Exception as e:
+            logger.error("マジックリンク生成・送信に失敗しました: %s", e)
+
+    flash("ログイン用URLをメールで送信しました。15分以内にご確認ください。", "info")
+    return render_template("magic_login.html")
+
+
+@app.route("/magic-login/<token>", methods=["GET"])
+def magic_login_verify(token: str):
+    """マジックリンクの検証とログイン処理"""
+    user_id = db.consume_magic_token(token)
+    if not user_id:
+        flash("このリンクは無効または期限切れです。", "danger")
+        return redirect(url_for("login"))
+    user = db.get_user_by_id(user_id)
+    if not user:
+        flash("このリンクは無効または期限切れです。", "danger")
+        return redirect(url_for("login"))
+
+    # ログイン成功時のセッション状態を通常ログインと同じにする
+    session.pop("login_fail_count", None)
+    session.pop("login_fail_first_at", None)
+    session.pop("login_locked_until", None)
+    session.permanent = True
+    session["user_id"] = user["id"]
+    session["email"] = user["email"]
+    session["is_admin"] = user["is_admin"]
+    db.update_last_login(user["id"])
+    return redirect(url_for("index"))
+
+
 @app.route("/forgot-password", methods=["GET", "POST"])
 @limiter.limit("3 per hour", methods=["POST"])
 def forgot_password():

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — メールでログイン</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5; color: #1a1a2e;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .wrap { width: 100%; max-width: 400px; padding: 0 16px; }
+    .header { text-align: center; margin-bottom: 28px; }
+    .header h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a2e; letter-spacing: 0.04em; }
+    .header p  { font-size: 0.82rem; color: #8892b0; margin-top: 4px; }
+    .card {
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.10); padding: 32px 28px;
+    }
+    .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
+    .card p  { font-size: 0.87rem; color: #6b7280; margin-bottom: 20px; line-height: 1.6; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block; font-size: 0.82rem; font-weight: 600;
+      color: #4a4a6a; margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid #d1d5db; border-radius: 8px;
+      font-size: 0.95rem; outline: none; transition: border-color 0.15s;
+    }
+    .form-group input:focus { border-color: #3949ab; }
+    .btn {
+      width: 100%; padding: 11px; background: #1a1a2e; color: #fff;
+      border: none; border-radius: 8px; font-size: 0.95rem;
+      font-weight: 600; cursor: pointer; transition: background 0.15s;
+    }
+    .btn:hover { background: #2d2d4e; }
+    .flash {
+      background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;
+      border-radius: 8px; padding: 14px; font-size: 0.87rem; line-height: 1.6;
+      margin-bottom: 18px;
+    }
+    .back { text-align: center; margin-top: 18px; font-size: 0.85rem; color: #6b7280; }
+    .back a { color: #3949ab; text-decoration: none; }
+  </style>
+  <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>BizRadar</h1>
+      <p>企業情報モニタリングサービス</p>
+    </div>
+    <div class="card">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="flash">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      <h2>メールでログイン</h2>
+      <p>登録済みのメールアドレスを入力してください。<br>ログイン用のリンクをメールで送信します。</p>
+      <form method="POST" action="/magic-login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label for="email">メールアドレス</label>
+          <input type="email" id="email" name="email" autocomplete="email" autofocus required>
+        </div>
+        <button type="submit" class="btn">ログイン用リンクを送信</button>
+      </form>
+    </div>
+    <p class="back"><a href="/login">← パスワードでログインに戻る</a></p>
+  </div>
+</body>
+</html>
