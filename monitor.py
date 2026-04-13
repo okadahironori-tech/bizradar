@@ -833,8 +833,8 @@ def check_all_keywords():
 
     # user_id ごとにキーワードをグループ化（notify_enabled 付き）
     user_keywords: dict = {}
-    for user_id, keyword_id, keyword, notify_enabled in kw_with_users:
-        user_keywords.setdefault(user_id, []).append((keyword_id, keyword, notify_enabled))
+    for user_id, keyword, notify_enabled, keyword_id in kw_with_users:
+        user_keywords.setdefault(user_id, []).append((keyword, notify_enabled, keyword_id))
 
     for user_id, keywords in user_keywords.items():
         if user_id is None:
@@ -844,7 +844,7 @@ def check_all_keywords():
         seen_titles = db.load_article_seen_titles(user_id)
         exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
 
-        for keyword_id, keyword, _notify_enabled_cached in keywords:
+        for keyword, _notify_enabled_cached, keyword_id in keywords:
             if not keyword:
                 continue
             print(f"  キーワード: {keyword} (user_id={user_id})")

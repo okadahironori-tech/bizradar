@@ -986,16 +986,17 @@ def is_keyword_notify_enabled(user_id: int, keyword: str) -> bool:
 
 
 def load_all_keywords_with_users() -> list:
-    """バックグラウンド用: [(user_id, keyword_id, keyword, notify_enabled), ...]
+    """バックグラウンド用: [(user_id, keyword, notify_enabled, keyword_id), ...]
     user_id が NULL の孤立キーワードは除外する。
+    keyword_id は末尾に追加（旧 3-tuple 形式と先頭3要素の位置を一致させて互換性を保つ）。
     """
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT user_id, id, keyword, COALESCE(notify_enabled, TRUE) FROM keywords "
+                "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE), id FROM keywords "
                 "WHERE user_id IS NOT NULL ORDER BY id"
             )
-            return [(row[0], row[1], row[2], bool(row[3])) for row in cur.fetchall()]
+            return [(row[0], row[1], bool(row[2]), row[3]) for row in cur.fetchall()]
 
 
 # ============================================================
