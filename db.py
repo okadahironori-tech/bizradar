@@ -1075,10 +1075,10 @@ def fix_tdnet_company_names() -> int:
 
 
 def fetch_and_save_tdnet() -> int:
-    """やのしんAPIから最新100件の TDnet 適時開示を取得し、tdnet_disclosures に保存する。
+    """やのしんAPIから最新500件の TDnet 適時開示を取得し、tdnet_disclosures に保存する。
     重複（document_id 一致）は ON CONFLICT DO NOTHING でスキップ。保存件数を返す。"""
     import requests as _requests
-    url = "https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100"
+    url = "https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=500"
     try:
         resp = _requests.get(url, timeout=15)
         resp.raise_for_status()
