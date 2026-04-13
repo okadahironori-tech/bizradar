@@ -180,6 +180,11 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
+# ---- リバースプロキシ配下の実IP取得（Render LB 1段を信頼）----
+if _is_prod:
+    from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
 # ---- CSRF 保護 ----
 # 全 POST/PUT/DELETE/PATCH エンドポイントに自動でCSRFトークン検証を適用
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf  # noqa: E402
@@ -197,6 +202,80 @@ def _handle_csrf_error(e):
     """CSRFトークン切れ・不一致時はログイン画面へ誘導"""
     from flask import redirect, url_for
     return redirect(url_for("login"))
+
+
+# ---- レート制限 (Flask-Limiter) ----
+from flask_limiter import Limiter  # noqa: E402
+from flask_limiter.util import get_remote_address  # noqa: E402
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["200 per hour", "30 per minute"],
+    storage_uri="memory://",   # gunicorn --workers 1 構成なのでメモリで十分
+    headers_enabled=True,
+)
+
+
+@app.errorhandler(429)
+def _ratelimit_handler(e):
+    """レート制限到達時はログイン画面に誘導してメッセージ表示"""
+    from flask import redirect, url_for, render_template
+    msg = "リクエストが多すぎます。しばらく待ってから再度お試しください。"
+    try:
+        return render_template("login.html", error=msg, next=""), 429
+    except Exception:
+        return msg, 429
+
+
+# ---- ブルートフォース対策: ログイン失敗回数をメモリで管理 ----
+# 5回失敗で15分ロック。gunicorn --workers 1 前提。
+import threading  # noqa: E402
+_login_attempts: dict = {}
+_login_attempts_lock = threading.Lock()
+_LOGIN_MAX_FAILS = 5
+_LOGIN_WINDOW_SEC = 15 * 60    # 最初の失敗からのウィンドウ
+_LOGIN_LOCK_SEC = 15 * 60      # ロック期間
+
+
+def _login_lock_remaining(ip: str) -> int:
+    """IPがロック中なら残り秒数を返す。非ロック時は0。"""
+    import time
+    now = time.time()
+    with _login_attempts_lock:
+        rec = _login_attempts.get(ip)
+        if not rec:
+            return 0
+        locked_until = rec.get("locked_until", 0)
+        if locked_until > now:
+            return int(locked_until - now)
+        return 0
+
+
+def _record_login_failure(ip: str) -> int:
+    """IPのログイン失敗を記録。閾値到達でロック。残り試行回数を返す(0=ロック開始)。"""
+    import time
+    now = time.time()
+    with _login_attempts_lock:
+        # 無制限の膨張防止: 24h以上前のエントリを遅延削除（新規記録時のみ）
+        stale = [k for k, v in _login_attempts.items() if now - v.get("first_at", 0) > 86400]
+        for k in stale:
+            _login_attempts.pop(k, None)
+
+        rec = _login_attempts.get(ip)
+        if not rec or (now - rec.get("first_at", 0)) > _LOGIN_WINDOW_SEC:
+            rec = {"count": 0, "first_at": now, "locked_until": 0}
+        rec["count"] += 1
+        if rec["count"] >= _LOGIN_MAX_FAILS:
+            rec["locked_until"] = now + _LOGIN_LOCK_SEC
+        _login_attempts[ip] = rec
+        return max(0, _LOGIN_MAX_FAILS - rec["count"])
+
+
+def _clear_login_attempts(ip: str) -> None:
+    """ログイン成功時に該当IPの記録をクリア"""
+    with _login_attempts_lock:
+        _login_attempts.pop(ip, None)
 
 # DB 初期化（テーブル作成 + マイグレーション）
 # Render 新インスタンス起動直後の一時的な接続失敗に備えてリトライする。
@@ -272,13 +351,22 @@ def admin_required(f):
 
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     error = None
     if request.method == "POST":
+        ip = get_remote_address() or ""
+        # ブルートフォース: ロック中のIPは即拒否
+        locked = _login_lock_remaining(ip)
+        if locked > 0:
+            mins = (locked + 59) // 60
+            error = f"ログイン失敗が続いたためロックされています。{mins}分後に再度お試しください。"
+            return render_template("login.html", error=error, next=request.args.get("next", ""))
         email = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
         user = db.get_user_by_email(email)
         if user and db.verify_user_password(user, password):
+            _clear_login_attempts(ip)
             session.permanent = True
             session["user_id"] = user["id"]
             session["email"] = user["email"]
@@ -286,11 +374,16 @@ def login():
             db.update_last_login(user["id"])
             next_url = request.form.get("next", "")
             return redirect(next_url if next_url.startswith("/") else url_for("index"))
-        error = "メールアドレスまたはパスワードが正しくありません"
+        remaining = _record_login_failure(ip)
+        if remaining == 0:
+            error = "ログイン失敗が続いたためロックしました。15分後に再度お試しください。"
+        else:
+            error = f"メールアドレスまたはパスワードが正しくありません（残り{remaining}回）"
     return render_template("login.html", error=error, next=request.args.get("next", ""))
 
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("3 per hour", methods=["POST"])
 def register():
     error = None
     if request.method == "POST":
@@ -1783,6 +1876,7 @@ def _send_reset_email(to_email: str, reset_url: str):
 
 
 @app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("3 per hour", methods=["POST"])
 def forgot_password():
     if request.method == "GET":
         return render_template("forgot_password.html")
@@ -1798,6 +1892,7 @@ def forgot_password():
 
 
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
+@limiter.limit("10 per hour", methods=["POST"])
 def reset_password(token: str):
     user_id = db.get_reset_token_user_id(token)
     if user_id is None:

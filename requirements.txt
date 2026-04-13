@@ -2,6 +2,7 @@ requests
 beautifulsoup4
 flask
 Flask-WTF
+Flask-Limiter
 python-dotenv
 gunicorn
 urllib3
