@@ -1050,19 +1050,31 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
             )
 
 
-def delete_orphan_articles() -> int:
-    """一時関数: 孤立記事（どのユーザーの keywords にも紐付かない articles）を一括削除する。
-    削除件数を返し、logger.info にも出力する。
-    用途: 過去に企業削除が articles を残していた不整合のクリーンアップ。完了後は本関数を削除して良い。"""
+def delete_orphan_articles() -> dict:
+    """一時関数: 過去の企業削除で残った孤立レコードを一括削除する。
+      1) company_id IS NULL のキーワードに紐づく articles を削除
+      2) company_id IS NULL の keywords 自体も削除
+    返り値: {"articles": N, "keywords": M}
+    用途: delete_company で keywords を消し忘れていた時期の不整合クリーンアップ。完了後は削除可。"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM articles "
-                "WHERE (user_id, keyword) NOT IN (SELECT user_id, keyword FROM keywords)"
+                "WHERE (user_id, keyword) IN "
+                "(SELECT user_id, keyword FROM keywords WHERE company_id IS NULL)"
             )
-            n = cur.rowcount
-            logger.info("[delete_orphan_articles] deleted %d orphan articles", n)
-            return n
+            articles_deleted = cur.rowcount
+            logger.info(
+                "[delete_orphan_articles] deleted %d articles tied to company_id IS NULL keywords",
+                articles_deleted,
+            )
+            cur.execute("DELETE FROM keywords WHERE company_id IS NULL")
+            keywords_deleted = cur.rowcount
+            logger.info(
+                "[delete_orphan_articles] deleted %d orphan keywords (company_id IS NULL)",
+                keywords_deleted,
+            )
+            return {"articles": articles_deleted, "keywords": keywords_deleted}
 
 
 def delete_old_articles(days: int = 30) -> int:
@@ -1795,11 +1807,12 @@ def update_company(user_id: int, company_id: int, name: str, name_kana: str = ""
 
 
 def delete_company(user_id: int, company_id: int) -> bool:
-    """企業を削除する。関連する記事・変更履歴もまとめて削除する。
-      1) 企業に紐づくキーワード名を全て取得
+    """企業を削除する。関連する記事・変更履歴・キーワードもまとめて削除する。
+      1) 企業に紐づくキーワード名を取得
       2) 各キーワードの articles を削除
-      3) 企業に紐づくサイトURLの change_history を削除
-      4) companies 本体を削除（sites/keywords の company_id は ON DELETE SET NULL）
+      3) そのキーワードレコード自体を keywords から削除（SET NULL の副作用で孤立しないように）
+      4) 企業に紐づくサイトURLの change_history を削除
+      5) companies 本体を削除
     各ステップで削除件数を logger.info に出力する。
     """
     with _conn() as conn:
@@ -1831,7 +1844,15 @@ def delete_company(user_id: int, company_id: int) -> bool:
                 "[delete_company] total_articles_deleted=%d", total_articles_deleted,
             )
 
-            # 3) この企業に紐付くサイトURL一覧 → change_history を削除
+            # 3) そのキーワードレコード自体を削除（SET NULL で残らないように）
+            cur.execute(
+                "DELETE FROM keywords WHERE user_id = %s AND company_id = %s",
+                (user_id, company_id),
+            )
+            kw_deleted = cur.rowcount
+            logger.info("[delete_company] deleted %d keyword rows", kw_deleted)
+
+            # 4) この企業に紐付くサイトURL一覧 → change_history を削除
             cur.execute(
                 "SELECT url FROM sites WHERE user_id = %s AND company_id = %s",
                 (user_id, company_id),
@@ -1846,7 +1867,7 @@ def delete_company(user_id: int, company_id: int) -> bool:
                 total_history_deleted, len(urls),
             )
 
-            # 4) 企業本体を削除
+            # 5) 企業本体を削除
             cur.execute(
                 "DELETE FROM companies WHERE id = %s AND user_id = %s",
                 (company_id, user_id),
