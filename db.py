@@ -1777,9 +1777,41 @@ def update_company(user_id: int, company_id: int, name: str, name_kana: str = ""
 
 
 def delete_company(user_id: int, company_id: int) -> bool:
-    """企業を削除する（sites/keywords の company_id は ON DELETE SET NULL で自動解除）"""
+    """企業を削除する。関連する記事・変更履歴もまとめて削除する。
+      1) 企業に紐づくキーワードで収集された articles（当該ユーザー分）を削除
+      2) 企業に紐づくサイトURLの change_history を削除（他ユーザーがモニターしていないURLのみ）
+      3) companies 本体を削除（sites/keywords の company_id は ON DELETE SET NULL）
+    """
     with _conn() as conn:
         with conn.cursor() as cur:
+            # 1) この企業に紐付くキーワード一覧 → 記事削除
+            cur.execute(
+                "SELECT keyword FROM keywords WHERE user_id = %s AND company_id = %s",
+                (user_id, company_id),
+            )
+            kws = [r[0] for r in cur.fetchall()]
+            if kws:
+                cur.execute(
+                    "DELETE FROM articles WHERE user_id = %s AND keyword = ANY(%s)",
+                    (user_id, kws),
+                )
+
+            # 2) この企業に紐付くサイトURL一覧 → 他ユーザーが参照していないURLの履歴だけ削除
+            cur.execute(
+                "SELECT url FROM sites WHERE user_id = %s AND company_id = %s",
+                (user_id, company_id),
+            )
+            urls = [r[0] for r in cur.fetchall()]
+            for url in urls:
+                cur.execute(
+                    "SELECT COUNT(*) FROM sites "
+                    "WHERE url = %s AND user_id IS NOT NULL AND user_id != %s",
+                    (url, user_id),
+                )
+                if cur.fetchone()[0] == 0:
+                    cur.execute("DELETE FROM change_history WHERE url = %s", (url,))
+
+            # 3) 企業本体を削除
             cur.execute(
                 "DELETE FROM companies WHERE id = %s AND user_id = %s",
                 (company_id, user_id),
