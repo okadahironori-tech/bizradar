@@ -1865,7 +1865,7 @@ def _send_reset_email(to_email: str, reset_url: str):
         logger.error("パスワードリセットメール送信に失敗しました: %s", e)
 
 
-def _send_magic_login_email(to_email: str, login_url: str):
+def _send_magic_login_email(to_email: str, login_url: str, token: str = ""):
     """マジックリンクログインURLをメールで送信する"""
     import smtplib
     from email.mime.multipart import MIMEMultipart
@@ -1905,7 +1905,10 @@ def _send_magic_login_email(to_email: str, login_url: str):
     from email.utils import formataddr as _formataddr
     msg["From"]    = _formataddr(("BizRadar", sender_email))
     msg["To"]      = to_email
-    msg["Subject"] = "【BizRadar】ログイン用リンク"
+    msg["Subject"] = "BizRadar ログイン用リンク"
+    msg["X-Mailer"] = "BizRadar"
+    if token:
+        msg["Message-ID"] = f"<{token[:8]}@bizradar>"
     msg.attach(MIMEText(html_body, "html", "utf-8"))
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
@@ -1931,7 +1934,7 @@ def magic_login_request():
         try:
             token = db.create_magic_token(user["id"], ttl_minutes=15)
             login_url = url_for("magic_login_verify", token=token, _external=True)
-            _send_magic_login_email(email, login_url)
+            _send_magic_login_email(email, login_url, token)
         except Exception as e:
             logger.error("マジックリンク生成・送信に失敗しました: %s", e)
 
