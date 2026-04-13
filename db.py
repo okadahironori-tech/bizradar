@@ -1050,6 +1050,21 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
             )
 
 
+def delete_orphan_articles() -> int:
+    """一時関数: 孤立記事（どのユーザーの keywords にも紐付かない articles）を一括削除する。
+    削除件数を返し、logger.info にも出力する。
+    用途: 過去に企業削除が articles を残していた不整合のクリーンアップ。完了後は本関数を削除して良い。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM articles "
+                "WHERE (user_id, keyword) NOT IN (SELECT user_id, keyword FROM keywords)"
+            )
+            n = cur.rowcount
+            logger.info("[delete_orphan_articles] deleted %d orphan articles", n)
+            return n
+
+
 def delete_old_articles(days: int = 30) -> int:
     """found_at が指定日数より古い記事を articles テーブルから削除する。
     返り値: 削除件数。found_at が空文字のレコードは削除対象外。
