@@ -431,12 +431,27 @@ def _send_tdnet_alert(to_email: str, disclosures: list):
 def _notify_tdnet_new(new_doc_ids: list):
     """新規保存された document_id について、Proユーザーの登録企業にマッチする分をメール通知する"""
     if not new_doc_ids:
+        logger.info("[tdnet-notify] skipped: new_doc_ids is empty")
         return
     # 新規開示の詳細を取得（securities_code 付き）
     new_items = db.get_tdnet_by_document_ids(new_doc_ids)
     if not new_items:
+        logger.info(
+            "[tdnet-notify] skipped: new_items is empty (new_doc_ids=%d)",
+            len(new_doc_ids),
+        )
         return
     pro_users = db.get_pro_users()
+    if not pro_users:
+        logger.info(
+            "[tdnet-notify] skipped: no pro users (new_items=%d)",
+            len(new_items),
+        )
+        return
+    logger.info(
+        "[tdnet-notify] start: new_doc_ids=%d new_items=%d pro_users=%d",
+        len(new_doc_ids), len(new_items), len(pro_users),
+    )
     for u in pro_users:
         uid = u["id"]
         email = u["email"]
@@ -445,6 +460,10 @@ def _notify_tdnet_new(new_doc_ids: list):
             user_items = db.get_tdnet_for_user(uid)
             user_doc_ids = {i.get("document_id") for i in user_items}
             matched = [i for i in new_items if i.get("document_id") in user_doc_ids]
+            logger.info(
+                "[tdnet-notify] uid=%s email=%s user_items=%d matched=%d",
+                uid, email, len(user_items), len(matched),
+            )
             if matched:
                 _send_tdnet_alert(email, matched)
         except Exception as e:
