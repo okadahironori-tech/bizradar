@@ -1276,6 +1276,31 @@ def api_articles():
     return jsonify(articles)
 
 
+@app.route("/api/tdnet/company", methods=["GET"])
+@csrf.exempt
+def api_tdnet_company():
+    """証券コードから tdnet_disclosures の企業名候補を返す。
+    Query: code (例: 7203)
+    Response: {"companies": ["トヨタ自動車", ...]} （最大5件・ヒットなしは空リスト）"""
+    code = (request.args.get("code") or "").strip()
+    if not code:
+        return jsonify({"companies": []})
+    try:
+        with db._conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT DISTINCT company_name FROM tdnet_disclosures "
+                    "WHERE securities_code LIKE %s "
+                    "ORDER BY company_name LIMIT 5",
+                    (f"%{code}%",),
+                )
+                companies = [r[0] for r in cur.fetchall() if r[0]]
+    except Exception as e:
+        logger.error("[api_tdnet_company] error: %s", e)
+        return jsonify({"companies": []})
+    return jsonify({"companies": companies})
+
+
 @app.route("/api/suggest_url")
 @login_required
 def api_suggest_url():

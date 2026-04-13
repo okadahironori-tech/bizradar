@@ -288,7 +288,9 @@
         </div>
         <div class="form-group">
           <label>証券コード（上場企業の場合）</label>
-          <input type="text" name="securities_code" placeholder="例：7203" maxlength="6">
+          <input type="text" id="securities_code" name="securities_code" placeholder="例：7203" maxlength="6"
+                 onblur="checkTdnetCompany(this.value, 'tdnet-match-result')">
+          <small id="tdnet-match-result" style="display:block; color:#6b7280; font-size:0.78rem; margin-top:4px;"></small>
         </div>
       </div>
       <div style="display:flex; gap:10px; margin-top:14px;">
@@ -362,6 +364,33 @@ function closeAddCompanyModalOnOverlay(e) {
 <button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
+</script>
+<script>
+// 証券コード入力欄に 4桁入力 → TDnet 企業名を照合して表示
+function checkTdnetCompany(code, resultId) {
+  var el = document.getElementById(resultId);
+  if (!el) return;
+  code = (code || '').trim();
+  if (!/^\d{4}$/.test(code)) {
+    el.textContent = '';
+    return;
+  }
+  fetch('/api/tdnet/company?code=' + encodeURIComponent(code))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var companies = (data && data.companies) || [];
+      if (companies.length > 0) {
+        el.textContent = 'TDnet照合：' + companies.join('、');
+        el.style.color = '#3949ab';
+      } else {
+        el.textContent = 'TDnet照合：該当なし';
+        el.style.color = '#9ca3af';
+      }
+    })
+    .catch(function(){
+      el.textContent = '';
+    });
+}
 </script>
 </body>
 </html>
