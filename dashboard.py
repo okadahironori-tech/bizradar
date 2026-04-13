@@ -1994,12 +1994,6 @@ def news():
     alert_count = sum(1 for a in deduped_articles if a.get("is_alert") and not a.get("is_read"))
     all_articles = deduped_articles
 
-    # TDnet 適時開示情報（Pro プラン限定）
-    user = db.get_user_by_id(user_id) or {}
-    is_pro = (user.get("plan") == "pro")
-    app.logger.info("[news] user_id=%s plan=%r is_pro=%s", user_id, user.get("plan"), is_pro)
-    tdnet_items = db.get_tdnet_for_user(user_id) if is_pro else []
-
     return render_template(
         "news.html",
         articles=all_articles,
@@ -2007,8 +2001,24 @@ def news():
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
         alert_count=alert_count,
-        is_pro=is_pro,
+    )
+
+
+@app.route("/tdnet")
+@login_required
+def tdnet_page():
+    user_id = session["user_id"]
+    user = db.get_user_by_id(user_id) or {}
+    is_pro = (user.get("plan") == "pro")
+    if not is_pro:
+        flash("TDnet開示情報はProプラン限定です", "error")
+        return redirect(url_for("news"))
+    tdnet_items = db.get_tdnet_for_user(user_id)
+    return render_template(
+        "tdnet.html",
         tdnet_items=tdnet_items,
+        user_email=session.get("email", ""),
+        is_admin=session.get("is_admin", False),
     )
 
 
