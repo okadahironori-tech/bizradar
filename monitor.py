@@ -833,8 +833,8 @@ def check_all_keywords():
 
     # user_id ごとにキーワードをグループ化（notify_enabled 付き）
     user_keywords: dict = {}
-    for user_id, keyword, notify_enabled in kw_with_users:
-        user_keywords.setdefault(user_id, []).append((keyword, notify_enabled))
+    for user_id, keyword_id, keyword, notify_enabled in kw_with_users:
+        user_keywords.setdefault(user_id, []).append((keyword_id, keyword, notify_enabled))
 
     for user_id, keywords in user_keywords.items():
         if user_id is None:
@@ -844,11 +844,16 @@ def check_all_keywords():
         seen_titles = db.load_article_seen_titles(user_id)
         exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
 
-        for keyword, _notify_enabled_cached in keywords:
+        for keyword_id, keyword, _notify_enabled_cached in keywords:
             if not keyword:
                 continue
             print(f"  キーワード: {keyword} (user_id={user_id})")
             db.add_running_task("keyword_check", keyword)
+            # キーワード単位の除外ワード（ユーザー全体の exclude_kws と併用）
+            kw_exclude_words = {
+                e["exclude_word"].lower()
+                for e in db.get_keyword_exclude_words(keyword_id)
+            }
             try:
                 google_articles = fetch_news_articles(keyword)
                 db.update_source_health("google_news", True)
@@ -885,7 +890,11 @@ def check_all_keywords():
                 title     = article.get("title", "")
                 title_key = f"{keyword}::{title}"
                 # 除外キーワードが含まれる記事はスキップ
-                if exclude_kws and any(ex in title.lower() for ex in exclude_kws):
+                # ユーザー全体の除外（exclude_kws） + キーワード単位の除外（kw_exclude_words）
+                tl = title.lower()
+                if exclude_kws and any(ex in tl for ex in exclude_kws):
+                    continue
+                if kw_exclude_words and any(ex in tl for ex in kw_exclude_words):
                     continue
                 if url and url not in seen_urls and title_key not in seen_titles:
                     article["found_at"] = now_str

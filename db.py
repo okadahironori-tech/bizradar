@@ -175,6 +175,13 @@ def init_db():
                     keyword VARCHAR(100) NOT NULL,
                     UNIQUE(user_id, keyword)
                 );
+                CREATE TABLE IF NOT EXISTS keyword_exclude_keywords (
+                    id           SERIAL PRIMARY KEY,
+                    keyword_id   INTEGER NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+                    user_id      INTEGER NOT NULL REFERENCES users(id),
+                    exclude_word VARCHAR(100) NOT NULL,
+                    UNIQUE(keyword_id, exclude_word)
+                );
                 CREATE TABLE IF NOT EXISTS domain_overrides (
                     id            SERIAL PRIMARY KEY,
                     domain        TEXT NOT NULL UNIQUE,
@@ -979,16 +986,16 @@ def is_keyword_notify_enabled(user_id: int, keyword: str) -> bool:
 
 
 def load_all_keywords_with_users() -> list:
-    """バックグラウンド用: [(user_id, keyword, notify_enabled), ...]
+    """バックグラウンド用: [(user_id, keyword_id, keyword, notify_enabled), ...]
     user_id が NULL の孤立キーワードは除外する。
     """
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE) FROM keywords "
+                "SELECT user_id, id, keyword, COALESCE(notify_enabled, TRUE) FROM keywords "
                 "WHERE user_id IS NOT NULL ORDER BY id"
             )
-            return [(row[0], row[1], bool(row[2])) for row in cur.fetchall()]
+            return [(row[0], row[1], row[2], bool(row[3])) for row in cur.fetchall()]
 
 
 # ============================================================
@@ -1045,12 +1052,25 @@ def count_unread_alert_articles(user_id: int, alert_kws: set) -> int:
 
 
 def load_articles_data(user_id=None) -> dict:
+    # キーワード単位の除外ワード (keyword_exclude_keywords) を含む記事を
+    # 表示時にも弾くため NOT EXISTS 句を使う。
+    excl_clause = (
+        " AND NOT EXISTS ("
+        "   SELECT 1 FROM keyword_exclude_keywords kek"
+        "   WHERE kek.keyword_id = ("
+        "       SELECT id FROM keywords "
+        "       WHERE keyword = a.keyword AND user_id = a.user_id LIMIT 1"
+        "   )"
+        "   AND LOWER(a.title) LIKE '%' || LOWER(kek.exclude_word) || '%'"
+        " )"
+    )
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles WHERE user_id = %s ORDER BY published DESC LIMIT 3000",
+                    "FROM articles a WHERE user_id = %s" + excl_clause +
+                    " ORDER BY published DESC LIMIT 3000",
                     (user_id,)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
@@ -1059,7 +1079,8 @@ def load_articles_data(user_id=None) -> dict:
             else:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles ORDER BY published DESC LIMIT 3000"
+                    "FROM articles a WHERE 1=1" + excl_clause +
+                    " ORDER BY published DESC LIMIT 3000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
@@ -1693,6 +1714,59 @@ def delete_exclude_keyword(user_id: int, keyword_id: int) -> bool:
             return cur.rowcount > 0
 
 
+# ---- キーワード単位の除外ワード ----
+def get_keyword_exclude_words(keyword_id: int) -> list:
+    """指定キーワードに紐づく除外ワード一覧（id, exclude_word）を返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, exclude_word FROM keyword_exclude_keywords "
+                "WHERE keyword_id = %s ORDER BY id",
+                (keyword_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def add_keyword_exclude_word(user_id: int, keyword_id: int, exclude_word: str):
+    """キーワード単位の除外ワードを追加する。
+    対象 keyword_id が user_id の所有であるか検証する。
+    返り値: 成功時はID(int)、重複時は False、所有権エラー時は None。"""
+    exclude_word = (exclude_word or "").strip()
+    if not exclude_word:
+        return False
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM keywords WHERE id = %s AND user_id = %s",
+                (keyword_id, user_id),
+            )
+            if not cur.fetchone():
+                return None
+            try:
+                cur.execute(
+                    "INSERT INTO keyword_exclude_keywords "
+                    "(keyword_id, user_id, exclude_word) VALUES (%s, %s, %s) "
+                    "RETURNING id",
+                    (keyword_id, user_id, exclude_word),
+                )
+                row = cur.fetchone()
+                return row[0] if row else True
+            except psycopg2.errors.UniqueViolation:
+                return False
+
+
+def delete_keyword_exclude_word(user_id: int, keyword_id: int, exclude_word_id: int) -> bool:
+    """キーワード単位の除外ワードを削除する（所有権確認込み）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM keyword_exclude_keywords "
+                "WHERE id = %s AND keyword_id = %s AND user_id = %s",
+                (exclude_word_id, keyword_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
 def get_alert_keywords_set(user_id: int) -> set:
     """アラートキーワードを小文字セットで返す（マッチング用）"""
     rows = load_alert_keywords(user_id)
@@ -2298,7 +2372,8 @@ def load_company_keywords(user_id: int, company_id: int) -> list:
 
 
 def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> list:
-    """企業に紐づくキーワードの最新記事"""
+    """企業に紐づくキーワードの最新記事。
+    keyword_exclude_keywords に登録された除外ワードを含む記事は表示時にも弾く。"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -2307,6 +2382,11 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
                 "FROM articles a "
                 "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                 "WHERE a.user_id=%s AND k.company_id=%s "
+                "AND NOT EXISTS ("
+                "    SELECT 1 FROM keyword_exclude_keywords kek "
+                "    WHERE kek.keyword_id = k.id "
+                "    AND LOWER(a.title) LIKE '%' || LOWER(kek.exclude_word) || '%'"
+                ") "
                 "ORDER BY a.is_read ASC, a.published DESC, a.id DESC LIMIT %s",
                 (user_id, company_id, limit),
             )

@@ -1239,6 +1239,36 @@ def api_delete_exclude_keyword():
     return jsonify({"success": True})
 
 
+@app.route("/keyword/<int:keyword_id>/exclude/add", methods=["POST"])
+@login_required
+def add_keyword_exclude(keyword_id):
+    user_id = session["user_id"]
+    word = (request.form.get("exclude_word") or "").strip()
+    if not word:
+        flash("除外ワードを入力してください", "error")
+        return redirect(request.referrer or url_for("company_list"))
+    result = db.add_keyword_exclude_word(user_id, keyword_id, word)
+    if result is None:
+        flash("対象のキーワードが見つかりません", "error")
+    elif result is False:
+        flash("この除外ワードは既に登録されています", "error")
+    else:
+        flash("除外ワードを追加しました", "success")
+    return redirect(request.referrer or url_for("company_list"))
+
+
+@app.route("/keyword/<int:keyword_id>/exclude/<int:exclude_id>/delete", methods=["POST"])
+@login_required
+def delete_keyword_exclude(keyword_id, exclude_id):
+    user_id = session["user_id"]
+    ok = db.delete_keyword_exclude_word(user_id, keyword_id, exclude_id)
+    if ok:
+        flash("除外ワードを削除しました", "success")
+    else:
+        flash("除外ワードの削除に失敗しました", "error")
+    return redirect(request.referrer or url_for("company_list"))
+
+
 @app.route("/api/delete_keyword", methods=["POST"])
 @login_required
 def api_delete_keyword():
@@ -2508,6 +2538,9 @@ def company_detail(company_id):
 
         sites_linked    = db.load_company_sites(user_id, company_id)
         keywords_linked = db.load_company_keywords(user_id, company_id)
+        # 各キーワードの除外ワードを添付
+        for _k in keywords_linked:
+            _k["exclude_words"] = db.get_keyword_exclude_words(_k["id"])
         articles        = db.load_company_articles(user_id, company_id, limit=30)
         history         = db.load_company_change_history(user_id, company_id, limit=10)
 

@@ -733,6 +733,32 @@
             </form>
           </td>
         </tr>
+        <tr>
+          <td colspan="3" style="padding:6px 12px 14px; background:#fafbfc;">
+            <div style="font-size:0.78rem; color:#6b7280; margin-bottom:6px;">
+              このキーワードの除外ワード（記事タイトルに含まれると収集・表示から除外）
+            </div>
+            {% if k.exclude_words %}
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+              {% for ew in k.exclude_words %}
+              <form method="POST" action="/keyword/{{ k.id }}/exclude/{{ ew.id }}/delete" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-ghost btn-sm"
+                        style="border-radius:20px; padding:3px 12px; font-size:0.78rem;"
+                        title="クリックで削除">{{ ew.exclude_word }} ×</button>
+              </form>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <form method="POST" action="/keyword/{{ k.id }}/exclude/add"
+                  style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="text" name="exclude_word" placeholder="例: プレスリリース" maxlength="100" required
+                     style="padding:4px 8px; font-size:0.82rem; border:1px solid #d1d5db; border-radius:6px; flex:1; min-width:160px;">
+              <button type="submit" class="btn btn-ghost btn-sm">除外ワードを追加</button>
+            </form>
+          </td>
+        </tr>
         {% endfor %}
         </tbody>
       </table>
