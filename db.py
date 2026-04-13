@@ -4,6 +4,7 @@
 from __future__ import annotations
 import hashlib
 import hmac as _hmac
+import bcrypt as _bcrypt
 import json
 import os
 import secrets
@@ -405,13 +406,34 @@ def _run_migrations():
 # ============================================================
 
 def _hash_pw(password: str, salt: str) -> str:
+    """レガシー（SHA256+salt）ハッシュ関数。既存ユーザー検証用に残す。"""
     return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
 
 
+def _hash_pw_bcrypt(password: str) -> str:
+    """bcrypt でパスワードハッシュを生成する。新規登録・パスワード変更用。"""
+    return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+
+
+def _is_bcrypt_hash(h: str) -> bool:
+    """bcrypt標準プレフィックス ($2a$, $2b$, $2y$) を検出"""
+    return bool(h) and h.startswith("$2")
+
+
+def _upgrade_password_hash_to_bcrypt(user_id: int, password: str) -> None:
+    """レガシー検証成功時に bcrypt ハッシュへ自動アップグレード"""
+    new_hash = _hash_pw_bcrypt(password)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET password_hash = %s, salt = %s WHERE id = %s",
+                (new_hash, "", user_id),
+            )
+
+
 def create_user(email: str, password: str) -> int:
-    """新規ユーザーを作成して user_id を返す"""
-    salt = secrets.token_hex(16)
-    pw_hash = _hash_pw(password, salt)
+    """新規ユーザーを作成して user_id を返す（パスワードは bcrypt で保存）"""
+    pw_hash = _hash_pw_bcrypt(password)
     admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
     is_admin = bool(admin_email and email.lower() == admin_email)
     with _conn() as conn:
@@ -419,7 +441,7 @@ def create_user(email: str, password: str) -> int:
             cur.execute(
                 "INSERT INTO users (email, password_hash, salt, is_admin) "
                 "VALUES (%s, %s, %s, %s) RETURNING id",
-                (email.lower(), pw_hash, salt, is_admin)
+                (email.lower(), pw_hash, "", is_admin)
             )
             return cur.fetchone()[0]
 
@@ -447,8 +469,28 @@ def get_user_by_id(user_id: int):
 
 
 def verify_user_password(user: dict, password: str) -> bool:
-    h = _hash_pw(password, user["salt"])
-    return _hmac.compare_digest(h, user["password_hash"])
+    """パスワード検証。bcrypt と レガシー(SHA256+salt) 両方をサポート。
+    レガシー形式で検証成功した場合は bcrypt に自動アップグレードする。"""
+    stored = user.get("password_hash", "") or ""
+    # 1) bcrypt 形式
+    if _is_bcrypt_hash(stored):
+        try:
+            return _bcrypt.checkpw(password.encode("utf-8"), stored.encode("utf-8"))
+        except Exception:
+            return False
+    # 2) レガシー SHA256 + salt
+    try:
+        h = _hash_pw(password, user.get("salt", "") or "")
+        ok = _hmac.compare_digest(h, stored)
+    except Exception:
+        ok = False
+    # 検証成功したら bcrypt に自動アップグレード
+    if ok and user.get("id"):
+        try:
+            _upgrade_password_hash_to_bcrypt(user["id"], password)
+        except Exception:
+            pass
+    return ok
 
 
 def get_user_last_login(user_id: int):
@@ -508,13 +550,13 @@ def get_user_prev_active(user_id: int):
 
 
 def update_user_password(user_id: int, new_password: str):
-    salt = secrets.token_hex(16)
-    pw_hash = _hash_pw(new_password, salt)
+    """パスワードを更新する（bcrypt で保存）"""
+    pw_hash = _hash_pw_bcrypt(new_password)
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE users SET password_hash = %s, salt = %s WHERE id = %s",
-                (pw_hash, salt, user_id)
+                (pw_hash, "", user_id)
             )
 
 

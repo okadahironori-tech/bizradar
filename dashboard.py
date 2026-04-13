@@ -217,6 +217,17 @@ limiter = Limiter(
 )
 
 
+@app.after_request
+def set_security_headers(response):
+    """セキュリティ関連の HTTP レスポンスヘッダを付与する"""
+    if _is_prod:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+
 @app.errorhandler(429)
 def _ratelimit_handler(e):
     """レート制限到達時はログイン画面に誘導してメッセージ表示"""
