@@ -1693,32 +1693,6 @@ def get_exclude_keywords(user_id: int) -> list:
             return [dict(row) for row in cur.fetchall()]
 
 
-def add_exclude_keyword(user_id: int, keyword: str):
-    """除外キーワードを追加する。成功時は新規ID(int)、重複時は False を返す"""
-    try:
-        with _conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO exclude_keywords (user_id, keyword) VALUES (%s, %s) RETURNING id",
-                    (user_id, keyword),
-                )
-                row = cur.fetchone()
-        return row[0] if row else True
-    except psycopg2.errors.UniqueViolation:
-        return False
-
-
-def delete_exclude_keyword(user_id: int, keyword_id: int) -> bool:
-    """除外キーワードを削除する"""
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "DELETE FROM exclude_keywords WHERE id = %s AND user_id = %s",
-                (keyword_id, user_id),
-            )
-            return cur.rowcount > 0
-
-
 # ---- キーワード単位の除外ワード ----
 def get_keyword_exclude_words(keyword_id: int) -> list:
     """指定キーワードに紐づく除外ワード一覧（id, exclude_word）を返す"""

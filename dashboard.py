@@ -1210,35 +1210,6 @@ def delete_alert_keyword():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
-@app.route("/api/add_exclude_keyword", methods=["POST"])
-@login_required
-def api_add_exclude_keyword():
-    user_id = session["user_id"]
-    keyword = request.form.get("keyword", "").strip()
-    if not keyword:
-        return jsonify({"success": False, "message": "キーワードを入力してください"})
-    if len(keyword) > 100:
-        return jsonify({"success": False, "message": "キーワードは100文字以内で入力してください"})
-    result = db.add_exclude_keyword(user_id, keyword)
-    if result is False:
-        return jsonify({"success": False, "message": f"「{keyword}」はすでに登録済みです"})
-    return jsonify({"success": True, "keyword": keyword, "keyword_id": result})
-
-
-@app.route("/api/delete_exclude_keyword", methods=["POST"])
-@login_required
-def api_delete_exclude_keyword():
-    user_id = session["user_id"]
-    try:
-        keyword_id = int(request.form.get("keyword_id", "0"))
-    except ValueError:
-        return jsonify({"success": False, "message": "不正なリクエストです"})
-    if keyword_id <= 0:
-        return jsonify({"success": False, "message": "不正なリクエストです"})
-    db.delete_exclude_keyword(user_id, keyword_id)
-    return jsonify({"success": True})
-
-
 @app.route("/keyword/<int:keyword_id>/exclude/add", methods=["POST"])
 @login_required
 def add_keyword_exclude(keyword_id):
@@ -1944,14 +1915,12 @@ def set_interval():
 def news():
     user_id = session["user_id"]
     kw_entries = db.load_keywords(user_id)
-    keywords = [k["keyword"] for k in kw_entries]
     articles_data = db.load_articles_data(user_id)
     raw_articles = articles_data.get("articles", [])
     alert_kw_entries = db.load_alert_keywords(user_id)
     alert_kws_set = {e["keyword"].lower() for e in alert_kw_entries}
     alert_kw_map = {e["keyword"].lower(): e["keyword"] for e in alert_kw_entries}
-    exclude_kw_entries = db.get_exclude_keywords(user_id)
-    # 先に全件にアラートフラグ付与 → 重複排除 → 件数集計 → 表示用スライス
+    # 各記事にアラートフラグ付与 → 重複排除 → 未読アラート件数算出
     for a in raw_articles:
         title_lower = a.get("title", "").lower()
         matched = [alert_kw_map[kw] for kw in alert_kws_set if kw in title_lower]
@@ -1959,16 +1928,8 @@ def news():
         a["alert_matches"] = matched
         a["published"] = a.get("published", "")
     deduped_articles = _deduplicate_articles(raw_articles)
-    # サマリー件数（サーバ側で確定、表示スライスに影響されない）
     alert_count = sum(1 for a in deduped_articles if a.get("is_alert") and not a.get("is_read"))
-    # 300件の表示上限を撤廃（DBのLIMIT 3000 はそのまま）
     all_articles = deduped_articles
-    keyword_counts = {}
-    for a in articles_data.get("articles", []):
-        kw = a.get("keyword", "")
-        keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
-    running = db.get_running_task_statuses()
-    keyword_collecting = set(running.get("keyword_collect", {}).keys())
 
     # TDnet 適時開示情報（Pro プラン限定）
     user = db.get_user_by_id(user_id) or {}
@@ -1979,12 +1940,7 @@ def news():
     return render_template(
         "news.html",
         articles=all_articles,
-        keywords=keywords,
         keyword_entries=kw_entries,
-        keyword_counts=keyword_counts,
-        keyword_collecting=keyword_collecting,
-        alert_kw_entries=alert_kw_entries,
-        exclude_kw_entries=exclude_kw_entries,
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
         alert_count=alert_count,
