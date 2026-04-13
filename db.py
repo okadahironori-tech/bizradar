@@ -1163,6 +1163,13 @@ def fetch_and_save_tdnet() -> list:
                     )
                     if cur.rowcount > 0:
                         saved_ids.append(doc_id)
+                    elif sec_code:
+                        # 既存レコード: securities_code が未設定なら埋め直す（NULL のレコードに対する後方互換）
+                        cur.execute(
+                            "UPDATE tdnet_disclosures SET securities_code = %s "
+                            "WHERE document_id = %s AND (securities_code IS NULL OR securities_code = '')",
+                            (sec_code, doc_id),
+                        )
                 except Exception as e:
                     logger.warning("[tdnet] insert skipped doc_id=%s err=%s", doc_id, e)
     logger.info("[tdnet] fetched=%d saved=%d", len(items), len(saved_ids))
@@ -1234,9 +1241,12 @@ class TdnetFetchError(Exception):
 
 def get_tdnet_for_user(user_id: int) -> list:
     """ユーザーの登録企業に紐づく TDnet 開示情報を disclosed_at 降順で返す。
-      1) 証券コード登録済みの企業: tdnet_disclosures.securities_code で前方一致
-         （ユーザーが4桁入力、TDnet側は通常5桁なので LIKE 'NNNN%' で一致させる）
-      2) 証券コード未登録の企業: 従来どおり company_name の LIKE 部分一致 + 先頭4/2文字フォールバック
+      1) 証券コード登録済みの企業: tdnet_disclosures.securities_code で LIKE '%code%' 検索
+         （ユーザーが4桁入力、TDnet側は通常5桁なので部分一致で吸収）
+      2) 全企業について company_name の LIKE 部分一致を併用
+         （securities_code が NULL の古い TDnet レコードも拾うため）
+      3) ヒットしない企業は先頭4/2文字プレフィックスで追加フォールバック
+      結果は document_id で重複排除し、disclosed_at 降順で最大500件返す。
     """
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -1263,11 +1273,11 @@ def get_tdnet_for_user(user_id: int) -> list:
                     d = dict(r)
                     merged.setdefault(d["document_id"], d)
 
-            # 0) 証券コード優先マッチ
+            # 0) 証券コード併用マッチ（登録済みコードで LIKE '%code%' 検索）
+            #    4桁を5桁コードの中から部分一致で探す（前方一致・後方一致どちらでも拾える）
             code_patterns = [c for c in codes if c]
             if code_patterns:
-                # 4桁入力想定 → TDnet側5桁に対して前方一致で見つける（4桁も許容）
-                like_params = [f"{c}%" for c in code_patterns]
+                like_params = [f"%{c}%" for c in code_patterns]
                 where = " OR ".join(["securities_code LIKE %s"] * len(like_params))
                 cur.execute(
                     "SELECT document_id, company_name, title, disclosed_at, document_url "
@@ -1287,16 +1297,9 @@ def get_tdnet_for_user(user_id: int) -> list:
                     code_patterns, len(found),
                 )
 
-            # 以降のLIKE照合は「証券コード未登録の企業のみ」を対象にする
-            names = [r["name"] for r in rows if not (r["securities_code"] or "").strip()]
-            if not names:
-                results = sorted(
-                    merged.values(),
-                    key=lambda r: r.get("disclosed_at") or "",
-                    reverse=True,
-                )[:500]
-                logger.info("[tdnet] user_id=%s found=%d (code only)", user_id, len(results))
-                return results
+            # 以降のLIKE照合は「全企業」を対象にする
+            # 証券コード登録済みでも、securities_code が NULL の古い TDnet レコードを
+            # 拾うために企業名ベースの検索も併用する。
 
             # 第1段: フル名 LIKE '%name%' で全件検索 & 各企業のヒット状況を把握
             # merged は 証券コード段で既に使用しているため再代入しない
