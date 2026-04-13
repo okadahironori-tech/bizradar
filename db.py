@@ -1126,6 +1126,7 @@ def get_tdnet_for_user(user_id: int) -> list:
                 (user_id,),
             )
             names = [r["name"] for r in cur.fetchall()]
+            logger.info("[tdnet] user_id=%s companies=%s", user_id, names)
             if not names:
                 return []
             # LIKE検索用パターン配列を OR 条件で連結
@@ -1137,7 +1138,9 @@ def get_tdnet_for_user(user_id: int) -> list:
                 "ORDER BY disclosed_at DESC LIMIT 500",
                 params,
             )
-            return [dict(r) for r in cur.fetchall()]
+            results = [dict(r) for r in cur.fetchall()]
+            logger.info("[tdnet] user_id=%s found=%d", user_id, len(results))
+            return results
 
 
 def delete_old_articles(days: int = 30) -> int:

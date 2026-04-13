@@ -592,7 +592,15 @@ function switchTab(name) {
     tdnetTab.style.borderBottomColor = '#1a1a2e';
     tdnetTab.style.color = '#1a1a2e';
   }
+  // URLハッシュでタブ状態を保持
+  try { history.replaceState(null, '', '#' + name); } catch (_) { location.hash = name; }
 }
+// ページ読み込み時にハッシュがあればタブを復元
+window.addEventListener('DOMContentLoaded', function () {
+  if (location.hash === '#tdnet' && isPro) {
+    switchTab('tdnet');
+  }
+});
 // ============================================================
 // 記事 既読 / 未読 トグル（非同期・再描画）
 // ============================================================
