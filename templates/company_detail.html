@@ -827,7 +827,7 @@
           <label>証券コード（上場企業の場合）</label>
           <input type="text" id="securities_code_edit" name="securities_code"
                  value="{{ company.securities_code or '' }}" placeholder="例：7203" maxlength="6"
-                 onblur="checkTdnetCompany(this.value, 'tdnet-match-result-edit')">
+                 oninput="checkTdnetCompany(this.value, 'tdnet-match-result-edit')">
           <small id="tdnet-match-result-edit" style="display:block; color:#6b7280; font-size:0.78rem; margin-top:4px;"></small>
         </div>
       </div>
@@ -849,7 +849,7 @@ function checkTdnetCompany(code, resultId) {
   var el = document.getElementById(resultId);
   if (!el) return;
   code = (code || '').trim();
-  if (!/^\d{4}$/.test(code)) {
+  if (!/^\d{4}/.test(code)) {
     el.textContent = '';
     return;
   }

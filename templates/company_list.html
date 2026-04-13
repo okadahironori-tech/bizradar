@@ -289,7 +289,7 @@
         <div class="form-group">
           <label>証券コード（上場企業の場合）</label>
           <input type="text" id="securities_code" name="securities_code" placeholder="例：7203" maxlength="6"
-                 onblur="checkTdnetCompany(this.value, 'tdnet-match-result')">
+                 oninput="checkTdnetCompany(this.value, 'tdnet-match-result')">
           <small id="tdnet-match-result" style="display:block; color:#6b7280; font-size:0.78rem; margin-top:4px;"></small>
         </div>
       </div>
@@ -371,7 +371,7 @@ function checkTdnetCompany(code, resultId) {
   var el = document.getElementById(resultId);
   if (!el) return;
   code = (code || '').trim();
-  if (!/^\d{4}$/.test(code)) {
+  if (!/^\d{4}/.test(code)) {
     el.textContent = '';
     return;
   }
