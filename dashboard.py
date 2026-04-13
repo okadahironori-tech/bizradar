@@ -61,6 +61,12 @@ import db
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+_gunicorn_error = logging.getLogger("gunicorn.error")
+if _gunicorn_error.handlers:
+    logger.handlers = _gunicorn_error.handlers
+    logger.setLevel(_gunicorn_error.level)
+else:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
 def _extract_domain(url: str) -> str:
