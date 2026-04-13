@@ -1088,16 +1088,22 @@ def fetch_and_save_tdnet() -> int:
         return 0
     items = data.get("items") or []
     saved = 0
+
+    def clean(s):
+        if isinstance(s, str):
+            return s.replace("\x00", "")
+        return s or ""
+
     with _conn() as conn:
         with conn.cursor() as cur:
             for item in items:
                 t = item.get("Tdnet") or {}
-                doc_id = str(t.get("id") or "").strip()
-                # 企業名の文字間スペース（半角/全角）を除去
-                company = (t.get("company_name") or "").replace(" ", "").replace("\u3000", "").strip()
-                title = (t.get("title") or "").strip()
-                pubdate = (t.get("pubdate") or "").strip()
-                doc_url = (t.get("document_url") or "").strip()
+                doc_id = clean(str(t.get("id") or "")).strip()
+                # 企業名の文字間スペース（半角/全角）と NULL 文字を除去
+                company = clean(t.get("company_name") or "").replace(" ", "").replace("\u3000", "").strip()
+                title = clean(t.get("title") or "").strip()
+                pubdate = clean(t.get("pubdate") or "").strip()
+                doc_url = clean(t.get("document_url") or "").strip()
                 if not (doc_id and company and title and pubdate and doc_url):
                     continue
                 try:
