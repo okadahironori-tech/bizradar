@@ -2519,9 +2519,6 @@ def company_detail(company_id):
             key=lambda x: x.get("published", ""), reverse=True,
         )
 
-        # 全サイト（サイト側の紐づけドロップダウン用）
-        all_sites    = db.load_sites_with_company(user_id)
-
         summary = db.get_company_summary(user_id, company_id, alert_kws)
 
         return render_template("company_detail.html",
@@ -2533,7 +2530,6 @@ def company_detail(company_id):
                                alert_articles=alert_articles,
                                normal_articles=normal_articles,
                                history=history,
-                               all_sites=all_sites,
                                summary=summary,
                                user_email=session.get("email", ""),
                                is_admin=session.get("is_admin", False))

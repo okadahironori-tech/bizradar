@@ -687,22 +687,6 @@
       </form>
       <div id="url-hint-detail"></div>
 
-      {# 未紐づきサイトのみドロップダウンに表示 #}
-      {% set unlinked_sites = all_sites | selectattr("company_id", "none") | list %}
-      {% if unlinked_sites %}
-      <div class="form-section-divider">既存サイトから選んで紐づける</div>
-      <form class="link-form" method="POST" action="/companies/{{ company.id }}/link_site">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="action" value="link">
-        <select name="site_url" required>
-          <option value="">サイトを選択して紐づける…</option>
-          {% for s in unlinked_sites %}
-          <option value="{{ s.url }}">{{ s.name or s.url }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-primary">紐づける</button>
-      </form>
-      {% endif %}
     </div>
   </section>
 
