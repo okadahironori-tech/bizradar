@@ -1240,6 +1240,36 @@ def delete_company_exclude(company_id, exclude_id):
     return redirect(request.referrer or url_for("company_list"))
 
 
+@app.route("/company/<int:company_id>/alert/add", methods=["POST"])
+@login_required
+def add_company_alert(company_id):
+    user_id = session["user_id"]
+    kw = (request.form.get("keyword") or "").strip()
+    if not kw:
+        flash("アラートキーワードを入力してください", "error")
+        return redirect(request.referrer or url_for("company_list"))
+    result = db.add_company_alert_keyword(user_id, company_id, kw)
+    if result is None:
+        flash("対象の企業が見つかりません", "error")
+    elif result is False:
+        flash("このアラートキーワードは既に登録されています", "error")
+    else:
+        flash("アラートキーワードを追加しました", "success")
+    return redirect(request.referrer or url_for("company_list"))
+
+
+@app.route("/company/<int:company_id>/alert/<int:alert_id>/delete", methods=["POST"])
+@login_required
+def delete_company_alert(company_id, alert_id):
+    user_id = session["user_id"]
+    ok = db.delete_company_alert_keyword(user_id, company_id, alert_id)
+    if ok:
+        flash("アラートキーワードを削除しました", "success")
+    else:
+        flash("アラートキーワードの削除に失敗しました", "error")
+    return redirect(request.referrer or url_for("company_list"))
+
+
 @app.route("/api/delete_keyword", methods=["POST"])
 @login_required
 def api_delete_keyword():
@@ -2495,6 +2525,7 @@ def company_detail(company_id):
         sites_linked    = db.load_company_sites(user_id, company_id)
         keywords_linked = db.load_company_keywords(user_id, company_id)
         company_exclude_words = db.get_company_exclude_words(company_id)
+        company_alert_words   = db.get_company_alert_keywords(company_id)
         articles        = db.load_company_articles(user_id, company_id, limit=30)
         history         = db.load_company_change_history(user_id, company_id, limit=10)
 
@@ -2526,6 +2557,7 @@ def company_detail(company_id):
                                sites_linked=sites_linked,
                                keywords_linked=keywords_linked,
                                company_exclude_words=company_exclude_words,
+                               company_alert_words=company_alert_words,
                                articles=articles,
                                alert_articles=alert_articles,
                                normal_articles=normal_articles,

@@ -739,6 +739,38 @@
     </div>
   </section>
 
+  <!-- 重要アラートキーワード -->
+  <section>
+    <div class="card">
+      <div class="section-title">
+        重要アラートキーワード
+        <span class="count-badge">{{ company_alert_words | length }}</span>
+      </div>
+      <div class="section-desc">記事タイトルにこのキーワードが含まれると、メール件名に「重要あり」と付きます。</div>
+      <div style="padding:14px 20px 18px;">
+        {% if company_alert_words %}
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+          {% for ak in company_alert_words %}
+          <form method="POST" action="/company/{{ company.id }}/alert/{{ ak.id }}/delete" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-ghost btn-sm"
+                    style="border-radius:20px; padding:4px 12px; font-size:0.8rem; background:#fff7ed; border-color:#fed7aa; color:#b45309;"
+                    title="クリックで削除">{{ ak.keyword }} ×</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <form method="POST" action="/company/{{ company.id }}/alert/add"
+              style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="text" name="keyword" placeholder="例: 採用、資金調達" maxlength="100" required
+                 style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1; min-width:180px;">
+          <button type="submit" class="btn btn-primary">追加</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <!-- 除外ワード -->
   <section>
     <div class="card">

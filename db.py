@@ -182,6 +182,13 @@ def init_db():
                     exclude_word VARCHAR(100) NOT NULL,
                     UNIQUE(company_id, exclude_word)
                 );
+                CREATE TABLE IF NOT EXISTS company_alert_keywords (
+                    id         SERIAL PRIMARY KEY,
+                    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    user_id    INTEGER NOT NULL REFERENCES users(id),
+                    keyword    VARCHAR(100) NOT NULL,
+                    UNIQUE(company_id, keyword)
+                );
                 CREATE TABLE IF NOT EXISTS domain_overrides (
                     id            SERIAL PRIMARY KEY,
                     domain        TEXT NOT NULL UNIQUE,
@@ -1632,12 +1639,18 @@ def get_all_running_tasks() -> dict:
 # ============================================================
 
 def load_alert_keywords(user_id: int) -> list:
-    """ユーザーのアラートキーワード一覧を返す"""
+    """ユーザーのアラートキーワード一覧を返す。
+    企業単位の重要アラートキーワード（company_alert_keywords）も合わせて返すため、
+    記事タイトルのアラート判定（get_alert_keywords_set 等）が自動的に両方をカバーする。
+    """
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, keyword FROM alert_keywords WHERE user_id = %s ORDER BY id",
-                (user_id,),
+                "SELECT id, keyword FROM alert_keywords WHERE user_id = %s "
+                "UNION ALL "
+                "SELECT id, keyword FROM company_alert_keywords WHERE user_id = %s "
+                "ORDER BY id",
+                (user_id, user_id),
             )
             return [dict(row) for row in cur.fetchall()]
 
@@ -1728,6 +1741,58 @@ def delete_company_exclude_word(user_id: int, company_id: int, exclude_word_id: 
                 "DELETE FROM company_exclude_keywords "
                 "WHERE id = %s AND company_id = %s AND user_id = %s",
                 (exclude_word_id, company_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
+# ---- 企業単位の重要アラートキーワード ----
+def get_company_alert_keywords(company_id: int) -> list:
+    """指定企業に紐づく重要アラートキーワード一覧（id, keyword）を返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, keyword FROM company_alert_keywords "
+                "WHERE company_id = %s ORDER BY id",
+                (company_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def add_company_alert_keyword(user_id: int, company_id: int, keyword: str):
+    """企業単位の重要アラートキーワードを追加する（所有権確認込み）。
+    返り値: 成功時はID(int)、重複時は False、所有権エラー時は None。"""
+    keyword = (keyword or "").strip()
+    if not keyword:
+        return False
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM companies WHERE id = %s AND user_id = %s",
+                (company_id, user_id),
+            )
+            if not cur.fetchone():
+                return None
+            try:
+                cur.execute(
+                    "INSERT INTO company_alert_keywords "
+                    "(company_id, user_id, keyword) VALUES (%s, %s, %s) "
+                    "RETURNING id",
+                    (company_id, user_id, keyword),
+                )
+                row = cur.fetchone()
+                return row[0] if row else True
+            except psycopg2.errors.UniqueViolation:
+                return False
+
+
+def delete_company_alert_keyword(user_id: int, company_id: int, keyword_id: int) -> bool:
+    """企業単位の重要アラートキーワードを削除する（所有権確認込み）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM company_alert_keywords "
+                "WHERE id = %s AND company_id = %s AND user_id = %s",
+                (keyword_id, company_id, user_id),
             )
             return cur.rowcount > 0
 
