@@ -125,6 +125,15 @@ def init_db():
                     expires_at TIMESTAMP NOT NULL,
                     used_at    TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS tdnet_disclosures (
+                    id            SERIAL PRIMARY KEY,
+                    document_id   VARCHAR(20) NOT NULL UNIQUE,
+                    company_name  TEXT NOT NULL,
+                    title         TEXT NOT NULL,
+                    disclosed_at  TIMESTAMP NOT NULL,
+                    document_url  TEXT NOT NULL,
+                    created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+                );
                 CREATE TABLE IF NOT EXISTS alert_keywords (
                     id         SERIAL PRIMARY KEY,
                     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1048,6 +1057,71 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
                 "DELETE FROM articles WHERE user_id = %s AND keyword = %s",
                 (user_id, keyword),
             )
+
+
+def fetch_and_save_tdnet() -> int:
+    """やのしんAPIから最新100件の TDnet 適時開示を取得し、tdnet_disclosures に保存する。
+    重複（document_id 一致）は ON CONFLICT DO NOTHING でスキップ。保存件数を返す。"""
+    import requests as _requests
+    url = "https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100"
+    try:
+        resp = _requests.get(url, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        logger.error("[tdnet] 取得失敗: %s", e)
+        return 0
+    items = data.get("items") or []
+    saved = 0
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            for item in items:
+                t = item.get("Tdnet") or {}
+                doc_id = str(t.get("id") or "").strip()
+                company = (t.get("company_name") or "").strip()
+                title = (t.get("title") or "").strip()
+                pubdate = (t.get("pubdate") or "").strip()
+                doc_url = (t.get("document_url") or "").strip()
+                if not (doc_id and company and title and pubdate and doc_url):
+                    continue
+                try:
+                    cur.execute(
+                        "INSERT INTO tdnet_disclosures "
+                        "(document_id, company_name, title, disclosed_at, document_url) "
+                        "VALUES (%s, %s, %s, %s, %s) "
+                        "ON CONFLICT (document_id) DO NOTHING",
+                        (doc_id, company, title, pubdate, doc_url),
+                    )
+                    if cur.rowcount > 0:
+                        saved += 1
+                except Exception as e:
+                    logger.warning("[tdnet] insert skipped doc_id=%s err=%s", doc_id, e)
+    logger.info("[tdnet] fetched=%d saved=%d", len(items), saved)
+    return saved
+
+
+def get_tdnet_for_user(user_id: int) -> list:
+    """ユーザーの登録企業名に部分一致する TDnet 開示情報を disclosed_at 降順で返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # 登録企業名一覧
+            cur.execute(
+                "SELECT name FROM companies WHERE user_id = %s AND name <> ''",
+                (user_id,),
+            )
+            names = [r["name"] for r in cur.fetchall()]
+            if not names:
+                return []
+            # LIKE検索用パターン配列を OR 条件で連結
+            where_parts = " OR ".join(["company_name LIKE %s"] * len(names))
+            params = [f"%{n}%" for n in names]
+            cur.execute(
+                "SELECT document_id, company_name, title, disclosed_at, document_url "
+                f"FROM tdnet_disclosures WHERE {where_parts} "
+                "ORDER BY disclosed_at DESC LIMIT 500",
+                params,
+            )
+            return [dict(r) for r in cur.fetchall()]
 
 
 def delete_old_articles(days: int = 30) -> int:

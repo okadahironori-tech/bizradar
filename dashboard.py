@@ -287,6 +287,27 @@ def _start_digest_scheduler():
 _start_digest_scheduler()
 
 
+def _start_tdnet_scheduler():
+    """TDnet 適時開示情報を定期取得するバックグラウンドスレッド（30分間隔・起動時即時1回）"""
+    def _run():
+        try:
+            db.fetch_and_save_tdnet()  # 起動時に1回
+        except Exception as e:
+            logger.error("TDnet 初回取得エラー: %s", e)
+        while True:
+            time.sleep(30 * 60)
+            try:
+                db.fetch_and_save_tdnet()
+            except Exception as e:
+                logger.error("TDnet 定期取得エラー: %s", e)
+
+    t = threading.Thread(target=_run, daemon=True, name="tdnet-scheduler")
+    t.start()
+
+
+_start_tdnet_scheduler()
+
+
 @app.before_request
 def track_user_activity():
     user_id = session.get("user_id")
@@ -1591,6 +1612,12 @@ def news():
         keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
     running = db.get_running_task_statuses()
     keyword_collecting = set(running.get("keyword_collect", {}).keys())
+
+    # TDnet 適時開示情報（Pro プラン限定）
+    user = db.get_user_by_id(user_id) or {}
+    is_pro = (user.get("plan") == "pro")
+    tdnet_items = db.get_tdnet_for_user(user_id) if is_pro else []
+
     return render_template(
         "news.html",
         articles=all_articles,
@@ -1603,6 +1630,8 @@ def news():
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
         alert_count=alert_count,
+        is_pro=is_pro,
+        tdnet_items=tdnet_items,
     )
 
 
