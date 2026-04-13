@@ -1385,7 +1385,9 @@ def get_tdnet_for_user(user_id: int) -> list:
                 if not patterns:
                     return 0
                 where_parts = " OR ".join(["company_name LIKE %s"] * len(patterns))
-                params = [f"%{p}%" for p in patterns]
+                # 精度優先: 前方一致のみにする（'%name%' → 'name%'）
+                # 例）「デンソー」登録時に「ガーデン○○」が誤ヒットしないようにする。
+                params = [f"{p}%" for p in patterns]
                 cur.execute(
                     "SELECT document_id, company_name, title, disclosed_at, document_url "
                     f"FROM tdnet_disclosures WHERE {where_parts} "
