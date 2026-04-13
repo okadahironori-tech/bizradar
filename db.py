@@ -470,7 +470,7 @@ def get_user_by_email(email: str):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin FROM users WHERE email = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan FROM users WHERE email = %s",
                 (email.lower(),)
             )
             row = cur.fetchone()
@@ -481,7 +481,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()

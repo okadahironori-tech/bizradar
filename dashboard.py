@@ -1616,6 +1616,7 @@ def news():
     # TDnet 適時開示情報（Pro プラン限定）
     user = db.get_user_by_id(user_id) or {}
     is_pro = (user.get("plan") == "pro")
+    app.logger.info("[news] user_id=%s plan=%r is_pro=%s", user_id, user.get("plan"), is_pro)
     tdnet_items = db.get_tdnet_for_user(user_id) if is_pro else []
 
     return render_template(

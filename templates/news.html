@@ -563,9 +563,9 @@ function _csrfToken() {
 }
 
 // ニュース / TDnet タブ切替
-var _isPro = {{ 'true' if is_pro else 'false' }};
+const isPro = {{ 'true' if is_pro else 'false' }};
 function switchTab(name) {
-  if (name === 'tdnet' && !_isPro) {
+  if (name === 'tdnet' && !isPro) {
     alert('この機能はProプラン限定です');
     return;
   }
@@ -581,7 +581,7 @@ function switchTab(name) {
     newsTab.style.borderBottomColor = '#1a1a2e';
     newsTab.style.color = '#1a1a2e';
     tdnetTab.style.borderBottomColor = 'transparent';
-    tdnetTab.style.color = _isPro ? '#6b7280' : '#9ca3af';
+    tdnetTab.style.color = isPro ? '#6b7280' : '#9ca3af';
   } else {
     newsPane.style.display = 'none';
     tdnetPane.style.display = '';
