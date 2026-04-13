@@ -727,6 +727,9 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="text" name="new_keyword" value="{{ k.keyword }}" maxlength="200" required
                      style="padding:4px 8px; font-size:0.85rem; border:1px solid #d1d5db; border-radius:6px; flex:1; min-width:120px;">
+              <small style="flex-basis:100%; font-size:0.8rem; color:#b45309; line-height:1.4;">
+                キーワードを変更すると、変更前のキーワードで収集した過去記事はこの企業ページに表示されなくなります。
+              </small>
               <button type="submit" class="btn btn-ghost btn-sm">保存</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="toggleKwEdit({{ k.id }}, false)">キャンセル</button>
             </form>
