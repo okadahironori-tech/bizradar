@@ -253,7 +253,10 @@ def _login_lock_remaining(ip: str) -> int:
 
 
 def _record_login_failure(ip: str) -> int:
-    """IPのログイン失敗を記録。閾値到達でロック。残り試行回数を返す(0=ロック開始)。"""
+    """IPのログイン失敗を記録。閾値到達でロック。残り試行回数を返す(0=ロック開始)。
+    count は失敗のたびにインクリメントし、count >= _LOGIN_MAX_FAILS でロック。
+    ウィンドウ超過による count リセットは行わない（残り回数が増減するバグ防止）。
+    直前のロックが期限切れの場合のみ、フレッシュに再スタートさせる。"""
     import time
     now = time.time()
     with _login_attempts_lock:
@@ -263,7 +266,10 @@ def _record_login_failure(ip: str) -> int:
             _login_attempts.pop(k, None)
 
         rec = _login_attempts.get(ip)
-        if not rec or (now - rec.get("first_at", 0)) > _LOGIN_WINDOW_SEC:
+        # 直前のロック（locked_until > 0）が時間切れで解除済みの場合のみ、新しいウィンドウとして再スタート
+        if rec and rec.get("locked_until", 0) > 0 and rec["locked_until"] <= now:
+            rec = None
+        if not rec:
             rec = {"count": 0, "first_at": now, "locked_until": 0}
         rec["count"] += 1
         if rec["count"] >= _LOGIN_MAX_FAILS:
