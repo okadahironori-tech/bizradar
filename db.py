@@ -1134,7 +1134,8 @@ def fetch_and_save_tdnet() -> int:
 
 
 def get_tdnet_for_user(user_id: int) -> list:
-    """ユーザーの登録企業名に部分一致する TDnet 開示情報を disclosed_at 降順で返す"""
+    """ユーザーの登録企業名に部分一致する TDnet 開示情報を disclosed_at 降順で返す。
+    ヒットしない企業については先頭4文字でのフォールバック検索も行う。"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # 登録企業名一覧
@@ -1146,17 +1147,52 @@ def get_tdnet_for_user(user_id: int) -> list:
             logger.info("[tdnet] user_id=%s companies=%s", user_id, names)
             if not names:
                 return []
-            # LIKE検索用パターン配列を OR 条件で連結
-            where_parts = " OR ".join(["company_name LIKE %s"] * len(names))
-            params = [f"%{n}%" for n in names]
-            cur.execute(
-                "SELECT document_id, company_name, title, disclosed_at, document_url "
-                f"FROM tdnet_disclosures WHERE {where_parts} "
-                "ORDER BY disclosed_at DESC LIMIT 500",
-                params,
-            )
-            results = [dict(r) for r in cur.fetchall()]
-            logger.info("[tdnet] user_id=%s found=%d", user_id, len(results))
+
+            # 第1段: フル名 LIKE '%name%' で全件検索 & 各企業のヒット状況を把握
+            merged: dict = {}  # document_id -> row
+            hit_flags: dict = {n: False for n in names}
+
+            def _search(patterns: list, label: str) -> int:
+                if not patterns:
+                    return 0
+                where_parts = " OR ".join(["company_name LIKE %s"] * len(patterns))
+                params = [f"%{p}%" for p in patterns]
+                cur.execute(
+                    "SELECT document_id, company_name, title, disclosed_at, document_url "
+                    f"FROM tdnet_disclosures WHERE {where_parts} "
+                    "ORDER BY disclosed_at DESC LIMIT 500",
+                    params,
+                )
+                rows = cur.fetchall()
+                for r in rows:
+                    d = dict(r)
+                    merged.setdefault(d["document_id"], d)
+                logger.info("[tdnet] %s patterns=%s got=%d", label, patterns, len(rows))
+                return len(rows)
+
+            _search(names, "primary")
+
+            # ヒット判定: 各企業名がどれか1件でも該当するか確認
+            for n in names:
+                for r in merged.values():
+                    if n in (r.get("company_name") or ""):
+                        hit_flags[n] = True
+                        break
+
+            # 第2段: フォールバック（ヒットしなかった企業のうち先頭4文字を使える場合）
+            fallback_patterns = [
+                n[:4] for n in names
+                if not hit_flags[n] and len(n) >= 4
+            ]
+            if fallback_patterns:
+                _search(fallback_patterns, "fallback-4chars")
+
+            results = sorted(
+                merged.values(),
+                key=lambda r: r.get("disclosed_at") or "",
+                reverse=True,
+            )[:500]
+            logger.info("[tdnet] user_id=%s found=%d (merged)", user_id, len(results))
             return results
 
 
