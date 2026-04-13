@@ -1050,33 +1050,6 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
             )
 
 
-def delete_orphan_articles() -> dict:
-    """一時関数: 過去の企業削除で残った孤立レコードを一括削除する。
-      1) company_id IS NULL のキーワードに紐づく articles を削除
-      2) company_id IS NULL の keywords 自体も削除
-    返り値: {"articles": N, "keywords": M}
-    用途: delete_company で keywords を消し忘れていた時期の不整合クリーンアップ。完了後は削除可。"""
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "DELETE FROM articles "
-                "WHERE (user_id, keyword) IN "
-                "(SELECT user_id, keyword FROM keywords WHERE company_id IS NULL)"
-            )
-            articles_deleted = cur.rowcount
-            logger.info(
-                "[delete_orphan_articles] deleted %d articles tied to company_id IS NULL keywords",
-                articles_deleted,
-            )
-            cur.execute("DELETE FROM keywords WHERE company_id IS NULL")
-            keywords_deleted = cur.rowcount
-            logger.info(
-                "[delete_orphan_articles] deleted %d orphan keywords (company_id IS NULL)",
-                keywords_deleted,
-            )
-            return {"articles": articles_deleted, "keywords": keywords_deleted}
-
-
 def delete_old_articles(days: int = 30) -> int:
     """found_at が指定日数より古い記事を articles テーブルから削除する。
     返り値: 削除件数。found_at が空文字のレコードは削除対象外。
