@@ -720,11 +720,22 @@
         <tbody>
         {% for k in keywords_linked %}
         <tr>
-          <td>{{ k.keyword }}</td>
+          <td>
+            <span id="kw-view-{{ k.id }}">{{ k.keyword }}</span>
+            <form id="kw-edit-{{ k.id }}" method="POST" action="/keyword/{{ k.id }}/edit"
+                  style="display:none; gap:6px; align-items:center; flex-wrap:wrap;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="text" name="new_keyword" value="{{ k.keyword }}" maxlength="200" required
+                     style="padding:4px 8px; font-size:0.85rem; border:1px solid #d1d5db; border-radius:6px; flex:1; min-width:120px;">
+              <button type="submit" class="btn btn-ghost btn-sm">保存</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="toggleKwEdit({{ k.id }}, false)">キャンセル</button>
+            </form>
+          </td>
           <td style="color:{% if k.notify_enabled %}#059669{% else %}#9ca3af{% endif %};font-size:0.78rem;font-weight:600;">
             {% if k.notify_enabled %}ON{% else %}OFF{% endif %}
           </td>
           <td>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="toggleKwEdit({{ k.id }}, true)" style="margin-right:4px;">編集</button>
             <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="keyword" value="{{ k.keyword }}">
@@ -839,6 +850,18 @@
   </div>
 </div>
 <script>
+// キーワードのインライン編集 UI 切替
+function toggleKwEdit(id, on) {
+  var view = document.getElementById('kw-view-' + id);
+  var form = document.getElementById('kw-edit-' + id);
+  if (!view || !form) return;
+  view.style.display = on ? 'none' : '';
+  form.style.display = on ? 'inline-flex' : 'none';
+  if (on) {
+    var inp = form.querySelector('input[name="new_keyword"]');
+    if (inp) { inp.focus(); inp.select(); }
+  }
+}
 // CSRF トークン取得ヘルパー（meta タグから取得）
 function _csrfToken() {
   var m = document.querySelector('meta[name="csrf-token"]');
