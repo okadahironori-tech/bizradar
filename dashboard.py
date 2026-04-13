@@ -1239,22 +1239,6 @@ def api_delete_exclude_keyword():
     return jsonify({"success": True})
 
 
-@app.route("/keyword/<int:keyword_id>/edit", methods=["POST"])
-@login_required
-def edit_keyword(keyword_id):
-    user_id = session["user_id"]
-    new_keyword = (request.form.get("new_keyword") or "").strip()
-    if not new_keyword:
-        flash("キーワードを入力してください", "error")
-        return redirect(request.referrer or url_for("company_list"))
-    ok, err = db.update_keyword(user_id, keyword_id, new_keyword)
-    if ok:
-        flash("キーワードを変更しました", "success")
-    else:
-        flash(err or "キーワードの更新に失敗しました", "error")
-    return redirect(request.referrer or url_for("company_list"))
-
-
 @app.route("/api/delete_keyword", methods=["POST"])
 @login_required
 def api_delete_keyword():

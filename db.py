@@ -2378,42 +2378,6 @@ def create_keyword_and_link(user_id: int, keyword: str, company_id: int) -> bool
             return True
 
 
-def update_keyword(user_id: int, keyword_id: int, new_keyword: str) -> tuple[bool, str]:
-    """キーワード名を変更する（user_id で所有権確認）。
-    返り値: (成功フラグ, エラーメッセージ)。成功時は articles.keyword も同名に更新する。"""
-    new_keyword = (new_keyword or "").strip()
-    if not new_keyword:
-        return False, "キーワードを入力してください"
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT keyword FROM keywords WHERE id=%s AND user_id=%s",
-                (keyword_id, user_id),
-            )
-            row = cur.fetchone()
-            if not row:
-                return False, "対象のキーワードが見つかりません"
-            old = row[0]
-            if old == new_keyword:
-                return True, ""
-            try:
-                cur.execute(
-                    "UPDATE keywords SET keyword=%s WHERE id=%s AND user_id=%s",
-                    (new_keyword, keyword_id, user_id),
-                )
-                # 記事側の紐づけも新名に揃える（articles は keyword テキストで結合するため）
-                cur.execute(
-                    "UPDATE articles SET keyword=%s WHERE user_id=%s AND keyword=%s",
-                    (new_keyword, user_id, old),
-                )
-            except psycopg2.errors.UniqueViolation:
-                return False, "同じキーワードが既に登録されています"
-            except Exception as e:
-                logger.error("[update_keyword] id=%s err=%s", keyword_id, e)
-                return False, "キーワードの更新に失敗しました"
-    return True, ""
-
-
 def load_sites_with_company(user_id: int) -> list:
     """全サイトを company_id 付きで返す（詳細画面の紐づけドロップダウン用）"""
     with _conn() as conn:
