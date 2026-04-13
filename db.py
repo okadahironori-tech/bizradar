@@ -1089,18 +1089,29 @@ def fetch_and_save_tdnet() -> int:
     items = data.get("items") or []
     saved = 0
 
+    import re as _re
+
     def clean(s):
-        if isinstance(s, str):
-            return s.replace("\x00", "")
-        return s or ""
+        """NULL文字のみ除去（title / doc_url / pubdate / doc_id 用）"""
+        if not isinstance(s, str):
+            return ""
+        return s.replace("\x00", "")
+
+    def clean_company(s):
+        """company_name 用。NULL文字 + 各種空白類（全角/ゼロ幅含む）を全除去"""
+        if not isinstance(s, str):
+            return ""
+        s = s.replace("\x00", "")
+        # \s はASCII空白＋Unicode空白をカバー。加えて明示的に特殊空白類も指定
+        s = _re.sub(r"[\s\u3000\u00a0\u200b\u200c\u200d\ufeff]+", "", s)
+        return s.strip()
 
     with _conn() as conn:
         with conn.cursor() as cur:
             for item in items:
                 t = item.get("Tdnet") or {}
                 doc_id = clean(str(t.get("id") or "")).strip()
-                # 企業名の文字間スペース（半角/全角）と NULL 文字を除去
-                company = clean(t.get("company_name") or "").replace(" ", "").replace("\u3000", "").strip()
+                company = clean_company(t.get("company_name") or "")
                 title = clean(t.get("title") or "").strip()
                 pubdate = clean(t.get("pubdate") or "").strip()
                 doc_url = clean(t.get("document_url") or "").strip()
