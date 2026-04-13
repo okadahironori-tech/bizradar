@@ -4,7 +4,10 @@
 from __future__ import annotations
 import hashlib
 import hmac as _hmac
+import logging
 import bcrypt as _bcrypt
+
+logger = logging.getLogger(__name__)
 import json
 import os
 import secrets
@@ -1778,45 +1781,64 @@ def update_company(user_id: int, company_id: int, name: str, name_kana: str = ""
 
 def delete_company(user_id: int, company_id: int) -> bool:
     """企業を削除する。関連する記事・変更履歴もまとめて削除する。
-      1) 企業に紐づくキーワードで収集された articles（当該ユーザー分）を削除
-      2) 企業に紐づくサイトURLの change_history を削除（他ユーザーがモニターしていないURLのみ）
-      3) companies 本体を削除（sites/keywords の company_id は ON DELETE SET NULL）
+      1) 企業に紐づくキーワード名を全て取得
+      2) 各キーワードの articles を削除
+      3) 企業に紐づくサイトURLの change_history を削除
+      4) companies 本体を削除（sites/keywords の company_id は ON DELETE SET NULL）
+    各ステップで削除件数を logger.info に出力する。
     """
     with _conn() as conn:
         with conn.cursor() as cur:
-            # 1) この企業に紐付くキーワード一覧 → 記事削除
+            # 1) この企業に紐付くキーワード一覧
             cur.execute(
                 "SELECT keyword FROM keywords WHERE user_id = %s AND company_id = %s",
                 (user_id, company_id),
             )
             kws = [r[0] for r in cur.fetchall()]
-            if kws:
-                cur.execute(
-                    "DELETE FROM articles WHERE user_id = %s AND keyword = ANY(%s)",
-                    (user_id, kws),
-                )
+            logger.info(
+                "[delete_company] user_id=%s company_id=%s keywords=%s",
+                user_id, company_id, kws,
+            )
 
-            # 2) この企業に紐付くサイトURL一覧 → 他ユーザーが参照していないURLの履歴だけ削除
+            # 2) 各キーワードで記事削除（個別に実行して件数をログ）
+            total_articles_deleted = 0
+            for kw in kws:
+                cur.execute(
+                    "DELETE FROM articles WHERE user_id = %s AND keyword = %s",
+                    (user_id, kw),
+                )
+                n = cur.rowcount
+                total_articles_deleted += n
+                logger.info(
+                    "[delete_company] deleted %d articles for keyword=%r", n, kw,
+                )
+            logger.info(
+                "[delete_company] total_articles_deleted=%d", total_articles_deleted,
+            )
+
+            # 3) この企業に紐付くサイトURL一覧 → change_history を削除
             cur.execute(
                 "SELECT url FROM sites WHERE user_id = %s AND company_id = %s",
                 (user_id, company_id),
             )
             urls = [r[0] for r in cur.fetchall()]
+            total_history_deleted = 0
             for url in urls:
-                cur.execute(
-                    "SELECT COUNT(*) FROM sites "
-                    "WHERE url = %s AND user_id IS NOT NULL AND user_id != %s",
-                    (url, user_id),
-                )
-                if cur.fetchone()[0] == 0:
-                    cur.execute("DELETE FROM change_history WHERE url = %s", (url,))
+                cur.execute("DELETE FROM change_history WHERE url = %s", (url,))
+                total_history_deleted += cur.rowcount
+            logger.info(
+                "[delete_company] deleted %d change_history rows for %d urls",
+                total_history_deleted, len(urls),
+            )
 
-            # 3) 企業本体を削除
+            # 4) 企業本体を削除
             cur.execute(
                 "DELETE FROM companies WHERE id = %s AND user_id = %s",
                 (company_id, user_id),
             )
-            return cur.rowcount > 0
+            ok = cur.rowcount > 0
+            logger.info("[delete_company] company deleted=%s", ok)
+            return ok
 
 
 def get_company_summary(user_id: int, company_id: int, alert_kws: set) -> dict:
