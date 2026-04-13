@@ -2429,10 +2429,13 @@ def company_list():
         0 if c.get('alert_count', 0) > 0 else (1 if c.get('unread_count', 0) > 0 else 2),
         c.get('sort_order', 0)
     ))
+    user = db.get_user_by_id(user_id) or {}
+    is_pro = (user.get("plan") == "pro")
     return render_template("company_list.html",
                            companies=companies,
                            user_email=session.get("email", ""),
-                           is_admin=session.get("is_admin", False))
+                           is_admin=session.get("is_admin", False),
+                           is_pro=is_pro)
 
 
 @app.route("/management")
