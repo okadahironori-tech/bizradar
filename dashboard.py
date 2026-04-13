@@ -1210,17 +1210,17 @@ def delete_alert_keyword():
     return redirect(url_for("management", _anchor="keywords-section"))
 
 
-@app.route("/keyword/<int:keyword_id>/exclude/add", methods=["POST"])
+@app.route("/company/<int:company_id>/exclude/add", methods=["POST"])
 @login_required
-def add_keyword_exclude(keyword_id):
+def add_company_exclude(company_id):
     user_id = session["user_id"]
     word = (request.form.get("exclude_word") or "").strip()
     if not word:
         flash("除外ワードを入力してください", "error")
         return redirect(request.referrer or url_for("company_list"))
-    result = db.add_keyword_exclude_word(user_id, keyword_id, word)
+    result = db.add_company_exclude_word(user_id, company_id, word)
     if result is None:
-        flash("対象のキーワードが見つかりません", "error")
+        flash("対象の企業が見つかりません", "error")
     elif result is False:
         flash("この除外ワードは既に登録されています", "error")
     else:
@@ -1228,11 +1228,11 @@ def add_keyword_exclude(keyword_id):
     return redirect(request.referrer or url_for("company_list"))
 
 
-@app.route("/keyword/<int:keyword_id>/exclude/<int:exclude_id>/delete", methods=["POST"])
+@app.route("/company/<int:company_id>/exclude/<int:exclude_id>/delete", methods=["POST"])
 @login_required
-def delete_keyword_exclude(keyword_id, exclude_id):
+def delete_company_exclude(company_id, exclude_id):
     user_id = session["user_id"]
-    ok = db.delete_keyword_exclude_word(user_id, keyword_id, exclude_id)
+    ok = db.delete_company_exclude_word(user_id, company_id, exclude_id)
     if ok:
         flash("除外ワードを削除しました", "success")
     else:
@@ -2494,9 +2494,7 @@ def company_detail(company_id):
 
         sites_linked    = db.load_company_sites(user_id, company_id)
         keywords_linked = db.load_company_keywords(user_id, company_id)
-        # 各キーワードの除外ワードを添付
-        for _k in keywords_linked:
-            _k["exclude_words"] = db.get_keyword_exclude_words(_k["id"])
+        company_exclude_words = db.get_company_exclude_words(company_id)
         articles        = db.load_company_articles(user_id, company_id, limit=30)
         history         = db.load_company_change_history(user_id, company_id, limit=10)
 
@@ -2521,9 +2519,8 @@ def company_detail(company_id):
             key=lambda x: x.get("published", ""), reverse=True,
         )
 
-        # 全サイト・全キーワード（紐づけドロップダウン用）
+        # 全サイト（サイト側の紐づけドロップダウン用）
         all_sites    = db.load_sites_with_company(user_id)
-        all_keywords = db.load_keywords_with_company(user_id)
 
         summary = db.get_company_summary(user_id, company_id, alert_kws)
 
@@ -2531,12 +2528,12 @@ def company_detail(company_id):
                                company=company,
                                sites_linked=sites_linked,
                                keywords_linked=keywords_linked,
+                               company_exclude_words=company_exclude_words,
                                articles=articles,
                                alert_articles=alert_articles,
                                normal_articles=normal_articles,
                                history=history,
                                all_sites=all_sites,
-                               all_keywords=all_keywords,
                                summary=summary,
                                user_email=session.get("email", ""),
                                is_admin=session.get("is_admin", False))

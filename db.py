@@ -175,12 +175,12 @@ def init_db():
                     keyword VARCHAR(100) NOT NULL,
                     UNIQUE(user_id, keyword)
                 );
-                CREATE TABLE IF NOT EXISTS keyword_exclude_keywords (
+                CREATE TABLE IF NOT EXISTS company_exclude_keywords (
                     id           SERIAL PRIMARY KEY,
-                    keyword_id   INTEGER NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+                    company_id   INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
                     user_id      INTEGER NOT NULL REFERENCES users(id),
                     exclude_word VARCHAR(100) NOT NULL,
-                    UNIQUE(keyword_id, exclude_word)
+                    UNIQUE(company_id, exclude_word)
                 );
                 CREATE TABLE IF NOT EXISTS domain_overrides (
                     id            SERIAL PRIMARY KEY,
@@ -986,17 +986,20 @@ def is_keyword_notify_enabled(user_id: int, keyword: str) -> bool:
 
 
 def load_all_keywords_with_users() -> list:
-    """バックグラウンド用: [(user_id, keyword, notify_enabled, keyword_id), ...]
+    """バックグラウンド用: [(user_id, keyword, notify_enabled, keyword_id, company_id), ...]
     user_id が NULL の孤立キーワードは除外する。
-    keyword_id は末尾に追加（旧 3-tuple 形式と先頭3要素の位置を一致させて互換性を保つ）。
+    追加フィールドは末尾に並べて、旧 3-tuple / 4-tuple の位置互換を維持する。
     """
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE), id FROM keywords "
-                "WHERE user_id IS NOT NULL ORDER BY id"
+                "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE), id, company_id "
+                "FROM keywords WHERE user_id IS NOT NULL ORDER BY id"
             )
-            return [(row[0], row[1], bool(row[2]), row[3]) for row in cur.fetchall()]
+            return [
+                (row[0], row[1], bool(row[2]), row[3], row[4])
+                for row in cur.fetchall()
+            ]
 
 
 # ============================================================
@@ -1053,39 +1056,22 @@ def count_unread_alert_articles(user_id: int, alert_kws: set) -> int:
 
 
 def load_articles_data(user_id=None) -> dict:
-    # キーワード単位の除外ワード (keyword_exclude_keywords) を含む記事を
-    # 表示時にも弾くため NOT EXISTS 句を使う。
-    # 注: psycopg2 は cur.execute(sql, params) 経由で % を placeholder と解釈するため、
-    # SQL リテラル中の '%' は '%%' にエスケープする。
-    excl_clause = (
-        " AND NOT EXISTS ("
-        "   SELECT 1 FROM keyword_exclude_keywords kek"
-        "   WHERE kek.keyword_id = ("
-        "       SELECT id FROM keywords "
-        "       WHERE keyword = a.keyword AND user_id = a.user_id LIMIT 1"
-        "   )"
-        "   AND LOWER(a.title) LIKE '%%' || LOWER(kek.exclude_word) || '%%'"
-        " )"
-    )
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles a WHERE user_id = %s" + excl_clause +
-                    " ORDER BY published DESC LIMIT 3000",
+                    "FROM articles WHERE user_id = %s "
+                    "ORDER BY published DESC LIMIT 3000",
                     (user_id,)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles WHERE user_id = %s", (user_id,))
                 seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
-                # 空タプルでも psycopg2 の % 置換が走り、'%%' → '%' に解決される
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles a WHERE 1=1" + excl_clause +
-                    " ORDER BY published DESC LIMIT 3000",
-                    (),
+                    "FROM articles ORDER BY published DESC LIMIT 3000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
@@ -1693,22 +1679,22 @@ def get_exclude_keywords(user_id: int) -> list:
             return [dict(row) for row in cur.fetchall()]
 
 
-# ---- キーワード単位の除外ワード ----
-def get_keyword_exclude_words(keyword_id: int) -> list:
-    """指定キーワードに紐づく除外ワード一覧（id, exclude_word）を返す"""
+# ---- 企業単位の除外ワード ----
+def get_company_exclude_words(company_id: int) -> list:
+    """指定企業に紐づく除外ワード一覧（id, exclude_word）を返す"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, exclude_word FROM keyword_exclude_keywords "
-                "WHERE keyword_id = %s ORDER BY id",
-                (keyword_id,),
+                "SELECT id, exclude_word FROM company_exclude_keywords "
+                "WHERE company_id = %s ORDER BY id",
+                (company_id,),
             )
             return [dict(r) for r in cur.fetchall()]
 
 
-def add_keyword_exclude_word(user_id: int, keyword_id: int, exclude_word: str):
-    """キーワード単位の除外ワードを追加する。
-    対象 keyword_id が user_id の所有であるか検証する。
+def add_company_exclude_word(user_id: int, company_id: int, exclude_word: str):
+    """企業単位の除外ワードを追加する。
+    対象 company_id が user_id の所有であるか検証する。
     返り値: 成功時はID(int)、重複時は False、所有権エラー時は None。"""
     exclude_word = (exclude_word or "").strip()
     if not exclude_word:
@@ -1716,17 +1702,17 @@ def add_keyword_exclude_word(user_id: int, keyword_id: int, exclude_word: str):
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT 1 FROM keywords WHERE id = %s AND user_id = %s",
-                (keyword_id, user_id),
+                "SELECT 1 FROM companies WHERE id = %s AND user_id = %s",
+                (company_id, user_id),
             )
             if not cur.fetchone():
                 return None
             try:
                 cur.execute(
-                    "INSERT INTO keyword_exclude_keywords "
-                    "(keyword_id, user_id, exclude_word) VALUES (%s, %s, %s) "
+                    "INSERT INTO company_exclude_keywords "
+                    "(company_id, user_id, exclude_word) VALUES (%s, %s, %s) "
                     "RETURNING id",
-                    (keyword_id, user_id, exclude_word),
+                    (company_id, user_id, exclude_word),
                 )
                 row = cur.fetchone()
                 return row[0] if row else True
@@ -1734,14 +1720,14 @@ def add_keyword_exclude_word(user_id: int, keyword_id: int, exclude_word: str):
                 return False
 
 
-def delete_keyword_exclude_word(user_id: int, keyword_id: int, exclude_word_id: int) -> bool:
-    """キーワード単位の除外ワードを削除する（所有権確認込み）"""
+def delete_company_exclude_word(user_id: int, company_id: int, exclude_word_id: int) -> bool:
+    """企業単位の除外ワードを削除する（所有権確認込み）"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM keyword_exclude_keywords "
-                "WHERE id = %s AND keyword_id = %s AND user_id = %s",
-                (exclude_word_id, keyword_id, user_id),
+                "DELETE FROM company_exclude_keywords "
+                "WHERE id = %s AND company_id = %s AND user_id = %s",
+                (exclude_word_id, company_id, user_id),
             )
             return cur.rowcount > 0
 
@@ -2352,7 +2338,7 @@ def load_company_keywords(user_id: int, company_id: int) -> list:
 
 def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> list:
     """企業に紐づくキーワードの最新記事。
-    keyword_exclude_keywords に登録された除外ワードを含む記事は表示時にも弾く。"""
+    company_exclude_keywords に登録された除外ワードを含む記事は表示時にも弾く。"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -2362,10 +2348,10 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
                 "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                 "WHERE a.user_id=%s AND k.company_id=%s "
                 "AND NOT EXISTS ("
-                "    SELECT 1 FROM keyword_exclude_keywords kek "
-                "    WHERE kek.keyword_id = k.id "
+                "    SELECT 1 FROM company_exclude_keywords cek "
+                "    WHERE cek.company_id = k.company_id "
                 # psycopg2: SQL リテラル中の '%' は '%%' にエスケープ必須
-                "    AND LOWER(a.title) LIKE '%%' || LOWER(kek.exclude_word) || '%%'"
+                "    AND LOWER(a.title) LIKE '%%' || LOWER(cek.exclude_word) || '%%'"
                 ") "
                 "ORDER BY a.is_read ASC, a.published DESC, a.id DESC LIMIT %s",
                 (user_id, company_id, limit),
