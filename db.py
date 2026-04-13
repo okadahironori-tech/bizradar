@@ -1163,6 +1163,12 @@ def get_tdnet_for_user(user_id: int) -> list:
                     "ORDER BY disclosed_at DESC LIMIT 500",
                     params,
                 )
+                # 実行SQL（デバッグ用）
+                try:
+                    q = cur.query.decode() if isinstance(cur.query, bytes) else str(cur.query)
+                    logger.info("[tdnet] %s SQL: %s", label, q)
+                except Exception:
+                    pass
                 rows = cur.fetchall()
                 for r in rows:
                     d = dict(r)
@@ -1179,13 +1185,21 @@ def get_tdnet_for_user(user_id: int) -> list:
                         hit_flags[n] = True
                         break
 
-            # 第2段: フォールバック（ヒットしなかった企業のうち先頭4文字を使える場合）
-            fallback_patterns = [
-                n[:4] for n in names
-                if not hit_flags[n] and len(n) >= 4
-            ]
+            # 第2段: フォールバック
+            # ヒットしなかった企業について、先頭4文字と先頭2文字の両方をパターンに追加する。
+            # 例: 「窪田製薬ホールディングス」→ 「窪田製薬」(4字) と 「窪田」(2字) の両方で検索。
+            fallback_patterns: list = []
+            for n in names:
+                if hit_flags[n]:
+                    continue
+                if len(n) >= 4:
+                    fallback_patterns.append(n[:4])
+                if len(n) >= 2:
+                    fallback_patterns.append(n[:2])
+            # 重複除去（挿入順維持）
+            fallback_patterns = list(dict.fromkeys(fallback_patterns))
             if fallback_patterns:
-                _search(fallback_patterns, "fallback-4chars")
+                _search(fallback_patterns, "fallback-prefixes")
 
             results = sorted(
                 merged.values(),
