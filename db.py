@@ -606,6 +606,16 @@ def update_user_password(user_id: int, new_password: str):
             )
 
 
+def update_user_email(user_id: int, new_email: str):
+    """メールアドレスを更新する（小文字正規化）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET email = %s WHERE id = %s",
+                (new_email.lower(), user_id)
+            )
+
+
 def get_all_users() -> list:
     """管理者用: 全ユーザー一覧（各種件数付き）"""
     with _conn() as conn:

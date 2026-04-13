@@ -1839,6 +1839,60 @@ def change_password():
     return redirect(url_for("settings"))
 
 
+@app.route("/settings/change_email", methods=["GET", "POST"])
+@login_required
+def change_email():
+    user_id = session["user_id"]
+    user = db.get_user_by_id(user_id)
+    current_email = user.get("email", "") if user else ""
+
+    if request.method == "POST":
+        new_email = (request.form.get("new_email") or "").strip().lower()
+        password  = request.form.get("password", "")
+
+        if not new_email or "@" not in new_email:
+            flash("有効なメールアドレスを入力してください", "error")
+            return render_template("change_email.html", current_email=current_email,
+                                   user_email=session.get("email", ""),
+                                   is_admin=session.get("is_admin", False))
+
+        if new_email == current_email.lower():
+            flash("現在のメールアドレスと同じです", "error")
+            return render_template("change_email.html", current_email=current_email,
+                                   user_email=session.get("email", ""),
+                                   is_admin=session.get("is_admin", False))
+
+        existing = db.get_user_by_email(new_email)
+        if existing and existing.get("id") != user_id:
+            flash("このメールアドレスは既に使用されています", "error")
+            return render_template("change_email.html", current_email=current_email,
+                                   user_email=session.get("email", ""),
+                                   is_admin=session.get("is_admin", False))
+
+        if not user or not db.verify_user_password(user, password):
+            flash("パスワードが正しくありません", "error")
+            return render_template("change_email.html", current_email=current_email,
+                                   user_email=session.get("email", ""),
+                                   is_admin=session.get("is_admin", False))
+
+        try:
+            db.update_user_email(user_id, new_email)
+        except Exception as e:
+            logger.error("[change_email] update failed: %s", e)
+            flash("メールアドレスの変更に失敗しました", "error")
+            return render_template("change_email.html", current_email=current_email,
+                                   user_email=session.get("email", ""),
+                                   is_admin=session.get("is_admin", False))
+
+        session["email"] = new_email
+        flash("メールアドレスを変更しました", "success")
+        return redirect(url_for("settings"))
+
+    return render_template("change_email.html", current_email=current_email,
+                           user_email=session.get("email", ""),
+                           is_admin=session.get("is_admin", False))
+
+
 @app.route("/set_interval", methods=["POST"])
 @admin_required
 def set_interval():

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メールアドレス変更 — BizRadar</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+
+    main { max-width: 520px; margin: 32px auto; padding: 0 16px; }
+
+    .flash { padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 16px; }
+    .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #6b7280; padding: 8px 4px 12px; flex-wrap: wrap; }
+    .breadcrumb a { color: #6b7280; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
+    .bc-sep { color: #9ca3af; font-size: 0.75rem; }
+    .bc-current { color: #1a1a2e; font-weight: 500; }
+
+    .section-title { font-size: 1rem; font-weight: 700; color: #4a4a6a; margin-bottom: 12px; }
+
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      padding: 24px 22px;
+    }
+
+    .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .form-row label { font-size: 0.82rem; font-weight: 600; color: #4a4a6a; }
+    .form-row input[type="email"],
+    .form-row input[type="password"] {
+      padding: 9px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
+      font-size: 0.92rem; outline: none; width: 100%;
+    }
+    .form-row input:focus { border-color: #3949ab; }
+    .form-row .readonly-value {
+      padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px;
+      font-size: 0.92rem; background: #f9fafb; color: #4a4a6a;
+    }
+
+    .actions { display: flex; align-items: center; gap: 16px; margin-top: 20px; }
+    .btn { border: none; border-radius: 7px; padding: 9px 18px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+    .btn-save   { background: #1a1a2e; color: #fff; }
+    .btn-save:hover { background: #2d2d4e; }
+    .back-link { font-size: 0.85rem; color: #6b7280; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; color: #1a1a2e; }
+
+    @media (max-width: 600px) {
+      header { padding: 12px 14px; }
+      main { margin: 16px auto; }
+      .card { padding: 18px 16px; }
+    }
+  </style>
+  <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+<header>
+  <a href="/" style="text-decoration:none;color:inherit;">
+    <h1>BizRadar</h1>
+    <div class="subtitle">メールアドレス変更</div>
+  </a>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <nav class="breadcrumb">
+    <a href="{{ url_for('index') }}">ホーム</a>
+    <span class="bc-sep">›</span>
+    <a href="{{ url_for('settings') }}">設定</a>
+    <span class="bc-sep">›</span>
+    <span class="bc-current">メールアドレス変更</span>
+  </nav>
+
+  <div class="section-title">メールアドレス変更</div>
+  <div class="card">
+    <form method="POST" action="{{ url_for('change_email') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-row">
+        <label>現在のメールアドレス</label>
+        <div class="readonly-value">{{ current_email }}</div>
+      </div>
+
+      <div class="form-row">
+        <label for="new_email">新しいメールアドレス</label>
+        <input type="email" id="new_email" name="new_email" required autocomplete="email">
+      </div>
+
+      <div class="form-row">
+        <label for="password">現在のパスワード（確認用）</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password">
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-save">変更する</button>
+        <a href="{{ url_for('settings') }}" class="back-link">設定に戻る</a>
+      </div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

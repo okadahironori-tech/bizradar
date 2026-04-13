@@ -180,6 +180,18 @@
     </div>
   </section>
 
+  <!-- ── メールアドレス変更 ── -->
+  <section>
+    <div class="section-title">メールアドレス</div>
+    <div class="card">
+      <div class="settings-panel">
+        <label>現在のメールアドレス</label>
+        <span style="font-size:0.88rem;color:#4a4a6a;">{{ user_email }}</span>
+        <a href="{{ url_for('change_email') }}" class="btn btn-save" style="text-decoration:none;display:inline-block;margin-left:auto;">メールアドレスを変更する</a>
+      </div>
+    </div>
+  </section>
+
   <!-- ── パスワード変更 ── -->
   <section>
     <div class="section-title">パスワード変更</div>
