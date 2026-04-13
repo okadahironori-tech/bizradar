@@ -1317,121 +1317,78 @@ def lookup_securities_master_by_code(code: str) -> list:
 
 def get_tdnet_for_user(user_id: int) -> list:
     """ユーザーの登録企業に紐づく TDnet 開示情報を disclosed_at 降順で返す。
-      1) 証券コード登録済みの企業: tdnet_disclosures.securities_code で LIKE '%code%' 検索
-         （ユーザーが4桁入力、TDnet側は通常5桁なので部分一致で吸収）
-      2) 全企業について company_name の LIKE 部分一致を併用
-         （securities_code が NULL の古い TDnet レコードも拾うため）
-      3) ヒットしない企業は先頭4/2文字プレフィックスで追加フォールバック
-      結果は document_id で重複排除し、disclosed_at 降順で最大500件返す。
+      ステップ1 (最優先): companies.securities_code が登録されている企業は、
+         tdnet_disclosures.securities_code との完全一致で照合する。
+      ステップ2 (フォールバック): securities_code が未登録の企業のみ、
+         company_name の部分一致 ('%name%') で照合する。
+         誤ヒット防止のため name 長が 2 以下の企業名はスキップする。
+      ステップ3: document_id で重複排除し、disclosed_at 降順で最大500件返す。
     """
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # 登録企業一覧（name と securities_code）
             cur.execute(
                 "SELECT name, securities_code FROM companies "
                 "WHERE user_id = %s AND name <> ''",
                 (user_id,),
             )
             rows = cur.fetchall()
-            names = [r["name"] for r in rows]
-            codes = [(r["securities_code"] or "").strip() for r in rows]
-            logger.info(
-                "[tdnet] user_id=%s companies=%s codes=%s",
-                user_id, names, codes,
-            )
-            if not names:
+            if not rows:
                 return []
+
+            codes: list = []      # 証券コード登録済みの企業
+            names_no_code: list = []  # 証券コード未登録の企業（長さ>2 のみ）
+            for r in rows:
+                code = (r["securities_code"] or "").strip()
+                name = r["name"] or ""
+                if code:
+                    codes.append(code)
+                elif len(name) > 2:
+                    names_no_code.append(name)
+
+            logger.info(
+                "[tdnet] user_id=%s codes=%s names_no_code=%s",
+                user_id, codes, names_no_code,
+            )
 
             merged: dict = {}
 
-            def _add_rows(rs):
-                for r in rs:
-                    d = dict(r)
-                    merged.setdefault(d["document_id"], d)
-
-            # 0) 証券コード併用マッチ（登録済みコードで LIKE '%code%' 検索）
-            #    4桁を5桁コードの中から部分一致で探す（前方一致・後方一致どちらでも拾える）
-            code_patterns = [c for c in codes if c]
-            if code_patterns:
-                like_params = [f"%{c}%" for c in code_patterns]
-                where = " OR ".join(["securities_code LIKE %s"] * len(like_params))
+            # ステップ1: 証券コード完全一致
+            if codes:
+                placeholders = ",".join(["%s"] * len(codes))
                 cur.execute(
                     "SELECT document_id, company_name, title, disclosed_at, document_url "
-                    f"FROM tdnet_disclosures WHERE {where} "
+                    f"FROM tdnet_disclosures WHERE securities_code IN ({placeholders}) "
                     "ORDER BY disclosed_at DESC LIMIT 500",
-                    like_params,
+                    codes,
                 )
                 found = cur.fetchall()
-                _add_rows(found)
-                try:
-                    q = cur.query.decode() if isinstance(cur.query, bytes) else str(cur.query)
-                    logger.info("[tdnet] code-match SQL: %s", q)
-                except Exception:
-                    pass
-                logger.info(
-                    "[tdnet] code-match patterns=%s got=%d",
-                    code_patterns, len(found),
-                )
+                for r in found:
+                    d = dict(r)
+                    merged.setdefault(d["document_id"], d)
+                logger.info("[tdnet] code-exact-match codes=%s got=%d", codes, len(found))
 
-            # 以降のLIKE照合は「全企業」を対象にする
-            # 証券コード登録済みでも、securities_code が NULL の古い TDnet レコードを
-            # 拾うために企業名ベースの検索も併用する。
-
-            # 第1段: フル名 LIKE '%name%' で全件検索 & 各企業のヒット状況を把握
-            # merged は 証券コード段で既に使用しているため再代入しない
-            hit_flags: dict = {n: False for n in names}
-
-            def _search(patterns: list, label: str) -> int:
-                if not patterns:
-                    return 0
-                where_parts = " OR ".join(["company_name LIKE %s"] * len(patterns))
-                # 精度優先: 前方一致のみにする（'%name%' → 'name%'）
-                # 例）「デンソー」登録時に「ガーデン○○」が誤ヒットしないようにする。
-                params = [f"{p}%" for p in patterns]
+            # ステップ2: 名前部分一致（コード未登録かつ長さ>2 の企業のみ）
+            if names_no_code:
+                where_parts = " OR ".join(["company_name LIKE %s"] * len(names_no_code))
+                params = [f"%{n}%" for n in names_no_code]
                 cur.execute(
                     "SELECT document_id, company_name, title, disclosed_at, document_url "
                     f"FROM tdnet_disclosures WHERE {where_parts} "
                     "ORDER BY disclosed_at DESC LIMIT 500",
                     params,
                 )
-                # 実行SQL（デバッグ用）
-                try:
-                    q = cur.query.decode() if isinstance(cur.query, bytes) else str(cur.query)
-                    logger.info("[tdnet] %s SQL: %s", label, q)
-                except Exception:
-                    pass
-                rows = cur.fetchall()
-                for r in rows:
+                name_hits = 0
+                for r in cur.fetchall():
                     d = dict(r)
-                    merged.setdefault(d["document_id"], d)
-                logger.info("[tdnet] %s patterns=%s got=%d", label, patterns, len(rows))
-                return len(rows)
+                    if d["document_id"] not in merged:
+                        merged[d["document_id"]] = d
+                        name_hits += 1
+                logger.info(
+                    "[tdnet] name-partial-match patterns=%s new=%d",
+                    names_no_code, name_hits,
+                )
 
-            _search(names, "primary")
-
-            # ヒット判定: 各企業名がどれか1件でも該当するか確認
-            for n in names:
-                for r in merged.values():
-                    if n in (r.get("company_name") or ""):
-                        hit_flags[n] = True
-                        break
-
-            # 第2段: フォールバック
-            # ヒットしなかった企業について、先頭4文字と先頭2文字の両方をパターンに追加する。
-            # 例: 「窪田製薬ホールディングス」→ 「窪田製薬」(4字) と 「窪田」(2字) の両方で検索。
-            fallback_patterns: list = []
-            for n in names:
-                if hit_flags[n]:
-                    continue
-                if len(n) >= 4:
-                    fallback_patterns.append(n[:4])
-                if len(n) >= 2:
-                    fallback_patterns.append(n[:2])
-            # 重複除去（挿入順維持）
-            fallback_patterns = list(dict.fromkeys(fallback_patterns))
-            if fallback_patterns:
-                _search(fallback_patterns, "fallback-prefixes")
-
+            # ステップ3: マージ結果を disclosed_at DESC でソートして最大500件
             results = sorted(
                 merged.values(),
                 key=lambda r: r.get("disclosed_at") or "",
