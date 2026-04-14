@@ -858,7 +858,7 @@ def index():
         if prev_active_at:
             tdnet_prev_count = sum(
                 1 for d in all_tdnet
-                if d.get("disclosed_at") and d["disclosed_at"] >= prev_active_at
+                if d.get("disclosed_at") and (d["disclosed_at"].replace(tzinfo=None) if getattr(d["disclosed_at"], "tzinfo", None) else d["disclosed_at"]) >= prev_active_at.replace(tzinfo=None)
             )
         else:
             tdnet_prev_count = tdnet_today_count
