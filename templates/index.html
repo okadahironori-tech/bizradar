@@ -543,7 +543,7 @@ function dismissAlert(btn) {
   {% for key in order %}
     {% if key in available and key in visible and shown.n < count %}
       {% set c = card_defs[key] %}
-      <a href="{{ c.anchor }}" style="text-decoration:none; color:inherit; display:block;">
+      <a href="{{ c.anchor }}" data-key="{{ key }}" style="text-decoration:none; color:inherit; display:block;">
         <div class="summary-card {% if c.color == 'red' %}card-alert{% elif c.color == 'blue' %}card-unread{% endif %}">
           <div class="summary-card-val">{{ c.value }}</div>
           <div class="summary-card-label">{{ c.label }}</div>
@@ -977,6 +977,59 @@ if ('serviceWorker' in navigator) {
 <button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
+</script>
+
+<script>
+// サマリーカード DnD + タッチ並び替え → 自動保存
+(function() {
+  const grid = document.querySelector('.summary-grid');
+  if (!grid) return;
+  let dragging = null;
+
+  const cards = () => [...grid.querySelectorAll('[data-key]')];
+
+  cards().forEach(card => {
+    card.setAttribute('draggable', 'true');
+    card.style.cursor = 'grab';
+
+    card.addEventListener('dragstart', () => { dragging = card; setTimeout(() => card.style.opacity = '0.4', 0); });
+    card.addEventListener('dragend', () => { card.style.opacity = '1'; dragging = null; saveOrder(); });
+    card.addEventListener('touchstart', () => { dragging = card; card.style.opacity = '0.4'; }, { passive: true });
+    card.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (!dragging) return;
+      const touch = e.touches[0];
+      const siblings = cards().filter(c => c !== dragging);
+      const after = siblings.find(s => { const r = s.getBoundingClientRect(); return touch.clientY < r.top + r.height / 2; });
+      if (after) grid.insertBefore(dragging, after); else grid.appendChild(dragging);
+    }, { passive: false });
+    card.addEventListener('touchend', () => { if (dragging) { dragging.style.opacity = '1'; dragging = null; saveOrder(); } });
+  });
+
+  grid.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragging) return;
+    const siblings = cards().filter(c => c !== dragging);
+    const after = siblings.find(s => { const r = s.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+    if (after) grid.insertBefore(dragging, after); else grid.appendChild(dragging);
+  });
+
+  function saveOrder() {
+    const order = cards().map(c => c.dataset.key);
+    const cardCount = {{ dashboard_settings.card_count }};
+    const cardVisible = {{ dashboard_settings.card_visible | tojson }};
+    const csrf = document.querySelector('input[name="csrf_token"]') ? document.querySelector('input[name="csrf_token"]').value : '';
+
+    const form = new FormData();
+    form.append('csrf_token', csrf);
+    form.append('card_count', cardCount);
+    cardVisible.forEach(v => form.append('card_visible', v));
+    order.forEach(v => form.append('card_order', v));
+
+    fetch('/settings/dashboard', { method: 'POST', body: form })
+      .then(r => { if (!r.ok) console.error('カード順序の保存に失敗しました'); });
+  }
+})();
 </script>
 </body>
 </html>
