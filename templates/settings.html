@@ -292,6 +292,22 @@
         item.querySelector('input[name="card_order"]').value = item.dataset.key;
       });
     }
+
+    // 保存時の枚数チェック（0枚 / 表示枚数超過 の警告）
+    const form = document.getElementById('dashboard-card-form');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        const count = parseInt(document.querySelector('input[name="card_count"]:checked').value);
+        const checked = document.querySelectorAll('input[name="card_visible"]:checked').length;
+        if (checked === 0) {
+          alert('最低1枚はチェックしてください。');
+          e.preventDefault();
+        } else if (checked > count) {
+          const ok = confirm('チェックが' + checked + '個ありますが、表示枚数は' + count + '枚です。上位' + count + '枚のみ表示されます。このまま保存しますか？');
+          if (!ok) e.preventDefault();
+        }
+      });
+    }
   })();
   </script>
 
