@@ -510,6 +510,30 @@
     </div>
   </div>
 
+  <!-- TDnet開示情報 -->
+  {% if is_pro %}
+  <section class="card" style="margin-top:24px; padding:20px;">
+    <h2 class="section-title">TDnet開示情報</h2>
+    {% if tdnet_disclosures %}
+      <div>
+        {% for d in tdnet_disclosures %}
+        <div class="history-item" style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+          <div>
+            <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
+            <div>{{ d.title }}</div>
+          </div>
+          {% if d.document_url %}
+          <a href="{{ d.document_url }}" target="_blank" style="font-size:0.85rem; color:#3949ab; white-space:nowrap; margin-left:12px;">PDFを見る</a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-msg">開示情報はありません</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <!-- モニターサイト更新履歴 -->
   <section id="history-section">
     <div class="card">
@@ -556,30 +580,6 @@
       {% endif %}
     </div>
   </section>
-
-  <!-- TDnet開示情報 -->
-  {% if is_pro %}
-  <section class="section-card" style="margin-top:24px;">
-    <h2 class="section-title">TDnet開示情報</h2>
-    {% if tdnet_disclosures %}
-      <div>
-        {% for d in tdnet_disclosures %}
-        <div class="history-item" style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;">
-          <div>
-            <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
-            <div>{{ d.title }}</div>
-          </div>
-          {% if d.document_url %}
-          <a href="{{ d.document_url }}" target="_blank" style="font-size:0.85rem; color:#3949ab; white-space:nowrap; margin-left:12px;">PDFを見る</a>
-          {% endif %}
-        </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="empty-msg">開示情報はありません</div>
-    {% endif %}
-  </section>
-  {% endif %}
 
   <!-- 最新ニュース記事 -->
   <section id="news-section">
