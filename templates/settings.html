@@ -82,6 +82,9 @@
       .settings-panel { flex-direction: column; align-items: flex-start; gap: 10px; }
       .pw-change-fields { flex-direction: column; }
     }
+    @media (max-width: 768px) {
+      .settings-btn-wrap { display: flex; justify-content: flex-end; }
+    }
     .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #6b7280; padding: 8px 12px 4px; flex-wrap: wrap; }
     .breadcrumb a { color: #6b7280; text-decoration: none; }
     .breadcrumb a:hover { text-decoration: underline; color: #1a1a2e; }
@@ -176,7 +179,7 @@
             {% endfor %}
           </div>
         </div>
-        <button type="submit" class="btn btn-save">保存</button>
+        <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">保存</button></div>
       </form>
     </div>
   </section>
@@ -204,7 +207,7 @@
           <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required>
           <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required>
         </div>
-        <button type="submit" class="btn btn-save">変更する</button>
+        <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">変更する</button></div>
       </form>
     </div>
   </section>
@@ -270,7 +273,7 @@
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">保存する</button>
+        <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">保存する</button></div>
       </form>
     </div>
   </section>
