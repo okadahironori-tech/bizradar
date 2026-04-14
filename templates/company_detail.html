@@ -658,7 +658,8 @@
           <td style="white-space:nowrap;">
             <button type="button" class="btn btn-edit btn-sm"
                     onclick="openSiteEditModal('{{ s.url | e }}', '{{ (s.name or '') | e }}')">編集</button>
-            <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;">
+            <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;"
+                  onsubmit="return confirm('このサイトを削除しますか？')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="site_url" value="{{ s.url }}">
               <input type="hidden" name="action" value="unlink">
@@ -710,7 +711,8 @@
             {% if k.notify_enabled %}ON{% else %}OFF{% endif %}
           </td>
           <td>
-            <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;">
+            <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;"
+                  onsubmit="return confirm('このキーワードを削除しますか？')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="keyword" value="{{ k.keyword }}">
               <input type="hidden" name="action" value="unlink">
@@ -752,7 +754,8 @@
         {% if company_alert_words %}
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
           {% for ak in company_alert_words %}
-          <form method="POST" action="/company/{{ company.id }}/alert/{{ ak.id }}/delete" style="display:inline;">
+          <form method="POST" action="/company/{{ company.id }}/alert/{{ ak.id }}/delete" style="display:inline;"
+                onsubmit="return confirm('このアラートキーワードを削除しますか？')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-sm"
                     style="border-radius:20px; padding:4px 12px; font-size:0.8rem; background:#fff7ed; border-color:#fed7aa; color:#b45309;"
@@ -784,7 +787,8 @@
         {% if company_exclude_words %}
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
           {% for ew in company_exclude_words %}
-          <form method="POST" action="/company/{{ company.id }}/exclude/{{ ew.id }}/delete" style="display:inline;">
+          <form method="POST" action="/company/{{ company.id }}/exclude/{{ ew.id }}/delete" style="display:inline;"
+                onsubmit="return confirm('この除外ワードを削除しますか？')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-sm"
                     style="border-radius:20px; padding:4px 12px; font-size:0.8rem; background:#f3f4f6; border-color:#e5e7eb; color:#4b5563;"
