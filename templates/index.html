@@ -981,57 +981,53 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function() {
+  // スマホはドラッグなし（アンカーのみ）
+  if (window.matchMedia('(max-width: 768px)').matches) return;
+
   const grid = document.querySelector('.summary-grid');
   if (!grid) return;
 
-  let dragging = null, clone = null, pending = null, offsetX, offsetY, pendingRect = null;
-  const THRESHOLD = 8;
+  let dragging = null, clone = null, offsetX, offsetY;
 
   const cards = () => [...grid.querySelectorAll('[data-key]')];
 
-  grid.addEventListener('pointerdown', e => {
-    const card = e.target.closest('[data-key]');
-    if (!card) return;
-    pending = { card, x: e.clientX, y: e.clientY, pointerId: e.pointerId };
-    pendingRect = card.getBoundingClientRect();
-    offsetX = e.clientX - pendingRect.left;
-    offsetY = e.clientY - pendingRect.top;
+  cards().forEach(card => {
+    card.style.cursor = 'grab';
+    // アンカークリックを無効化
+    card.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', e => e.preventDefault());
+    });
   });
 
-  grid.addEventListener('pointermove', e => {
-    if (!dragging && pending) {
-      const dx = e.clientX - pending.x;
-      const dy = e.clientY - pending.y;
-      if (Math.sqrt(dx*dx + dy*dy) > THRESHOLD) {
-        dragging = pending.card;
-        pending = null;
-        clone = dragging.cloneNode(true);
-        clone.style.cssText = `position:fixed; left:${pendingRect.left}px; top:${pendingRect.top}px; width:${pendingRect.width}px; opacity:0.8; pointer-events:none; z-index:9999; transition:none;`;
-        document.body.appendChild(clone);
-        dragging.style.opacity = '0.3';
-        grid.setPointerCapture(e.pointerId);
-      }
-      return;
-    }
+  grid.addEventListener('mousedown', e => {
+    const card = e.target.closest('[data-key]');
+    if (!card) return;
+    e.preventDefault();
+    dragging = card;
+    const rect = card.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    clone = card.cloneNode(true);
+    clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; opacity:0.8; pointer-events:none; z-index:9999;`;
+    document.body.appendChild(clone);
+    card.style.opacity = '0.3';
+    card.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', e => {
     if (!dragging || !clone) return;
     clone.style.left = (e.clientX - offsetX) + 'px';
     clone.style.top = (e.clientY - offsetY) + 'px';
-
     const siblings = cards().filter(c => c !== dragging);
-    const after = siblings.find(s => {
-      const r = s.getBoundingClientRect();
-      return e.clientY < r.top + r.height / 2;
-    });
-    if (after) grid.insertBefore(dragging, after);
-    else grid.appendChild(dragging);
+    const after = siblings.find(s => { const r = s.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+    if (after) grid.insertBefore(dragging, after); else grid.appendChild(dragging);
   });
 
-  grid.addEventListener('pointerup', e => {
-    pending = null;
+  document.addEventListener('mouseup', e => {
     if (!dragging) return;
     dragging.style.opacity = '1';
-    if (clone) { clone.remove(); clone = null; }
-    dragging = null;
+    dragging.style.cursor = 'grab';
+    clone.remove(); clone = null; dragging = null;
     saveOrder();
   });
 
