@@ -286,13 +286,45 @@
     if (!list) return;
     let dragging = null;
     list.querySelectorAll('.card-sort-item').forEach(item => {
-      item.addEventListener('dragstart', e => { dragging = item; item.style.opacity = '0.4'; });
-      item.addEventListener('dragend', e => { dragging = null; item.style.opacity = '1'; updateHiddenInputs(); });
-      item.setAttribute('draggable', true);
+      item.setAttribute('draggable', 'true');
+      item.addEventListener('dragstart', e => {
+        dragging = item;
+        setTimeout(() => { item.style.opacity = '0.4'; }, 0);
+      });
+      item.addEventListener('dragend', e => {
+        dragging = null;
+        item.style.opacity = '1';
+        updateHiddenInputs();
+      });
+
+      // タッチ対応
+      item.addEventListener('touchstart', e => {
+        dragging = item;
+        item.style.opacity = '0.4';
+      }, { passive: true });
+
+      item.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (!dragging) return;
+        const touch = e.touches[0];
+        const siblings = [...list.querySelectorAll('.card-sort-item')].filter(s => s !== dragging);
+        const after = siblings.find(s => {
+          const rect = s.getBoundingClientRect();
+          return touch.clientY < rect.top + rect.height / 2;
+        });
+        if (after) { list.insertBefore(dragging, after); } else { list.appendChild(dragging); }
+      }, { passive: false });
+
+      item.addEventListener('touchend', e => {
+        if (dragging) { dragging.style.opacity = '1'; dragging = null; }
+        updateHiddenInputs();
+      });
     });
+
     list.addEventListener('dragover', e => {
       e.preventDefault();
-      const siblings = [...list.querySelectorAll('.card-sort-item:not(.dragging)')];
+      if (!dragging) return;
+      const siblings = [...list.querySelectorAll('.card-sort-item')].filter(s => s !== dragging);
       const after = siblings.find(s => {
         const rect = s.getBoundingClientRect();
         return e.clientY < rect.top + rect.height / 2;
