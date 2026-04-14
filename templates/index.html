@@ -985,48 +985,34 @@ if ('serviceWorker' in navigator) {
   const grid = document.querySelector('.summary-grid');
   if (!grid) return;
 
-  let dragCard = null, clone = null;
-  let startX, startY, offsetX, offsetY, didDrag = false;
-  const THRESHOLD = 6;
+  // PC表示時はアンカーを無効化
+  grid.querySelectorAll('a[href]').forEach(a => a.removeAttribute('href'));
+
+  let dragCard = null, clone = null, offsetX, offsetY;
 
   const allCards = () => [...grid.querySelectorAll('[data-key]')];
 
-  // ドラッグ後のクリック（アンカー遷移）をキャプチャフェーズで阻止
-  grid.addEventListener('click', e => {
-    if (didDrag) { e.preventDefault(); e.stopPropagation(); didDrag = false; }
-  }, true);
+  allCards().forEach(card => { card.style.cursor = 'grab'; });
 
   grid.addEventListener('mousedown', e => {
     const card = e.target.closest('[data-key]');
     if (!card) return;
+    e.preventDefault();
     dragCard = card;
-    startX = e.clientX;
-    startY = e.clientY;
     const rect = card.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
-    didDrag = false;
+    clone = card.cloneNode(true);
+    clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px; opacity:0.85; pointer-events:none; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.15); cursor:grabbing;`;
+    document.body.appendChild(clone);
+    card.style.opacity = '0.3';
+    document.body.style.userSelect = 'none';
   });
 
   document.addEventListener('mousemove', e => {
-    if (!dragCard) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-
-    if (!clone && Math.sqrt(dx * dx + dy * dy) > THRESHOLD) {
-      didDrag = true;
-      const rect = dragCard.getBoundingClientRect();
-      clone = dragCard.cloneNode(true);
-      clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px; opacity:0.85; pointer-events:none; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.15);`;
-      document.body.appendChild(clone);
-      dragCard.style.opacity = '0.3';
-      document.body.style.userSelect = 'none';
-    }
-
-    if (!clone) return;
+    if (!dragCard || !clone) return;
     clone.style.left = (e.clientX - offsetX) + 'px';
     clone.style.top = (e.clientY - offsetY) + 'px';
-
     const siblings = allCards().filter(c => c !== dragCard);
     const after = siblings.find(s => { const r = s.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
     if (after) grid.insertBefore(dragCard, after); else grid.appendChild(dragCard);
@@ -1035,11 +1021,11 @@ if ('serviceWorker' in navigator) {
   document.addEventListener('mouseup', () => {
     if (!dragCard) return;
     dragCard.style.opacity = '1';
+    dragCard.style.cursor = 'grab';
     document.body.style.userSelect = '';
-    if (clone) { clone.remove(); clone = null; }
-    const wasDragged = didDrag;
-    dragCard = null;
-    if (wasDragged) saveOrder();
+    clone.remove(); clone = null;
+    const card = dragCard; dragCard = null;
+    saveOrder();
   });
 
   function saveOrder() {
