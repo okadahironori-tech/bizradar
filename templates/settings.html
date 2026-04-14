@@ -288,8 +288,16 @@
     list.querySelectorAll('.card-sort-item').forEach(item => {
       item.addEventListener('dragstart', e => { dragging = item; item.style.opacity = '0.4'; });
       item.addEventListener('dragend', e => { dragging = null; item.style.opacity = '1'; updateHiddenInputs(); });
-      item.addEventListener('dragover', e => { e.preventDefault(); const rect = item.getBoundingClientRect(); const mid = rect.top + rect.height / 2; list.insertBefore(dragging, e.clientY < mid ? item : item.nextSibling); });
       item.setAttribute('draggable', true);
+    });
+    list.addEventListener('dragover', e => {
+      e.preventDefault();
+      const siblings = [...list.querySelectorAll('.card-sort-item:not(.dragging)')];
+      const after = siblings.find(s => {
+        const rect = s.getBoundingClientRect();
+        return e.clientY < rect.top + rect.height / 2;
+      });
+      if (after) { list.insertBefore(dragging, after); } else { list.appendChild(dragging); }
     });
     function updateHiddenInputs() {
       list.querySelectorAll('.card-sort-item').forEach(item => {
