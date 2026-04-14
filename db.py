@@ -1241,6 +1241,21 @@ def get_tdnet_by_document_ids(doc_ids: list) -> list:
             return [dict(r) for r in cur.fetchall()]
 
 
+def get_tdnet_by_securities_code(code: str, limit: int = 10) -> list:
+    """証券コードに紐づく TDnet 開示情報を disclosed_at 降順で返す（企業詳細用）"""
+    if not code:
+        return []
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT document_id, company_name, title, disclosed_at, document_url "
+                "FROM tdnet_disclosures WHERE securities_code = %s "
+                "ORDER BY disclosed_at DESC LIMIT %s",
+                (code, limit),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
 def get_pro_users() -> list:
     """plan = 'pro' の全ユーザーを返す（通知用）"""
     with _conn() as conn:

@@ -2635,6 +2635,14 @@ def company_detail(company_id):
 
         summary = db.get_company_summary(user_id, company_id, alert_kws)
 
+        # TDnet 開示情報（Pro プランかつ証券コード登録済みの企業のみ、最新10件）
+        tdnet_disclosures = []
+        _code = (company.get("securities_code") or "").strip()
+        if _code:
+            _user = db.get_user_by_id(user_id) or {}
+            if _user.get("plan") == "pro":
+                tdnet_disclosures = db.get_tdnet_by_securities_code(_code, limit=10)
+
         return render_template("company_detail.html",
                                company=company,
                                sites_linked=sites_linked,
@@ -2646,6 +2654,7 @@ def company_detail(company_id):
                                normal_articles=normal_articles,
                                history=history,
                                summary=summary,
+                               tdnet_disclosures=tdnet_disclosures,
                                user_email=session.get("email", ""),
                                is_admin=session.get("is_admin", False))
     except Exception:
