@@ -491,7 +491,7 @@
     <div class="company-header-actions">
       <button type="button" class="btn btn-edit btn-sm" onclick="openEditModal()">編集</button>
       <form method="POST" action="/companies/{{ company.id }}/delete"
-            onsubmit="return confirm('「{{ company.name }}」の企業情報を削除します。紐づいたモニターサイトやキーワードの紐づけは解除されますが、サイト・キーワード・記事のデータ自体は削除されません。')">
+            onsubmit="return confirm('「{{ company.name }}」を削除しますか？この操作は取り消せません。')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger btn-sm">削除</button>
       </form>
@@ -1203,7 +1203,7 @@ function applyUrlHint(hintId, suggested) {
 
 <div style="text-align:center; padding: 40px 0 24px;">
   <form method="POST" action="/companies/{{ company.id }}/delete"
-        onsubmit="return confirm('「{{ company.name }}」の企業情報を削除します。紐づいたモニターサイトやキーワードの紐づけは解除されますが、サイト・キーワード・記事のデータ自体は削除されません。')">
+        onsubmit="return confirm('「{{ company.name }}」を削除しますか？この操作は取り消せません。')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit"
             style="background:none; border:none; color:#dc2626; font-size:0.85rem; cursor:pointer; text-decoration:underline; padding:4px 8px;">
