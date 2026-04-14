@@ -981,64 +981,69 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function() {
-  // スマホはドラッグなし（アンカーのみ）
   if (window.matchMedia('(max-width: 768px)').matches) return;
-
   const grid = document.querySelector('.summary-grid');
   if (!grid) return;
 
-  let dragging = null, clone = null, offsetX, offsetY, moved = false;
+  let dragCard = null, clone = null;
+  let startX, startY, offsetX, offsetY, didDrag = false;
+  const THRESHOLD = 6;
 
-  const cards = () => [...grid.querySelectorAll('[data-key]')];
+  const allCards = () => [...grid.querySelectorAll('[data-key]')];
 
-  cards().forEach(card => {
-    card.style.cursor = 'grab';
-    // アンカークリックを無効化
-    card.querySelectorAll('a').forEach(a => {
-      a.addEventListener('click', e => e.preventDefault());
-    });
-  });
+  // ドラッグ後のクリック（アンカー遷移）をキャプチャフェーズで阻止
+  grid.addEventListener('click', e => {
+    if (didDrag) { e.preventDefault(); e.stopPropagation(); didDrag = false; }
+  }, true);
 
   grid.addEventListener('mousedown', e => {
     const card = e.target.closest('[data-key]');
     if (!card) return;
-    e.preventDefault();
-    moved = false;
-    dragging = card;
+    dragCard = card;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = card.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    didDrag = false;
   });
 
   document.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    if (!clone) {
-      const rect = dragging.getBoundingClientRect();
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
-      clone = dragging.cloneNode(true);
-      clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; opacity:0.8; pointer-events:none; z-index:9999;`;
+    if (!dragCard) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    if (!clone && Math.sqrt(dx * dx + dy * dy) > THRESHOLD) {
+      didDrag = true;
+      const rect = dragCard.getBoundingClientRect();
+      clone = dragCard.cloneNode(true);
+      clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px; opacity:0.85; pointer-events:none; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.15);`;
       document.body.appendChild(clone);
-      dragging.style.opacity = '0.3';
-      dragging.style.cursor = 'grabbing';
+      dragCard.style.opacity = '0.3';
+      document.body.style.userSelect = 'none';
     }
-    moved = true;
+
+    if (!clone) return;
     clone.style.left = (e.clientX - offsetX) + 'px';
     clone.style.top = (e.clientY - offsetY) + 'px';
-    const siblings = cards().filter(c => c !== dragging);
+
+    const siblings = allCards().filter(c => c !== dragCard);
     const after = siblings.find(s => { const r = s.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
-    if (after) grid.insertBefore(dragging, after); else grid.appendChild(dragging);
+    if (after) grid.insertBefore(dragCard, after); else grid.appendChild(dragCard);
   });
 
-  document.addEventListener('mouseup', e => {
-    if (!dragging) return;
-    dragging.style.opacity = '1';
-    dragging.style.cursor = 'grab';
+  document.addEventListener('mouseup', () => {
+    if (!dragCard) return;
+    dragCard.style.opacity = '1';
+    document.body.style.userSelect = '';
     if (clone) { clone.remove(); clone = null; }
-    dragging = null;
-    if (moved) saveOrder();
-    moved = false;
+    const wasDragged = didDrag;
+    dragCard = null;
+    if (wasDragged) saveOrder();
   });
 
   function saveOrder() {
-    const order = cards().map(c => c.dataset.key);
+    const order = allCards().map(c => c.dataset.key);
     const cardCount = {{ dashboard_settings.card_count }};
     const cardVisible = {{ dashboard_settings.card_visible | tojson }};
     const csrf = (document.querySelector('input[name="csrf_token"]') || {}).value || '';
