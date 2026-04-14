@@ -841,6 +841,12 @@ def index():
 
     total_companies = len(db.load_companies(user_id))
 
+    # TDnet 開示情報（Pro プランのみ、最新5件）
+    tdnet_disclosures = []
+    _user = db.get_user_by_id(user_id) or {}
+    if _user.get("plan") == "pro":
+        tdnet_disclosures = db.get_tdnet_for_user(user_id)[:5]
+
     return render_template(
         "index.html",
         total_companies=total_companies,
@@ -865,6 +871,7 @@ def index():
         prev_login_company_list=prev_login_company_list,
         prev_login_at=prev_login_at,
         system_errors=system_errors,
+        tdnet_disclosures=tdnet_disclosures,
     )
 
 

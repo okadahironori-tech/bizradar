@@ -538,6 +538,24 @@ function dismissAlert(btn) {
   <div style="font-size:0.75rem; color:#d97706; text-align:right; margin-top:4px;">取得エラーサイト: {{ summary_error_sites }} 件</div>
   {% endif %}
 
+  <!-- TDnet開示情報（Pro プラン・最新5件） -->
+  {% if is_pro and tdnet_disclosures %}
+  <section>
+    <div class="card">
+      <div class="section-title">TDnet開示情報</div>
+      {% for d in tdnet_disclosures %}
+      <div class="history-item">
+        <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
+        <div>{{ d.company_name }} — {{ d.title }}</div>
+      </div>
+      {% endfor %}
+      <div style="text-align:right; margin-top:12px;">
+        <a href="/tdnet" style="font-size:0.85rem; color:#3949ab;">TDnet開示情報へ →</a>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
   <!-- 重要アラート（JS再描画） -->
   <section id="dash-alert-section"{% if not summary_alert %} style="display:none"{% endif %}>
     <div class="section-title">
