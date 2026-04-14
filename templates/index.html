@@ -980,59 +980,67 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <script>
-// サマリーカード DnD + タッチ並び替え → 自動保存
 (function() {
   const grid = document.querySelector('.summary-grid');
   if (!grid) return;
-  let dragging = null;
+
+  let dragging = null, clone = null, startX, startY, offsetX, offsetY;
 
   const cards = () => [...grid.querySelectorAll('[data-key]')];
 
-  cards().forEach(card => {
-    card.setAttribute('draggable', 'true');
-    card.style.cursor = 'grab';
+  grid.addEventListener('pointerdown', e => {
+    const card = e.target.closest('[data-key]');
+    if (!card) return;
+    if (e.target.tagName === 'A' && !e.target.closest('.summary-card')) return;
 
-    card.addEventListener('dragstart', e => {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', '');
-      dragging = card;
-      setTimeout(() => card.style.opacity = '0.4', 0);
-    });
-    card.addEventListener('dragend', () => { card.style.opacity = '1'; dragging = null; saveOrder(); });
-    card.addEventListener('touchstart', () => { dragging = card; card.style.opacity = '0.4'; }, { passive: true });
-    card.addEventListener('touchmove', e => {
-      e.preventDefault();
-      if (!dragging) return;
-      const touch = e.touches[0];
-      const siblings = cards().filter(c => c !== dragging);
-      const after = siblings.find(s => { const r = s.getBoundingClientRect(); return touch.clientY < r.top + r.height / 2; });
-      if (after) grid.insertBefore(dragging, after); else grid.appendChild(dragging);
-    }, { passive: false });
-    card.addEventListener('touchend', () => { if (dragging) { dragging.style.opacity = '1'; dragging = null; saveOrder(); } });
+    dragging = card;
+    const rect = card.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+
+    clone = card.cloneNode(true);
+    clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; opacity:0.8; pointer-events:none; z-index:9999; transition:none;`;
+    document.body.appendChild(clone);
+
+    card.style.opacity = '0.3';
+    grid.setPointerCapture(e.pointerId);
+    e.preventDefault();
   });
 
-  grid.addEventListener('dragover', e => {
-    e.preventDefault();
-    if (!dragging) return;
+  grid.addEventListener('pointermove', e => {
+    if (!dragging || !clone) return;
+    clone.style.left = (e.clientX - offsetX) + 'px';
+    clone.style.top = (e.clientY - offsetY) + 'px';
+
     const siblings = cards().filter(c => c !== dragging);
-    const after = siblings.find(s => { const r = s.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
-    if (after) grid.insertBefore(dragging, after); else grid.appendChild(dragging);
+    const after = siblings.find(s => {
+      const r = s.getBoundingClientRect();
+      return e.clientY < r.top + r.height / 2;
+    });
+    if (after) grid.insertBefore(dragging, after);
+    else grid.appendChild(dragging);
+  });
+
+  grid.addEventListener('pointerup', e => {
+    if (!dragging) return;
+    dragging.style.opacity = '1';
+    if (clone) { clone.remove(); clone = null; }
+    dragging = null;
+    saveOrder();
   });
 
   function saveOrder() {
     const order = cards().map(c => c.dataset.key);
     const cardCount = {{ dashboard_settings.card_count }};
     const cardVisible = {{ dashboard_settings.card_visible | tojson }};
-    const csrf = document.querySelector('input[name="csrf_token"]') ? document.querySelector('input[name="csrf_token"]').value : '';
-
+    const csrf = (document.querySelector('input[name="csrf_token"]') || {}).value || '';
     const form = new FormData();
     form.append('csrf_token', csrf);
     form.append('card_count', cardCount);
     cardVisible.forEach(v => form.append('card_visible', v));
     order.forEach(v => form.append('card_order', v));
-
     fetch('/settings/dashboard', { method: 'POST', body: form })
-      .then(r => { if (!r.ok) console.error('カード順序の保存に失敗しました'); });
+      .then(r => { if (!r.ok) console.error('保存失敗'); });
   }
 })();
 </script>
