@@ -558,7 +558,7 @@ function dismissAlert(btn) {
     <div class="card tdnet-list">
       {% for d in tdnet_disclosures %}
       <div class="history-item">
-        <div>{{ d.company_name }} — {{ d.title }}</div>
+        <div class="article-title">{{ d.company_name }} — {{ d.title }}</div>
         <div style="font-size:0.75rem; color:#9ca3af; margin-top:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
       </div>
       {% endfor %}
