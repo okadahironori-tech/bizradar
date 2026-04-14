@@ -1072,9 +1072,11 @@ def load_articles_data(user_id=None) -> dict:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
                 cur.execute(
-                    "SELECT id, keyword, title, url, source, published, found_at, is_read "
-                    "FROM articles WHERE user_id = %s "
-                    "ORDER BY published DESC LIMIT 3000",
+                    "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, a.is_read "
+                    "FROM articles a "
+                    "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                    "WHERE a.user_id = %s "
+                    "ORDER BY a.published DESC LIMIT 3000",
                     (user_id,)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
