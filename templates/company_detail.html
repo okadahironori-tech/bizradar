@@ -512,12 +512,12 @@
 
   <!-- TDnet開示情報 -->
   {% if is_pro %}
-  <section class="card" style="margin-top:24px; padding:20px;">
-    <h2 class="section-title" style="margin:0;">TDnet開示情報</h2>
-    {% if tdnet_disclosures %}
-      <div>
+  <section>
+    <div class="card">
+      <div class="section-title">TDnet開示情報</div>
+      {% if tdnet_disclosures %}
         {% for d in tdnet_disclosures %}
-        <div class="history-item" style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+        <div class="history-item" style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div>
             <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
             <div>{{ d.title }}</div>
@@ -527,10 +527,10 @@
           {% endif %}
         </div>
         {% endfor %}
-      </div>
-    {% else %}
-      <div class="empty-msg">開示情報はありません</div>
-    {% endif %}
+      {% else %}
+        <div class="empty-msg">開示情報はありません</div>
+      {% endif %}
+    </div>
   </section>
   {% endif %}
 
