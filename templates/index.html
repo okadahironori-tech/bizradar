@@ -992,7 +992,12 @@ if ('serviceWorker' in navigator) {
     card.setAttribute('draggable', 'true');
     card.style.cursor = 'grab';
 
-    card.addEventListener('dragstart', () => { dragging = card; setTimeout(() => card.style.opacity = '0.4', 0); });
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+      dragging = card;
+      setTimeout(() => card.style.opacity = '0.4', 0);
+    });
     card.addEventListener('dragend', () => { card.style.opacity = '1'; dragging = null; saveOrder(); });
     card.addEventListener('touchstart', () => { dragging = card; card.style.opacity = '0.4'; }, { passive: true });
     card.addEventListener('touchmove', e => {
