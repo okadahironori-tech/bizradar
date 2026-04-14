@@ -2718,8 +2718,12 @@ def link_keyword_to_company(company_id):
     user_id = session["user_id"]
     keyword = request.form.get("keyword", "")
     action  = request.form.get("action", "link")
-    target_id = company_id if action == "link" else None
-    db.set_keyword_company(user_id, keyword, target_id)
+    if action == "unlink":
+        # 「削除」ボタン: キーワードと関連記事を物理削除する（紐づけ解除ではない）
+        db.delete_articles_by_keyword(user_id, keyword)
+        db.delete_keyword_by_text(user_id, keyword)
+    else:
+        db.set_keyword_company(user_id, keyword, company_id)
     return redirect(url_for("company_detail", company_id=company_id))
 
 

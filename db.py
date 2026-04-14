@@ -1123,6 +1123,17 @@ def delete_articles_by_keyword(user_id: int, keyword: str):
             )
 
 
+def delete_keyword_by_text(user_id: int, keyword: str) -> bool:
+    """ユーザーの指定キーワードレコードを削除する（text 一致）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM keywords WHERE user_id=%s AND keyword=%s",
+                (user_id, keyword),
+            )
+            return cur.rowcount > 0
+
+
 def fix_tdnet_company_names() -> int:
     """一時関数: tdnet_disclosures.company_name の文字間スペース（半角/全角）を除去。
     既存データの一括修正用。完了後は本関数を削除してよい。"""
