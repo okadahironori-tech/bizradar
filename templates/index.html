@@ -521,22 +521,30 @@ function dismissAlert(btn) {
 
   <!-- サマリーカード -->
   <div class="summary-grid">
+    <a href="#today-section" style="text-decoration:none; color:inherit; display:block;">
     <div class="summary-card">
       <div class="summary-card-val">{{ summary_today_companies }}</div>
       <div class="summary-card-label">本日の更新企業数</div>
     </div>
+    </a>
+    <a href="#prev-section" style="text-decoration:none; color:inherit; display:block;">
     <div class="summary-card">
       <div class="summary-card-val" {% if prev_login_company_list | length > 0 %}style="color:#3949ab;"{% endif %}>{{ prev_login_company_list | length }}</div>
       <div class="summary-card-label">前回確認時以降の更新企業</div>
     </div>
+    </a>
+    <a href="#dash-alert-section" style="text-decoration:none; color:inherit; display:block;">
     <div class="summary-card card-alert">
       <div class="summary-card-val">{{ summary_alert }}</div>
       <div class="summary-card-label">重要アラート</div>
     </div>
+    </a>
+    <a href="#news-section" style="text-decoration:none; color:inherit; display:block;">
     <div class="summary-card card-unread">
       <div class="summary-card-val">{{ summary_unread }}</div>
       <div class="summary-card-label">未読記事</div>
     </div>
+    </a>
   </div>
   {% if is_admin and summary_error_sites > 0 %}
   <div style="font-size:0.75rem; color:#d97706; text-align:right; margin-top:4px;">取得エラーサイト: {{ summary_error_sites }} 件</div>
@@ -568,7 +576,7 @@ function dismissAlert(btn) {
   </section>
 
   <!-- 本日の更新企業 -->
-  <section>
+  <section id="today-section">
     <div class="section-title">本日の更新企業</div>
     <div class="today-companies-card">
       <div>
@@ -603,7 +611,7 @@ function dismissAlert(btn) {
   </section>
 
   <!-- 前回確認時以降の更新企業 -->
-  <section>
+  <section id="prev-section">
   {% if prev_login_at %}
     <div class="section-title">前回確認時（{{ prev_login_at.strftime('%-m月%-d日') }}）以降の更新企業</div>
     <div class="today-companies-card">
@@ -717,7 +725,7 @@ function dismissAlert(btn) {
 
   <!-- ニュース（JS再描画） -->
   {% if keywords %}
-  <section id="dash-news-section">
+  <section id="news-section">
     <div class="section-title news-section-title">
       <div class="news-title-left">
         <span>ニュース <span class="count" id="dash-news-count" data-server-count="{{ summary_unread }}">{{ summary_unread }} 件</span></span>
