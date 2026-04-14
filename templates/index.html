@@ -220,6 +220,10 @@
     .today-company-more-btn:hover { text-decoration: underline; }
     .today-company-extra { display: none; }
 
+    /* TDnet開示情報などのリスト項目 */
+    .history-item { padding: 10px 16px; border-bottom: 1px solid #f0f2f5; font-size: 0.82rem; }
+    .history-item:last-child { border-bottom: none; }
+
     /* 変更履歴 */
     .timeline { padding: 4px 0; }
     .timeline-item {
@@ -796,7 +800,7 @@ function _articleItemHtml(article) {
   </div>`;
 }
 
-const _VIEW_ALL_BAR = '<div class="view-all-bar"><a href="/news" class="view-all-link">既読を含む全記事は「ニュース」へ →</a></div>';
+const _VIEW_ALL_BAR = '<div class="view-all-bar"><a href="/news" class="view-all-link">一覧を見る →</a><div style="font-size:0.8rem; color:#aaa; margin-top:6px;">既読記事はニュースページで確認できます</div></div>';
 
 function renderDashSections() {
   // ── 重要アラート: 未読アラート 上位3件 ──
