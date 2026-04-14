@@ -529,8 +529,8 @@ function dismissAlert(btn) {
     'prev_companies':  {'label': '前回確認時以降の更新企業', 'value': prev_login_company_list|length, 'color': 'blue', 'anchor': '#prev-section'},
     'alert':           {'label': '重要アラート', 'value': summary_alert, 'color': 'red', 'anchor': '#dash-alert-section'},
     'unread':          {'label': '未読記事', 'value': summary_unread, 'color': 'blue', 'anchor': '#news-section'},
-    'tdnet_today':     {'label': 'TDnet 本日の開示', 'value': tdnet_today_count, 'color': 'default', 'anchor': '/tdnet'},
-    'tdnet_prev':      {'label': 'TDnet 前回確認時以降', 'value': tdnet_prev_count, 'color': 'blue', 'anchor': '/tdnet'}
+    'tdnet_today':     {'label': 'TDnet 本日の開示', 'value': tdnet_today_count, 'color': 'default', 'anchor': ''},
+    'tdnet_prev':      {'label': 'TDnet 前回確認時以降', 'value': tdnet_prev_count, 'color': 'blue', 'anchor': ''}
   } %}
   {% set visible = dashboard_settings.card_visible %}
   {% set order = dashboard_settings.card_order %}
@@ -543,12 +543,16 @@ function dismissAlert(btn) {
   {% for key in order %}
     {% if key in available and key in visible and shown.n < count %}
       {% set c = card_defs[key] %}
+      {% if c.anchor %}
       <a href="{{ c.anchor }}" data-key="{{ key }}" style="text-decoration:none; color:inherit; display:block;">
+      {% else %}
+      <div data-key="{{ key }}" style="text-decoration:none; color:inherit; display:block;">
+      {% endif %}
         <div class="summary-card {% if c.color == 'red' %}card-alert{% elif c.color == 'blue' %}card-unread{% endif %}">
           <div class="summary-card-val">{{ c.value }}</div>
           <div class="summary-card-label">{{ c.label }}</div>
         </div>
-      </a>
+      {% if c.anchor %}</a>{% else %}</div>{% endif %}
       {% set shown.n = shown.n + 1 %}
     {% endif %}
   {% endfor %}
