@@ -521,31 +521,34 @@ function dismissAlert(btn) {
   {% endif %}
 
   <!-- サマリーカード -->
+  {% set card_defs = {
+    'today_companies': {'label': '本日の更新企業数', 'value': summary_today_companies, 'color': 'default', 'anchor': '#today-section'},
+    'prev_companies':  {'label': '前回確認時以降の更新企業', 'value': prev_login_company_list|length, 'color': 'blue', 'anchor': '#prev-section'},
+    'alert':           {'label': '重要アラート', 'value': summary_alert, 'color': 'red', 'anchor': '#dash-alert-section'},
+    'unread':          {'label': '未読記事', 'value': summary_unread, 'color': 'blue', 'anchor': '#news-section'},
+    'tdnet_today':     {'label': 'TDnet 本日の開示', 'value': tdnet_today_count, 'color': 'default', 'anchor': '/tdnet'},
+    'tdnet_prev':      {'label': 'TDnet 前回確認時以降', 'value': tdnet_prev_count, 'color': 'blue', 'anchor': '/tdnet'}
+  } %}
+  {% set visible = dashboard_settings.card_visible %}
+  {% set order = dashboard_settings.card_order %}
+  {% set count = dashboard_settings.card_count %}
+  {% set available = ['today_companies','prev_companies','alert','unread'] %}
+  {% if is_pro %}{% set available = available + ['tdnet_today','tdnet_prev'] %}{% endif %}
+
   <div class="summary-grid">
-    <a href="#today-section" style="text-decoration:none; color:inherit; display:block;">
-    <div class="summary-card">
-      <div class="summary-card-val">{{ summary_today_companies }}</div>
-      <div class="summary-card-label">本日の更新企業数</div>
-    </div>
-    </a>
-    <a href="#prev-section" style="text-decoration:none; color:inherit; display:block;">
-    <div class="summary-card">
-      <div class="summary-card-val" {% if prev_login_company_list | length > 0 %}style="color:#3949ab;"{% endif %}>{{ prev_login_company_list | length }}</div>
-      <div class="summary-card-label">前回確認時以降の更新企業</div>
-    </div>
-    </a>
-    <a href="#dash-alert-section" style="text-decoration:none; color:inherit; display:block;">
-    <div class="summary-card card-alert">
-      <div class="summary-card-val">{{ summary_alert }}</div>
-      <div class="summary-card-label">重要アラート</div>
-    </div>
-    </a>
-    <a href="#news-section" style="text-decoration:none; color:inherit; display:block;">
-    <div class="summary-card card-unread">
-      <div class="summary-card-val">{{ summary_unread }}</div>
-      <div class="summary-card-label">未読記事</div>
-    </div>
-    </a>
+  {% set shown = namespace(n=0) %}
+  {% for key in order %}
+    {% if key in available and key in visible and shown.n < count %}
+      {% set c = card_defs[key] %}
+      <a href="{{ c.anchor }}" style="text-decoration:none; color:inherit; display:block;">
+        <div class="summary-card {% if c.color == 'red' %}card-alert{% elif c.color == 'blue' %}card-unread{% endif %}">
+          <div class="summary-card-val">{{ c.value }}</div>
+          <div class="summary-card-label">{{ c.label }}</div>
+        </div>
+      </a>
+      {% set shown.n = shown.n + 1 %}
+    {% endif %}
+  {% endfor %}
   </div>
   {% if is_admin and summary_error_sites > 0 %}
   <div style="font-size:0.75rem; color:#d97706; text-align:right; margin-top:4px;">取得エラーサイト: {{ summary_error_sites }} 件</div>

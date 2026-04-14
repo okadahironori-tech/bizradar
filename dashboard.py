@@ -841,11 +841,27 @@ def index():
 
     total_companies = len(db.load_companies(user_id))
 
-    # TDnet 開示情報（Pro プランのみ、最新5件）
+    # TDnet 開示情報（Pro プランのみ、最新5件）+ カード用メトリクス
     tdnet_disclosures = []
+    tdnet_today_count = 0
+    tdnet_prev_count = 0
     _user = db.get_user_by_id(user_id) or {}
-    if _user.get("plan") == "pro":
-        tdnet_disclosures = db.get_tdnet_for_user(user_id)[:5]
+    is_pro = (_user.get("plan") == "pro")
+    if is_pro:
+        all_tdnet = db.get_tdnet_for_user(user_id)
+        tdnet_disclosures = all_tdnet[:5]
+        today_str = datetime.now(JST).strftime("%Y-%m-%d")
+        tdnet_today_count = sum(
+            1 for d in all_tdnet
+            if d.get("disclosed_at") and str(d["disclosed_at"])[:10] == today_str
+        )
+        if prev_active_at:
+            tdnet_prev_count = sum(
+                1 for d in all_tdnet
+                if d.get("disclosed_at") and d["disclosed_at"] >= prev_active_at
+            )
+        else:
+            tdnet_prev_count = tdnet_today_count
 
     dashboard_settings = db.get_dashboard_settings(user_id)
 
@@ -874,6 +890,8 @@ def index():
         prev_login_at=prev_login_at,
         system_errors=system_errors,
         tdnet_disclosures=tdnet_disclosures,
+        tdnet_today_count=tdnet_today_count,
+        tdnet_prev_count=tdnet_prev_count,
         dashboard_settings=dashboard_settings,
     )
 
