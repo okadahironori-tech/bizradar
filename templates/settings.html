@@ -209,6 +209,92 @@
     </div>
   </section>
 
+  <!-- ── ダッシュボードカード設定 ── -->
+  <section style="margin-top:24px;">
+    <div class="section-title">ダッシュボードカード設定</div>
+    <div class="card" style="padding:20px;">
+      <form method="POST" action="/settings/dashboard" id="dashboard-card-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div style="margin-bottom:16px;">
+          <div style="font-weight:600; margin-bottom:8px;">表示枚数</div>
+          <div style="display:flex; gap:12px;">
+            {% for n in [2, 4, 6] %}
+            <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+              <input type="radio" name="card_count" value="{{ n }}"
+                {% if dashboard_settings.card_count == n %}checked{% endif %}>
+              {{ n }}枚
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-weight:600; margin-bottom:8px;">表示するカード（ドラッグで並び替え可）</div>
+          <div id="card-sortable" style="display:flex; flex-direction:column; gap:8px;">
+            {% set card_labels = {
+              'today_companies': '本日の更新企業数',
+              'prev_companies': '前回確認時以降の更新企業',
+              'alert': '重要アラート',
+              'unread': '未読記事',
+              'tdnet_today': 'TDnet 本日の開示件数',
+              'tdnet_prev': 'TDnet 前回確認時以降の件数'
+            } %}
+            {% set available_cards = ['today_companies', 'prev_companies', 'alert', 'unread'] %}
+            {% if is_pro %}
+              {% set available_cards = available_cards + ['tdnet_today', 'tdnet_prev'] %}
+            {% endif %}
+            {% set ordered = [] %}
+            {% for key in dashboard_settings.card_order %}
+              {% if key in available_cards %}
+                {% if ordered.append(key) %}{% endif %}
+              {% endif %}
+            {% endfor %}
+            {% for key in available_cards %}
+              {% if key not in ordered %}
+                {% if ordered.append(key) %}{% endif %}
+              {% endif %}
+            {% endfor %}
+            {% for key in ordered %}
+            <div class="card-sort-item" data-key="{{ key }}"
+              style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:#f8f8f8; border-radius:8px; cursor:grab;">
+              <span style="color:#aaa; font-size:1.1rem;">&#9776;</span>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; flex:1;">
+                <input type="checkbox" name="card_visible" value="{{ key }}"
+                  {% if key in dashboard_settings.card_visible %}checked{% endif %}>
+                {{ card_labels[key] }}
+              </label>
+              <input type="hidden" name="card_order" value="{{ key }}">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">保存する</button>
+      </form>
+    </div>
+  </section>
+
+  <script>
+  // ドラッグ＆ドロップで並び替え（SortableJS不使用・ネイティブ実装）
+  (function() {
+    const list = document.getElementById('card-sortable');
+    if (!list) return;
+    let dragging = null;
+    list.querySelectorAll('.card-sort-item').forEach(item => {
+      item.addEventListener('dragstart', e => { dragging = item; item.style.opacity = '0.4'; });
+      item.addEventListener('dragend', e => { dragging = null; item.style.opacity = '1'; updateHiddenInputs(); });
+      item.addEventListener('dragover', e => { e.preventDefault(); const rect = item.getBoundingClientRect(); const mid = rect.top + rect.height / 2; list.insertBefore(dragging, e.clientY < mid ? item : item.nextSibling); });
+      item.setAttribute('draggable', true);
+    });
+    function updateHiddenInputs() {
+      list.querySelectorAll('.card-sort-item').forEach(item => {
+        item.querySelector('input[name="card_order"]').value = item.dataset.key;
+      });
+    }
+  })();
+  </script>
+
 </main>
 
 <script>

@@ -2077,7 +2077,8 @@ def settings():
                            notify_timing=raw_timing,
                            notify_timing_list=raw_timing.split(","),
                            user_email=session.get("email", ""),
-                           is_admin=session.get("is_admin", False))
+                           is_admin=session.get("is_admin", False),
+                           dashboard_settings=db.get_dashboard_settings(user_id))
 
 
 @app.route("/settings/dashboard", methods=["POST"])
