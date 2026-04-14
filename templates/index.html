@@ -1013,25 +1013,16 @@ if ('serviceWorker' in navigator) {
     if (!dragCard || !clone) return;
     clone.style.left = (e.clientX - offsetX) + 'px';
     clone.style.top = (e.clientY - offsetY) + 'px';
-    const siblings = allCards().filter(c => c !== dragCard);
-    // グリッド（複数列）対応: マウス位置に最も近いカードを探してその前後に挿入
-    let nearest = null, nearestDist = Infinity;
-    siblings.forEach(s => {
-      const r = s.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const dist = Math.sqrt((e.clientX - cx) ** 2 + (e.clientY - cy) ** 2);
-      if (dist < nearestDist) { nearestDist = dist; nearest = s; }
-    });
-    if (nearest) {
-      const r = nearest.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      // マウスが対象カードの左半分または上半分にあれば前に、そうでなければ後ろに
-      const before = e.clientX < cx || (Math.abs(e.clientX - cx) < r.width / 4 && e.clientY < cy);
-      if (before) grid.insertBefore(dragCard, nearest); else grid.insertBefore(dragCard, nearest.nextSibling);
-    } else {
-      grid.appendChild(dragCard);
+    // クローンを一時非表示にしてマウス直下の要素を取得
+    clone.style.display = 'none';
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    clone.style.display = '';
+    const over = target && target.closest('[data-key]');
+    if (over && over !== dragCard) {
+      const r = over.getBoundingClientRect();
+      const before = e.clientX < r.left + r.width / 2;
+      if (before) grid.insertBefore(dragCard, over);
+      else grid.insertBefore(dragCard, over.nextSibling);
     }
   });
 
