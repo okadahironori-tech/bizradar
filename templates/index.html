@@ -545,17 +545,15 @@ function dismissAlert(btn) {
   <!-- TDnet開示情報（Pro プラン・最新5件） -->
   {% if is_pro and tdnet_disclosures %}
   <section>
+    <div class="section-title">TDnet開示情報</div>
     <div class="card">
-      <div class="section-title">TDnet開示情報</div>
       {% for d in tdnet_disclosures %}
       <div class="history-item">
-        <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
         <div>{{ d.company_name }} — {{ d.title }}</div>
+        <div style="font-size:0.75rem; color:#9ca3af; margin-top:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
       </div>
       {% endfor %}
-      <div style="text-align:right; margin-top:12px;">
-        <a href="/tdnet" style="font-size:0.85rem; color:#3949ab;">TDnet開示情報へ →</a>
-      </div>
+      <div class="view-all-bar"><a href="/tdnet" class="view-all-link">一覧を見る →</a></div>
     </div>
   </section>
   {% endif %}
@@ -800,7 +798,7 @@ function _articleItemHtml(article) {
   </div>`;
 }
 
-const _VIEW_ALL_BAR = '<div class="view-all-bar"><a href="/news" class="view-all-link">一覧を見る →</a><div style="font-size:0.8rem; color:#aaa; margin-top:6px;">既読記事はニュースページで確認できます</div></div>';
+const _VIEW_ALL_BAR = '<div class="view-all-bar"><div><a href="/news" class="view-all-link">一覧を見る →</a><div style="font-size:0.8rem; color:#aaa; margin-top:6px;">既読記事はニュースページで確認できます</div></div></div>';
 
 function renderDashSections() {
   // ── 重要アラート: 未読アラート 上位3件 ──
