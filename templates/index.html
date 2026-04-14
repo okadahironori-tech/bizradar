@@ -341,6 +341,9 @@
     .news-hint { font-size: 0.74rem; color: #9ca3af; font-weight: 400; }
 
     /* ── タブレット (〜 768px) ── */
+    @media (min-width: 769px) {
+      .summary-grid.grid-3col { grid-template-columns: repeat(3, 1fr); }
+    }
     @media (max-width: 768px) {
       main { margin: 24px auto; }
       .summary-grid { grid-template-columns: repeat(2, 1fr); }
@@ -535,7 +538,7 @@ function dismissAlert(btn) {
   {% set available = ['today_companies','prev_companies','alert','unread'] %}
   {% if is_pro %}{% set available = available + ['tdnet_today','tdnet_prev'] %}{% endif %}
 
-  <div class="summary-grid">
+  <div {% if dashboard_settings.card_count == 6 %}class="summary-grid grid-3col"{% else %}class="summary-grid"{% endif %}>
   {% set shown = namespace(n=0) %}
   {% for key in order %}
     {% if key in available and key in visible and shown.n < count %}
