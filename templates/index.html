@@ -987,7 +987,7 @@ if ('serviceWorker' in navigator) {
   const grid = document.querySelector('.summary-grid');
   if (!grid) return;
 
-  let dragging = null, clone = null, offsetX, offsetY;
+  let dragging = null, clone = null, offsetX, offsetY, moved = false;
 
   const cards = () => [...grid.querySelectorAll('[data-key]')];
 
@@ -1003,19 +1003,23 @@ if ('serviceWorker' in navigator) {
     const card = e.target.closest('[data-key]');
     if (!card) return;
     e.preventDefault();
+    moved = false;
     dragging = card;
-    const rect = card.getBoundingClientRect();
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
-    clone = card.cloneNode(true);
-    clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; opacity:0.8; pointer-events:none; z-index:9999;`;
-    document.body.appendChild(clone);
-    card.style.opacity = '0.3';
-    card.style.cursor = 'grabbing';
   });
 
   document.addEventListener('mousemove', e => {
-    if (!dragging || !clone) return;
+    if (!dragging) return;
+    if (!clone) {
+      const rect = dragging.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      clone = dragging.cloneNode(true);
+      clone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; opacity:0.8; pointer-events:none; z-index:9999;`;
+      document.body.appendChild(clone);
+      dragging.style.opacity = '0.3';
+      dragging.style.cursor = 'grabbing';
+    }
+    moved = true;
     clone.style.left = (e.clientX - offsetX) + 'px';
     clone.style.top = (e.clientY - offsetY) + 'px';
     const siblings = cards().filter(c => c !== dragging);
@@ -1027,8 +1031,10 @@ if ('serviceWorker' in navigator) {
     if (!dragging) return;
     dragging.style.opacity = '1';
     dragging.style.cursor = 'grab';
-    clone.remove(); clone = null; dragging = null;
-    saveOrder();
+    if (clone) { clone.remove(); clone = null; }
+    dragging = null;
+    if (moved) saveOrder();
+    moved = false;
   });
 
   function saveOrder() {
