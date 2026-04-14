@@ -847,6 +847,8 @@ def index():
     if _user.get("plan") == "pro":
         tdnet_disclosures = db.get_tdnet_for_user(user_id)[:5]
 
+    dashboard_settings = db.get_dashboard_settings(user_id)
+
     return render_template(
         "index.html",
         total_companies=total_companies,
@@ -872,6 +874,7 @@ def index():
         prev_login_at=prev_login_at,
         system_errors=system_errors,
         tdnet_disclosures=tdnet_disclosures,
+        dashboard_settings=dashboard_settings,
     )
 
 
@@ -2075,6 +2078,27 @@ def settings():
                            notify_timing_list=raw_timing.split(","),
                            user_email=session.get("email", ""),
                            is_admin=session.get("is_admin", False))
+
+
+@app.route("/settings/dashboard", methods=["POST"])
+@login_required
+def save_dashboard_settings():
+    user_id = session["user_id"]
+    try:
+        card_count = int(request.form.get("card_count", 4))
+    except (TypeError, ValueError):
+        card_count = 4
+    card_order   = request.form.getlist("card_order")
+    card_visible = request.form.getlist("card_visible")
+    if card_count not in (2, 4, 6):
+        card_count = 4
+    db.save_dashboard_settings(user_id, {
+        "card_count":   card_count,
+        "card_order":   card_order,
+        "card_visible": card_visible,
+    })
+    flash("ダッシュボード設定を保存しました", "success")
+    return redirect(url_for("settings"))
 
 
 @app.route("/admin")

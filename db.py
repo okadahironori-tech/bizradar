@@ -417,6 +417,11 @@ def _run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "prev_active_at TIMESTAMP WITH TIME ZONE;"
             )
+            # users: ダッシュボードカード表示設定（JSONB）
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "dashboard_settings JSONB DEFAULT NULL;"
+            )
 
             # companies: 並び順カラム追加
             cur.execute(
@@ -1597,6 +1602,47 @@ def set_user_notify_timing(user_id: int, timing: str) -> bool:
                 (timing, user_id),
             )
             return cur.rowcount > 0
+
+
+# ---- ダッシュボードカード表示設定 ----
+def _default_dashboard_settings(user_row: dict, saved: dict = None) -> dict:
+    """デフォルト設定を返す。saved があれば定義済みキーのみ上書きする。"""
+    is_pro = (user_row or {}).get("plan") == "pro"
+    default_order = ["today_companies", "prev_companies", "alert", "unread"]
+    if is_pro:
+        default_order += ["tdnet_today", "tdnet_prev"]
+    defaults = {
+        "card_count": 4,
+        "card_order": default_order,
+        "card_visible": ["today_companies", "prev_companies", "alert", "unread"],
+    }
+    if not saved:
+        return defaults
+    result = defaults.copy()
+    result.update({k: v for k, v in saved.items() if k in defaults})
+    return result
+
+
+def get_dashboard_settings(user_id: int) -> dict:
+    """ユーザーのダッシュボード設定を返す。未設定時はデフォルト値を返す。"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT dashboard_settings, plan FROM users WHERE id=%s", (user_id,))
+            row = cur.fetchone()
+            if not row:
+                return _default_dashboard_settings(row)
+            return _default_dashboard_settings(row, row["dashboard_settings"])
+
+
+def save_dashboard_settings(user_id: int, settings: dict) -> None:
+    """ダッシュボード設定を保存する。"""
+    import json
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET dashboard_settings=%s WHERE id=%s",
+                (json.dumps(settings), user_id),
+            )
 
 
 def get_users_for_digest_hour(hour: int) -> list:
