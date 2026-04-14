@@ -553,7 +553,7 @@ function dismissAlert(btn) {
         <div style="font-size:0.75rem; color:#9ca3af; margin-top:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
       </div>
       {% endfor %}
-      <div class="view-all-bar"><a href="/tdnet" class="view-all-link">一覧を見る →</a></div>
+      <div class="view-all-bar"><a href="/tdnet" class="view-all-link">一覧を見る</a></div>
     </div>
   </section>
   {% endif %}
@@ -598,7 +598,7 @@ function dismissAlert(btn) {
         </div>
         {% endif %}
       </div>
-      <div class="view-all-bar"><a href="/company" class="view-all-link">一覧を見る →</a></div>
+      <div class="view-all-bar"><a href="/company" class="view-all-link">一覧を見る</a></div>
     </div>
   </section>
 
@@ -636,7 +636,7 @@ function dismissAlert(btn) {
         <div style="font-size:0.88rem; color:#9ca3af; padding: 4px 0 8px;">前回ログイン以降の更新はありません</div>
         {% endif %}
       </div>
-      <div class="view-all-bar"><a href="/company" class="view-all-link">一覧を見る →</a></div>
+      <div class="view-all-bar"><a href="/company" class="view-all-link">一覧を見る</a></div>
     </div>
   {% else %}
     <div class="section-title">前回確認時以降の更新企業</div>
@@ -798,7 +798,7 @@ function _articleItemHtml(article) {
   </div>`;
 }
 
-const _VIEW_ALL_BAR = '<div class="view-all-bar"><div><a href="/news" class="view-all-link">一覧を見る →</a><div style="font-size:0.8rem; color:#aaa; margin-top:6px;">既読記事はニュースページで確認できます</div></div></div>';
+const _VIEW_ALL_BAR = '<div class="view-all-bar"><div style="text-align:right;"><div style="font-size:0.8rem; color:#aaa; margin-bottom:6px;">既読記事はニュースページで確認できます</div><a href="/news" class="view-all-link">一覧を見る</a></div></div>';
 
 function renderDashSections() {
   // ── 重要アラート: 未読アラート 上位3件 ──
