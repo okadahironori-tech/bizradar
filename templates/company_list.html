@@ -293,7 +293,7 @@
         </div>
         <div class="form-group">
           <label>WebサイトURL</label>
-          <input type="url" name="website_url" placeholder="https://example.com" maxlength="500">
+          <input type="url" id="website-url-input" name="website_url" placeholder="https://example.com" maxlength="500">
         </div>
         <div class="form-group">
           <label>証券コード（上場企業の場合）</label>
@@ -325,6 +325,10 @@
                 const kanaEl = document.getElementById('kana-input');
                 if (codeEl && !codeEl.value) codeEl.value = data.securities_code;
                 if (kanaEl && !kanaEl.value) kanaEl.value = data.company_name_kana || '';
+              }
+              if (data.website_url) {
+                const urlEl = document.getElementById('website-url-input');
+                if (urlEl && !urlEl.value) urlEl.value = data.website_url;
               }
             })
             .catch(() => {});

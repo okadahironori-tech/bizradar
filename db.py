@@ -2707,6 +2707,22 @@ def upsert_listed_companies(rows):
     return len(rows)
 
 
+def get_domain_override_url(company_name: str):
+    """domain_overrides から企業名に一致する URL を1件返す（無ければ None）。
+    実カラムは suggested_url。company_name は空文字デフォルトのため空は弾く。"""
+    if not company_name:
+        return None
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT suggested_url FROM domain_overrides "
+                "WHERE company_name = %s AND suggested_url <> '' LIMIT 1",
+                (company_name,),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
 def search_listed_company(company_name):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

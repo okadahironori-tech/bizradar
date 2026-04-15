@@ -1558,7 +1558,11 @@ def api_company_lookup():
     name = request.args.get('name', '').strip()
     if not name:
         return jsonify({})
-    result = db.search_listed_company(name)
+    result = db.search_listed_company(name) or {}
+    # domain_overrides から URL も補完
+    url = db.get_domain_override_url(name)
+    if url:
+        result['website_url'] = url
     if result:
         return jsonify(result)
     return jsonify({})
