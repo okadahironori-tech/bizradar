@@ -1057,9 +1057,11 @@ _NOISE_RE = re.compile(
 _CONTENT_RE = re.compile(r"content|main|news.?list|article.?list|entry", re.IGNORECASE)
 
 
-def extract_main_content(soup):
-    """ノイズ要素を除外して主要コンテンツのテキストを返す"""
-    # ① タグ名で除去、および role 属性によるナビ・ヘッダー・フッター系除去
+def extract_main_content(soup, url: str = ""):
+    """ノイズ要素を除外して主要コンテンツのテキストを返す。
+    結果が 50 文字未満の場合は空文字を返す（呼び出し元でタイトルのみ表示する想定）。
+    """
+    # ① script/style/noscript を含むタグ名で除去、および role 属性によるナビ・ヘッダー・フッター系除去
     for tag in soup(_NOISE_TAGS):
         tag.decompose()
     for role in ("navigation", "banner", "contentinfo", "complementary"):
@@ -1085,8 +1087,20 @@ def extract_main_content(soup):
     )
     target = main or soup.find("body") or soup
 
-    # ④ 短すぎる行（3文字以下）を除去してテキスト化
-    return _normalize_lines(target.get_text(separator="\n"))
+    # ④ プレーンテキスト化 → 残存HTMLタグを除去 → 行正規化
+    raw_text = target.get_text(separator="\n")
+    raw_text = re.sub(r"<[^>]+>", "", raw_text)  # 稀に残るタグを保険として除去
+    text = _normalize_lines(raw_text)
+
+    # ⑤ 連続する空行を1つに圧縮し、先頭・末尾の空白を除去
+    text = re.sub(r"\n{2,}", "\n", text).strip()
+
+    # ⑥ 抽出結果が極端に短い場合は空文字を返す
+    if len(text) < 50:
+        print(f"[extract] too short: {url}")
+        return ""
+
+    return text
 
 
 def _normalize_lines(text: str) -> str:
@@ -1113,7 +1127,7 @@ def get_page_content(url: str):
         response.raise_for_status()
         response.encoding = response.apparent_encoding
         soup = BeautifulSoup(response.text, "html.parser")
-        text = extract_main_content(soup)
+        text = extract_main_content(soup, url)
         return text, None
     except requests.exceptions.SSLError:
         error = "SSL証明書エラー"
