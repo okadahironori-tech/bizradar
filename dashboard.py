@@ -631,7 +631,10 @@ def _fetch_and_update_listed_companies():
                     continue
                 try:
                     market = str(row[0]).strip() if row[0] else ''
-                    code = str(row[1]).strip().zfill(4) if row[1] else ''
+                    if isinstance(row[1], (int, float)):
+                        code = str(int(row[1])).zfill(4)
+                    else:
+                        code = str(row[1]).strip().zfill(4) if row[1] else ''
                     name = str(row[2]).strip() if row[2] else ''
                     if not code or not name or not code.replace('0','').isdigit():
                         continue
@@ -640,7 +643,7 @@ def _fetch_and_update_listed_companies():
                     rows.append({'securities_code': code, 'company_name': name, 'company_name_kana': kana, 'market': market})
                 except Exception:
                     continue
-            wb.close()
+            wb.release_resources()
         finally:
             os.unlink(tmp_path)
 
