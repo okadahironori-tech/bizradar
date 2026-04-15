@@ -1440,7 +1440,11 @@ def check_listed_company_urls():
                 ok_count += 1
             else:
                 err_count += 1
-                error_rows.append({"company_name": name, "website_url": url})
+                error_rows.append({
+                    "securities_code": code,
+                    "company_name": name,
+                    "website_url": url,
+                })
         except Exception as e:
             print(f"[url_check] DB update failed code={code} err={e}")
         if i % 50 == 0:
@@ -1450,6 +1454,14 @@ def check_listed_company_urls():
         f"[url_check] done total={total} ok={ok_count} err={err_count} "
         f"url_updated={updated_url_count}"
     )
+
+    # AI による URL 自動修正: エラー企業の公式サイトを Claude に推定させ、検証後に更新
+    if err_count > 0 and error_rows:
+        fixed_codes = _ai_fix_error_urls(error_rows)
+        if fixed_codes:
+            error_rows = [r for r in error_rows if r.get("securities_code") not in fixed_codes]
+            ok_count += len(fixed_codes)
+            err_count -= len(fixed_codes)
 
     # error があれば管理者メール通知（DB から最新 summary を取る）
     if err_count > 0:
@@ -1461,6 +1473,86 @@ def check_listed_company_urls():
             _send_url_check_error_email(err_count, summary, error_rows[:20])
         except Exception as e:
             print(f"[url_check] email send failed: {e}")
+
+
+def _ai_suggest_official_url(company_name: str) -> str:
+    """Claude Haiku 4.5 に公式サイトURLを推定させる。取得できなければ空文字を返す。"""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        return ""
+    try:
+        import anthropic
+    except ImportError:
+        print("[url_check][ai_fix] anthropic library not installed")
+        return ""
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{
+                "role": "user",
+                "content": f"{company_name}の公式サイトURLを1つだけ答えてください。URLのみ回答し、説明は不要です。",
+            }],
+        )
+        text = ""
+        for block in msg.content:
+            if getattr(block, "type", None) == "text":
+                text += block.text or ""
+        m = re.search(r"https?://\S+", text)
+        if m:
+            # 末尾の句読点や閉じ括弧を除去
+            return m.group(0).rstrip(".,;)'\"<>")
+    except Exception as e:
+        print(f"[url_check][ai_fix] Anthropic API error name={company_name!r}: {e}")
+    return ""
+
+
+def _ai_fix_error_urls(error_rows: list) -> set:
+    """error_rows 各件に対し Claude で URL 推定→検証→更新。修正成功した securities_code の set を返す。"""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        print("[url_check][ai_fix] ANTHROPIC_API_KEY 未設定のためスキップ")
+        return set()
+    print(f"[url_check][ai_fix] start attempts={len(error_rows)}")
+    fixed = set()
+    for row in error_rows:
+        code = row.get("securities_code")
+        name = row.get("company_name", "")
+        if not code or not name:
+            time.sleep(2)
+            continue
+        ai_url = _ai_suggest_official_url(name)
+        if not ai_url:
+            print(f"[url_check][ai_fix] no URL from AI code={code} name={name!r}")
+            time.sleep(2)
+            continue
+        try:
+            resp = requests.get(
+                ai_url, timeout=10, allow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; BizRadar-url-check/1.0)"},
+            )
+            if 200 <= resp.status_code < 300:
+                final = resp.url if (resp.history and resp.url) else ai_url
+                try:
+                    db.update_listed_company_url_check(code, "ok", final)
+                    fixed.add(code)
+                    print(f"[url_check][ai_fix] fixed code={code} name={name!r} url={final}")
+                except Exception as e:
+                    print(f"[url_check][ai_fix] DB update failed code={code} err={e}")
+            else:
+                print(
+                    f"[url_check][ai_fix] HTTP {resp.status_code} code={code} "
+                    f"name={name!r} url={ai_url}"
+                )
+        except Exception as e:
+            print(f"[url_check][ai_fix] request failed code={code} url={ai_url} err={e}")
+        time.sleep(2)
+    print(
+        f"[url_check][ai_fix] done fixed={len(fixed)} / "
+        f"attempted={len(error_rows)}"
+    )
+    return fixed
 
 
 def _send_url_check_error_email(err_count: int, summary: dict, error_rows: list):
