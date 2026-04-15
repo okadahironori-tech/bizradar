@@ -439,6 +439,15 @@ def _run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "slack_webhook_url TEXT NOT NULL DEFAULT '';"
             )
+            # users: 氏名（メール本文の宛名表示に使用、任意入力）
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "last_name TEXT NOT NULL DEFAULT '';"
+            )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "first_name TEXT NOT NULL DEFAULT '';"
+            )
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "last_login_at TIMESTAMP WITH TIME ZONE;"
@@ -575,7 +584,8 @@ def _upgrade_password_hash_to_bcrypt(user_id: int, password: str) -> None:
             )
 
 
-def create_user(email: str, password: str, plan: str = "basic") -> int:
+def create_user(email: str, password: str, plan: str = "basic",
+                last_name: str = "", first_name: str = "") -> int:
     """新規ユーザーを作成して user_id を返す（パスワードは bcrypt で保存）"""
     pw_hash = _hash_pw_bcrypt(password)
     admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
@@ -585,11 +595,39 @@ def create_user(email: str, password: str, plan: str = "basic") -> int:
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO users (email, password_hash, salt, is_admin, plan) "
-                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
-                (email.lower(), pw_hash, "", is_admin, plan)
+                "INSERT INTO users (email, password_hash, salt, is_admin, plan, last_name, first_name) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                (email.lower(), pw_hash, "", is_admin, plan,
+                 (last_name or "").strip(), (first_name or "").strip())
             )
             return cur.fetchone()[0]
+
+
+def get_salutation_for_email(email: str) -> str:
+    """メール本文冒頭の宛名文字列を返す。
+    users.last_name と users.first_name が両方非空なら「{last_name} {first_name} 様」、
+    どちらか空 / ユーザー未登録なら「{email} 様」を返す。
+    email が空なら空文字を返す。
+    """
+    if not email:
+        return ""
+    email_norm = email.lower().strip()
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT last_name, first_name FROM users WHERE email = %s",
+                    (email_norm,)
+                )
+                row = cur.fetchone()
+    except Exception:
+        row = None
+    if row:
+        last = (row[0] or "").strip()
+        first = (row[1] or "").strip()
+        if last and first:
+            return f"{last} {first} 様"
+    return f"{email} 様"
 
 
 def update_slack_webhook_url(user_id: int, webhook_url: str):

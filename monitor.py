@@ -750,8 +750,10 @@ def send_system_error_email(errors: list):
     now = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
     subject = "【BizRadar】システムエラーが発生しました"
     errors_html = "".join(f"<li>{_html.escape(e)}</li>" for e in errors)
+    salutation = db.get_salutation_for_email(EMAIL_SETTINGS["recipient_email"])
     body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<p>{salutation}</p>
 <h2 style="font-size:1.1em;color:#dc2626">⚠ システムエラーが発生しました</h2>
 <p style="color:#6b7280;font-size:0.85em">発生日時: {now}</p>
 <ul style="line-height:1.8">
@@ -893,10 +895,10 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
             '</div>'
         )
 
-    salutation_name = user_name if user_name else user_email
+    salutation = db.get_salutation_for_email(user_email)
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
-<p style="margin-bottom:12px">{salutation_name} 様</p>
+<p style="margin-bottom:12px">{salutation}</p>
 <h2 style="font-size:1.1em;margin-bottom:4px">BizRadar ダイジェスト</h2>
 <p style="color:#6b7280;font-size:0.85em;margin-top:0">集計日時: {now} ／ 新着記事 {total} 件</p>
 <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
@@ -1073,10 +1075,10 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
             '</div>'
         )
 
-    salutation_name = user_name if user_name else (user_email or EMAIL_SETTINGS["recipient_email"])
+    salutation = db.get_salutation_for_email(user_email or EMAIL_SETTINGS["recipient_email"])
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
-<p style="margin-bottom:12px">{salutation_name} 様</p>
+<p style="margin-bottom:12px">{salutation}</p>
 <h2 style="font-size:1.1em;margin-bottom:4px">
   「{_html.escape(keyword)}」の新着記事 {len(sorted_articles)} 件
 </h2>
@@ -1567,7 +1569,9 @@ def send_email(url: str, site_name: str = ""):
     now   = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
     label = site_name if site_name else url
     subject = f"【サイト更新通知】{label} が更新されました"
-    body = f"""
+    salutation = db.get_salutation_for_email(EMAIL_SETTINGS["recipient_email"])
+    body = f"""{salutation}
+
 {label} に変更が検出されました。
 
 対象URL: {url}
@@ -1881,8 +1885,10 @@ def _send_url_check_error_email(err_count: int, summary: dict, error_rows: list)
         f"残りは管理画面でご確認ください。</p>"
         if err > len(error_rows) else ""
     )
+    salutation = db.get_salutation_for_email(EMAIL_SETTINGS["recipient_email"])
     body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:640px;margin:0 auto;padding:16px">
+<p>{salutation}</p>
 <h2 style="font-size:1.1em;color:#dc2626">⚠ URLエラー検出: {err_count}件</h2>
 <p style="color:#6b7280;font-size:0.85em">チェック日時: {now}</p>
 <p style="font-size:0.95em">ok: {ok} 件 / error: {err} 件 / unchecked: {unchecked} 件</p>

@@ -408,8 +408,10 @@ def _send_tdnet_alert(to_email: str, disclosures: list):
             f'</div>'
         )
 
+    salutation = db.get_salutation_for_email(to_email)
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<p>{salutation}</p>
 <h2 style="font-size:1.1em">BizRadar 適時開示情報</h2>
 <p style="color:#4a4a6a">以下の企業から新しい適時開示情報があります。</p>
 {rows_html}
@@ -477,7 +479,7 @@ def _notify_tdnet_new(new_doc_ids: list):
 
 
 def _send_simple_mail(to_email: str, subject: str, html_body: str):
-    """汎用 SMTP メール送信（TDnet API エラー・復旧通知用）"""
+    """汎用 SMTP メール送信。本文冒頭に宛名（{last} {first} 様 or {email} 様）を自動挿入する。"""
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
@@ -489,12 +491,16 @@ def _send_simple_mail(to_email: str, subject: str, html_body: str):
     sender_pass   = os.environ.get("SENDER_PASSWORD", "")
     if not sender_email or not sender_pass or not to_email:
         return
+
+    salutation = db.get_salutation_for_email(to_email)
+    body_with_salutation = f"<p>{salutation}</p>{html_body}" if salutation else html_body
+
     msg = MIMEMultipart()
     msg["From"]    = _formataddr(("BizRadar", sender_email))
     msg["To"]      = to_email
     msg["Subject"] = subject
     msg["X-Mailer"] = "BizRadar"
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    msg.attach(MIMEText(body_with_salutation, "html", "utf-8"))
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
@@ -838,6 +844,8 @@ def register():
         plan = request.form.get("plan", "basic")
         if plan not in ("basic", "business", "pro"):
             plan = "basic"
+        last_name = request.form.get("last_name", "").strip()[:50]
+        first_name = request.form.get("first_name", "").strip()[:50]
 
         if not email or "@" not in email:
             error = "有効なメールアドレスを入力してください"
@@ -849,7 +857,7 @@ def register():
             error = "このメールアドレスはすでに登録されています"
         else:
             try:
-                user_id = db.create_user(email, password, plan)
+                user_id = db.create_user(email, password, plan, last_name, first_name)
                 user = db.get_user_by_id(user_id)
                 session.permanent = True
                 session["user_id"] = user["id"]
@@ -2261,7 +2269,6 @@ def change_plan():
         _send_simple_mail(
             user_email,
             "【BizRadar】プランを変更しました",
-            f"<p>{user_email} 様</p>"
             f"<p>{new_name}プランに変更しました。ご不明な点はお問い合わせください。</p>",
         )
     except Exception as e:
@@ -2274,7 +2281,6 @@ def change_plan():
             _send_simple_mail(
                 admin_email,
                 f"【BizRadar管理】プラン変更: {user_email}",
-                f"<p>{user_email} 様</p>"
                 f"<p>{user_email} が {old_plan} から {new_plan} に変更しました。</p>",
             )
         except Exception as e:
@@ -2558,8 +2564,10 @@ def _send_reset_email(to_email: str, reset_url: str):
         return
 
     url_esc = _html.escape(reset_url)
+    salutation = db.get_salutation_for_email(to_email)
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:560px;margin:0 auto;padding:16px">
+<p>{salutation}</p>
 <h2 style="font-size:1.1em">BizRadar パスワードリセット</h2>
 <p>以下のリンクから新しいパスワードを設定してください。<br>
 このリンクは<strong>1時間</strong>で無効になります。</p>
@@ -2609,8 +2617,10 @@ def _send_magic_login_email(to_email: str, login_url: str, token: str = ""):
         return
 
     url_esc = _html.escape(login_url)
+    salutation = db.get_salutation_for_email(to_email)
     html_body = f"""<!DOCTYPE html>
 <html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:560px;margin:0 auto;padding:16px">
+<p>{salutation}</p>
 <h2 style="font-size:1.1em">BizRadar ログイン用リンク</h2>
 <p>ログイン用URLをお送りします。<br>
 以下のリンクをクリックしてログインしてください。</p>

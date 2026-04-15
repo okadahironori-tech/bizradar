@@ -144,6 +144,17 @@
       <form method="POST" action="/register">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
+          <label>お名前（任意）</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="last_name" name="last_name" maxlength="50"
+                   placeholder="名字" autocomplete="family-name"
+                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
+            <input type="text" id="first_name" name="first_name" maxlength="50"
+                   placeholder="名前" autocomplete="given-name"
+                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
+          </div>
+        </div>
+        <div class="form-group">
           <label for="email">メールアドレス</label>
           <input type="email" id="email" name="email" autocomplete="email" autofocus required>
         </div>
