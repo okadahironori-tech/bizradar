@@ -475,6 +475,22 @@ def _run_migrations():
                 "company_name_kana TEXT NOT NULL DEFAULT '';"
             )
 
+            # listed_companies: 公式サイトURL カラム追加
+            cur.execute(
+                "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "
+                "website_url TEXT NOT NULL DEFAULT '';"
+            )
+            # 既存 domain_overrides の URL を listed_companies に反映する
+            # （一回限りのマイグレーション: website_url が空のレコードだけ更新）
+            cur.execute(
+                "UPDATE listed_companies "
+                "SET website_url = d.suggested_url "
+                "FROM domain_overrides d "
+                "WHERE listed_companies.company_name = d.company_name "
+                "AND listed_companies.website_url = '' "
+                "AND d.suggested_url <> '';"
+            )
+
             # JPX 上場企業一覧
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS listed_companies (
@@ -2727,7 +2743,8 @@ def search_listed_company(company_name):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT securities_code, company_name, company_name_kana FROM listed_companies WHERE company_name = %s LIMIT 1",
+                "SELECT securities_code, company_name, company_name_kana, website_url "
+                "FROM listed_companies WHERE company_name = %s LIMIT 1",
                 (company_name,)
             )
             row = cur.fetchone()
