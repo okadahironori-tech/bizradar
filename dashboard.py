@@ -596,6 +596,67 @@ def _start_tdnet_scheduler():
 _start_tdnet_scheduler()
 
 
+def _fetch_and_update_listed_companies():
+    import requests, csv, io
+    try:
+        import pykakasi
+    except ImportError:
+        logger.error("[jpx] pykakasi not installed")
+        return
+    try:
+        logger.info("[jpx] downloading listed companies data...")
+        r = requests.get(
+            "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls",
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+            timeout=30
+        )
+        if r.status_code != 200:
+            logger.error(f"[jpx] download failed: {r.status_code}")
+            return
+        content = r.content.decode('cp932', errors='replace')
+        reader = csv.reader(io.StringIO(content), delimiter='\t')
+        kks = pykakasi.kakasi()
+        rows = []
+        for i, row in enumerate(reader):
+            if i == 0:
+                continue
+            if len(row) < 3:
+                continue
+            try:
+                market = row[0].strip()
+                code = row[1].strip().zfill(4)
+                name = row[2].strip()
+                if not code or not name or not code.isdigit():
+                    continue
+                result = kks.convert(name)
+                kana = ''.join([item['hira'] for item in result])
+                rows.append({'securities_code': code, 'company_name': name, 'company_name_kana': kana, 'market': market})
+            except Exception:
+                continue
+        if rows:
+            db.upsert_listed_companies(rows)
+            logger.info(f"[jpx] upserted {len(rows)} companies")
+        else:
+            logger.warning("[jpx] no rows parsed")
+    except Exception as e:
+        logger.error(f"[jpx] error: {e}")
+
+
+def _start_jpx_scheduler():
+    import threading, time
+    def _run():
+        _fetch_and_update_listed_companies()
+        while True:
+            time.sleep(7 * 24 * 60 * 60)
+            _fetch_and_update_listed_companies()
+    t = threading.Thread(target=_run, name='jpx-scheduler', daemon=True)
+    t.start()
+    logger.info("[jpx-scheduler] thread started")
+
+
+_start_jpx_scheduler()
+
+
 def _next_monday_6am_jst():
     """次の月曜日 JST 06:00 を返す"""
     jst = timezone(timedelta(hours=9))
@@ -1474,6 +1535,18 @@ def api_tdnet_company():
         logger.error("[api_tdnet_company] error: %s", e)
         return jsonify({"companies": []})
     return jsonify({"companies": merged[:5]})
+
+
+@app.route('/api/company_lookup')
+@login_required
+def api_company_lookup():
+    name = request.args.get('name', '').strip()
+    if not name:
+        return jsonify({})
+    result = db.search_listed_company(name)
+    if result:
+        return jsonify(result)
+    return jsonify({})
 
 
 @app.route("/api/suggest_url")

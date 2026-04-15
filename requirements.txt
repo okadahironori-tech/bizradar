@@ -11,3 +11,4 @@ psycopg2-binary
 googlenewsdecoder
 bcrypt==4.2.1
 xlrd==1.2.0
+pykakasi

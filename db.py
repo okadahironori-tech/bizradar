@@ -475,6 +475,17 @@ def _run_migrations():
                 "company_name_kana TEXT NOT NULL DEFAULT '';"
             )
 
+            # JPX 上場企業一覧
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS listed_companies (
+                    securities_code VARCHAR(10) PRIMARY KEY,
+                    company_name VARCHAR(255) NOT NULL,
+                    company_name_kana VARCHAR(255),
+                    market VARCHAR(50),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -2669,5 +2680,47 @@ def count_error_sites() -> int:
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM last_checks WHERE status = 'error'")
+            row = cur.fetchone()
+            return row[0] if row else 0
+
+
+# ============================================================
+# JPX 上場企業一覧 (listed_companies)
+# ============================================================
+
+def upsert_listed_companies(rows):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            for row in rows:
+                cur.execute(
+                    """
+                    INSERT INTO listed_companies (securities_code, company_name, company_name_kana, market, updated_at)
+                    VALUES (%s, %s, %s, %s, NOW())
+                    ON CONFLICT (securities_code) DO UPDATE SET
+                        company_name = EXCLUDED.company_name,
+                        company_name_kana = EXCLUDED.company_name_kana,
+                        market = EXCLUDED.market,
+                        updated_at = NOW()
+                    """,
+                    (row['securities_code'], row['company_name'], row['company_name_kana'], row['market'])
+                )
+    return len(rows)
+
+
+def search_listed_company(company_name):
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT securities_code, company_name, company_name_kana FROM listed_companies WHERE company_name = %s LIMIT 1",
+                (company_name,)
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def get_listed_companies_count() -> int:
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM listed_companies")
             row = cur.fetchone()
             return row[0] if row else 0

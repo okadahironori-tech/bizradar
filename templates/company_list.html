@@ -279,7 +279,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label>企業名 <span style="color:#dc2626">*</span></label>
-          <input type="text" name="name" placeholder="例: トヨタ自動車" required maxlength="100">
+          <input type="text" id="company-name-input" name="name" placeholder="例: トヨタ自動車" required maxlength="100">
         </div>
         <div class="form-group full">
           <label style="display:flex; align-items:center; gap:8px; font-weight:400; cursor:pointer;">
@@ -289,7 +289,7 @@
         </div>
         <div class="form-group">
           <label>企業名（かな）</label>
-          <input type="text" name="name_kana" placeholder="例: とよたじどうしゃ" maxlength="200">
+          <input type="text" id="kana-input" name="name_kana" placeholder="例: とよたじどうしゃ" maxlength="200">
         </div>
         <div class="form-group">
           <label>WebサイトURL</label>
@@ -297,7 +297,7 @@
         </div>
         <div class="form-group">
           <label>証券コード（上場企業の場合）</label>
-          <input type="text" id="securities_code" name="securities_code" placeholder="例：7203" maxlength="6"
+          <input type="text" id="securities-code-input" name="securities_code" placeholder="例：7203" maxlength="6"
                  oninput="checkTdnetCompany(this.value, 'tdnet-match-result')">
           <small id="tdnet-match-result" style="display:block; color:#6b7280; font-size:0.78rem; margin-top:4px;"></small>
         </div>
@@ -310,6 +310,27 @@
         <button type="submit" class="btn btn-primary">追加</button>
         <button type="button" class="btn btn-ghost" onclick="closeAddCompanyModal()">キャンセル</button>
       </div>
+      <script>
+      (function() {
+        const nameEl = document.getElementById('company-name-input');
+        if (!nameEl) return;
+        nameEl.addEventListener('change', function() {
+          const name = this.value.trim();
+          if (!name) return;
+          fetch('/api/company_lookup?name=' + encodeURIComponent(name))
+            .then(r => r.json())
+            .then(data => {
+              if (data.securities_code) {
+                const codeEl = document.getElementById('securities-code-input');
+                const kanaEl = document.getElementById('kana-input');
+                if (codeEl && !codeEl.value) codeEl.value = data.securities_code;
+                if (kanaEl && !kanaEl.value) kanaEl.value = data.company_name_kana || '';
+              }
+            })
+            .catch(() => {});
+        });
+      })();
+      </script>
     </form>
   </div>
 </div>
@@ -364,7 +385,7 @@ function closeAddCompanyModalOnOverlay(e) {
 function confirmAddCompany(e) {
   var isPro = {{ 'true' if is_pro else 'false' }};
   if (!isPro) return true;
-  var codeInput = document.getElementById('securities_code');
+  var codeInput = document.getElementById('securities-code-input');
   var code = (codeInput && codeInput.value || '').trim();
   if (code) return true;
   if (confirm('証券コードを登録するとTDnet適時開示情報と自動照合できます。証券コードなしで登録しますか？')) {
