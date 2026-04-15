@@ -1444,7 +1444,7 @@ def add_company_exclude(company_id):
     word = (request.form.get("exclude_word") or "").strip()
     if not word:
         flash("除外ワードを入力してください", "error")
-        return redirect(request.referrer or url_for("company_list"))
+        return redirect(url_for("company_detail", company_id=company_id))
     result = db.add_company_exclude_word(user_id, company_id, word)
     if result is None:
         flash("対象の企業が見つかりません", "error")
@@ -1452,7 +1452,7 @@ def add_company_exclude(company_id):
         flash("この除外ワードは既に登録されています", "error")
     else:
         flash("除外ワードを追加しました", "success")
-    return redirect(request.referrer or url_for("company_list"))
+    return redirect(url_for("company_detail", company_id=company_id))
 
 
 @app.route("/company/<int:company_id>/exclude/<int:exclude_id>/delete", methods=["POST"])
@@ -1464,7 +1464,7 @@ def delete_company_exclude(company_id, exclude_id):
         flash("除外ワードを削除しました", "success")
     else:
         flash("除外ワードの削除に失敗しました", "error")
-    return redirect(request.referrer or url_for("company_list"))
+    return redirect(url_for("company_detail", company_id=company_id))
 
 
 @app.route("/company/<int:company_id>/alert/add", methods=["POST"])
@@ -1474,7 +1474,7 @@ def add_company_alert(company_id):
     kw = (request.form.get("keyword") or "").strip()
     if not kw:
         flash("アラートキーワードを入力してください", "error")
-        return redirect(request.referrer or url_for("company_list"))
+        return redirect(url_for("company_detail", company_id=company_id))
     result = db.add_company_alert_keyword(user_id, company_id, kw)
     if result is None:
         flash("対象の企業が見つかりません", "error")
@@ -1482,7 +1482,7 @@ def add_company_alert(company_id):
         flash("このアラートキーワードは既に登録されています", "error")
     else:
         flash("アラートキーワードを追加しました", "success")
-    return redirect(request.referrer or url_for("company_list"))
+    return redirect(url_for("company_detail", company_id=company_id))
 
 
 @app.route("/company/<int:company_id>/alert/<int:alert_id>/delete", methods=["POST"])
@@ -1494,7 +1494,7 @@ def delete_company_alert(company_id, alert_id):
         flash("アラートキーワードを削除しました", "success")
     else:
         flash("アラートキーワードの削除に失敗しました", "error")
-    return redirect(request.referrer or url_for("company_list"))
+    return redirect(url_for("company_detail", company_id=company_id))
 
 
 @app.route("/api/delete_keyword", methods=["POST"])
@@ -3008,7 +3008,7 @@ def new_site_for_company(company_id):
         flash("URLを入力してください", "error")
         return redirect(url_for("company_detail", company_id=company_id))
     db.create_site_and_link(user_id, url, name, company_id)
-    flash(f"サイトを登録・紐づけしました", "success")
+    flash("サイトを登録しました", "success")
     return redirect(url_for("company_detail", company_id=company_id))
 
 
@@ -3021,7 +3021,7 @@ def new_keyword_for_company(company_id):
         flash("キーワードを入力してください", "error")
         return redirect(url_for("company_detail", company_id=company_id))
     db.create_keyword_and_link(user_id, keyword, company_id)
-    flash(f"「{keyword}」を登録・紐づけしました", "success")
+    flash(f"「{keyword}」を登録しました", "success")
     return redirect(url_for("company_detail", company_id=company_id))
 
 
