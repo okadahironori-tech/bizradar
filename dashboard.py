@@ -835,6 +835,10 @@ def register():
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
 
+        plan = request.form.get("plan", "basic")
+        if plan not in ("basic", "business", "pro"):
+            plan = "basic"
+
         if not email or "@" not in email:
             error = "有効なメールアドレスを入力してください"
         elif len(password) < 6:
@@ -845,7 +849,7 @@ def register():
             error = "このメールアドレスはすでに登録されています"
         else:
             try:
-                user_id = db.create_user(email, password)
+                user_id = db.create_user(email, password, plan)
                 user = db.get_user_by_id(user_id)
                 session.permanent = True
                 session["user_id"] = user["id"]
@@ -2221,13 +2225,62 @@ def settings():
     user_id = session["user_id"]
     config = db.load_config()
     raw_timing = db.get_user_notify_timing(user_id)
+    user = db.get_user_by_id(user_id) or {}
     return render_template("settings.html",
                            check_interval=config.get("check_interval_seconds", 3600),
                            notify_timing=raw_timing,
                            notify_timing_list=raw_timing.split(","),
                            user_email=session.get("email", ""),
                            is_admin=session.get("is_admin", False),
+                           current_plan=user.get("plan", "basic"),
                            dashboard_settings=db.get_dashboard_settings(user_id))
+
+
+@app.route("/settings/plan", methods=["POST"])
+@login_required
+def change_plan():
+    user_id = session["user_id"]
+    user = db.get_user_by_id(user_id) or {}
+    old_plan = user.get("plan", "basic")
+    new_plan = request.form.get("plan", "basic")
+    if new_plan not in ("basic", "business", "pro"):
+        flash("無効なプランです", "error")
+        return redirect(url_for("settings"))
+    if new_plan == old_plan:
+        flash("現在のプランと同じです", "error")
+        return redirect(url_for("settings"))
+
+    db.update_user_plan(user_id, new_plan)
+    plan_names = {"basic": "ベーシック", "business": "ビジネス", "pro": "Pro"}
+    new_name = plan_names.get(new_plan, new_plan)
+    user_email = user.get("email", "") or session.get("email", "")
+
+    # ユーザー通知
+    try:
+        _send_simple_mail(
+            user_email,
+            "【BizRadar】プランを変更しました",
+            f"<p>{user_email} 様</p>"
+            f"<p>{new_name}プランに変更しました。ご不明な点はお問い合わせください。</p>",
+        )
+    except Exception as e:
+        logger.error("[change_plan] user mail failed to=%s err=%s", user_email, e)
+
+    # 管理者通知
+    admin_email = os.environ.get("ADMIN_EMAIL", "").strip()
+    if admin_email:
+        try:
+            _send_simple_mail(
+                admin_email,
+                f"【BizRadar管理】プラン変更: {user_email}",
+                f"<p>{user_email} 様</p>"
+                f"<p>{user_email} が {old_plan} から {new_plan} に変更しました。</p>",
+            )
+        except Exception as e:
+            logger.error("[change_plan] admin mail failed err=%s", e)
+
+    flash("プランを変更しました", "success")
+    return redirect(url_for("settings"))
 
 
 @app.route("/settings/dashboard", methods=["POST"])

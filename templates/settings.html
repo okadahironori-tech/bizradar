@@ -197,6 +197,42 @@
     </div>
   </section>
 
+  <!-- ── プラン変更 ── -->
+  <section>
+    <div class="section-title">プラン変更</div>
+    <div class="card">
+      {% set plan_labels = {'basic': 'ベーシック', 'business': 'ビジネス', 'pro': 'Pro'} %}
+      <div style="padding:4px 4px 12px 4px;font-size:0.88rem;color:#4a4a6a;">
+        現在のプラン: <strong>{{ plan_labels.get(current_plan, current_plan) }}</strong>
+      </div>
+      <form method="POST" action="/settings/plan" style="display:flex;flex-direction:column;gap:10px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label style="display:flex;gap:10px;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;cursor:pointer;">
+          <input type="radio" name="plan" value="basic" {% if current_plan == 'basic' %}checked{% endif %}>
+          <span>
+            <strong>ベーシック</strong> <span style="color:#4a4a6a;font-size:0.85rem;">980円/月</span><br>
+            <span style="color:#6b7280;font-size:0.78rem;">企業5社・キーワード10・メール通知</span>
+          </span>
+        </label>
+        <label style="display:flex;gap:10px;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;cursor:pointer;">
+          <input type="radio" name="plan" value="business" {% if current_plan == 'business' %}checked{% endif %}>
+          <span>
+            <strong>ビジネス</strong> <span style="color:#4a4a6a;font-size:0.85rem;">2,980円/月</span><br>
+            <span style="color:#6b7280;font-size:0.78rem;">企業30社・キーワード30・メールに加えLINE/Slack通知（準備中）</span>
+          </span>
+        </label>
+        <label style="display:flex;gap:10px;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;cursor:pointer;">
+          <input type="radio" name="plan" value="pro" {% if current_plan == 'pro' %}checked{% endif %}>
+          <span>
+            <strong>Pro</strong> <span style="color:#4a4a6a;font-size:0.85rem;">9,800円/月</span><br>
+            <span style="color:#6b7280;font-size:0.78rem;">企業500社・キーワード50・TDnet・メールに加えLINE/Slack通知（準備中）</span>
+          </span>
+        </label>
+        <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">プラン変更を申請する</button></div>
+      </form>
+    </div>
+  </section>
+
   <!-- ── パスワード変更 ── -->
   <section>
     <div class="section-title">パスワード変更</div>

@@ -570,19 +570,34 @@ def _upgrade_password_hash_to_bcrypt(user_id: int, password: str) -> None:
             )
 
 
-def create_user(email: str, password: str) -> int:
+def create_user(email: str, password: str, plan: str = "basic") -> int:
     """新規ユーザーを作成して user_id を返す（パスワードは bcrypt で保存）"""
     pw_hash = _hash_pw_bcrypt(password)
     admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
     is_admin = bool(admin_email and email.lower() == admin_email)
+    if plan not in ("basic", "business", "pro"):
+        plan = "basic"
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO users (email, password_hash, salt, is_admin) "
-                "VALUES (%s, %s, %s, %s) RETURNING id",
-                (email.lower(), pw_hash, "", is_admin)
+                "INSERT INTO users (email, password_hash, salt, is_admin, plan) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (email.lower(), pw_hash, "", is_admin, plan)
             )
             return cur.fetchone()[0]
+
+
+def update_user_plan(user_id: int, plan: str) -> str:
+    """users.plan を更新し、変更前の値を返す。無効な plan は 'basic' に正規化する。"""
+    if plan not in ("basic", "business", "pro"):
+        plan = "basic"
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT plan FROM users WHERE id = %s", (user_id,))
+            row = cur.fetchone()
+            old_plan = row[0] if row else ""
+            cur.execute("UPDATE users SET plan = %s WHERE id = %s", (plan, user_id))
+    return old_plan
 
 
 def get_user_by_email(email: str):

@@ -108,6 +108,26 @@
       font-weight: 600;
     }
     .login-link a:hover { text-decoration: underline; }
+
+    .plan-options { display: flex; flex-direction: column; gap: 8px; }
+    .plan-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .plan-option:hover { border-color: #3949ab; }
+    .plan-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; }
+    .plan-option input[type="radio"]:checked + .plan-body .plan-name { color: #3949ab; }
+    .plan-option:has(input:checked) { border-color: #3949ab; background: #f5f7ff; }
+    .plan-body { display: flex; flex-direction: column; gap: 2px; }
+    .plan-name { font-size: 0.92rem; font-weight: 700; color: #1a1a2e; }
+    .plan-price { font-size: 0.82rem; color: #4a4a6a; }
+    .plan-desc { font-size: 0.76rem; color: #6b7280; line-height: 1.4; }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -134,6 +154,35 @@
         <div class="form-group">
           <label for="confirm_password">パスワード（確認）</label>
           <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label>プラン</label>
+          <div class="plan-options">
+            <label class="plan-option">
+              <input type="radio" name="plan" value="basic" checked>
+              <span class="plan-body">
+                <span class="plan-name">ベーシック</span>
+                <span class="plan-price">980円/月</span>
+                <span class="plan-desc">企業5社・キーワード10・メール通知</span>
+              </span>
+            </label>
+            <label class="plan-option">
+              <input type="radio" name="plan" value="business">
+              <span class="plan-body">
+                <span class="plan-name">ビジネス</span>
+                <span class="plan-price">2,980円/月</span>
+                <span class="plan-desc">企業30社・キーワード30・メールに加えLINE/Slack通知（準備中）</span>
+              </span>
+            </label>
+            <label class="plan-option">
+              <input type="radio" name="plan" value="pro">
+              <span class="plan-body">
+                <span class="plan-name">Pro</span>
+                <span class="plan-price">9,800円/月</span>
+                <span class="plan-desc">企業500社・キーワード50・TDnet・メールに加えLINE/Slack通知（準備中）</span>
+              </span>
+            </label>
+          </div>
         </div>
         <button type="submit" class="btn-login">アカウントを作成</button>
       </form>
