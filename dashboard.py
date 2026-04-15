@@ -597,11 +597,12 @@ _start_tdnet_scheduler()
 
 
 def _fetch_and_update_listed_companies():
-    import requests, csv, io
+    import requests, tempfile, os
     try:
         import pykakasi
-    except ImportError:
-        logger.error("[jpx] pykakasi not installed")
+        import openpyxl
+    except ImportError as e:
+        logger.error(f"[jpx] missing library: {e}")
         return
     try:
         logger.info("[jpx] downloading listed companies data...")
@@ -613,33 +614,40 @@ def _fetch_and_update_listed_companies():
         if r.status_code != 200:
             logger.error(f"[jpx] download failed: {r.status_code}")
             return
-        content = r.content.decode('cp932', errors='replace')
-        # 改行コードを統一
-        content = content.replace('\r\n', '\n').replace('\r', '\n')
-        reader = csv.reader(io.StringIO(content), delimiter=',')
-        kks = pykakasi.kakasi()
-        rows = []
-        for i, row in enumerate(reader):
-            if i == 0:
-                continue
-            if len(row) < 3:
-                continue
-            try:
-                market = row[0].strip()
-                code = row[1].strip().zfill(4)
-                name = row[2].strip()
-                if not code or not name or not code.isdigit():
+
+        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
+            f.write(r.content)
+            tmp_path = f.name
+
+        try:
+            wb = openpyxl.load_workbook(tmp_path, read_only=True, data_only=True)
+            ws = wb.active
+            kks = pykakasi.kakasi()
+            rows = []
+            for i, row in enumerate(ws.iter_rows(values_only=True)):
+                if i == 0:
                     continue
-                result = kks.convert(name)
-                kana = ''.join([item['hira'] for item in result])
-                rows.append({'securities_code': code, 'company_name': name, 'company_name_kana': kana, 'market': market})
-            except Exception:
-                continue
+                try:
+                    market = str(row[0]).strip() if row[0] else ''
+                    code = str(row[1]).strip().zfill(4) if row[1] else ''
+                    name = str(row[2]).strip() if row[2] else ''
+                    if not code or not name or not code.replace('0','').isdigit():
+                        continue
+                    result = kks.convert(name)
+                    kana = ''.join([item['hira'] for item in result])
+                    rows.append({'securities_code': code, 'company_name': name, 'company_name_kana': kana, 'market': market})
+                except Exception:
+                    continue
+            wb.close()
+        finally:
+            os.unlink(tmp_path)
+
         if rows:
             db.upsert_listed_companies(rows)
             logger.info(f"[jpx] upserted {len(rows)} companies")
         else:
             logger.warning("[jpx] no rows parsed")
+
     except Exception as e:
         logger.error(f"[jpx] error: {e}")
 
