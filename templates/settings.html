@@ -344,7 +344,10 @@
         const count = parseInt(document.querySelector('input[name="card_count"]:checked').value);
         const checked = document.querySelectorAll('input[name="card_visible"]:checked').length;
         if (checked === 0) {
-          alert('最低1枚はチェックしてください。');
+          alert('最低1つはチェックしてください。');
+          e.preventDefault();
+        } else if (checked < count) {
+          alert('チェック数（' + checked + '個）が表示枚数（' + count + '枚）より少ないです。表示枚数を減らすか、チェックを増やしてください。');
           e.preventDefault();
         } else if (checked > count) {
           const ok = confirm('チェックが' + checked + '個ありますが、表示枚数は' + count + '枚です。上位' + count + '枚のみ表示されます。このまま保存しますか？');
