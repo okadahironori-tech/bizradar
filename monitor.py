@@ -319,6 +319,71 @@ def _score_article_importance(title: str, plan: str) -> str:
     return "low"
 
 
+def _summarize_article(title: str, url: str, plan: str) -> str:
+    """記事本文を取得し Claude Haiku で 3 行以内に要約する。
+    business/pro プラン以外は空文字を返す（AI 未呼び出し）。
+    本文取得失敗・API 失敗時も空文字にフォールバックする。最大 200 文字で truncate。
+    """
+    if plan not in ("business", "pro"):
+        return ""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        return ""
+    try:
+        import anthropic
+    except ImportError:
+        return ""
+
+    # 本文取得（失敗しても続行してタイトルのみで要約する）
+    content = ""
+    try:
+        resp = requests.get(
+            url, timeout=10, verify=False,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                              "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            },
+        )
+        resp.encoding = resp.apparent_encoding
+        soup = BeautifulSoup(resp.text, "html.parser")
+        content = extract_main_content(soup, url)
+    except Exception as e:
+        print(f"[summary] fetch failed {url}: {e}")
+
+    if len(content) < 100:
+        prompt = (
+            "次のニュース記事を3行以内で要約してください。日本語で簡潔に。\n"
+            f"タイトル: {title}\n"
+            "要約のみ回答してください。"
+        )
+    else:
+        prompt = (
+            "次のニュース記事を3行以内で要約してください。日本語で簡潔に。\n"
+            f"タイトル: {title}\n"
+            f"本文: {content[:1000]}\n"
+            "要約のみ回答してください。"
+        )
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = ""
+        for block in msg.content:
+            if getattr(block, "type", None) == "text":
+                text += block.text or ""
+        summary = text.strip()
+        if len(summary) > 200:
+            summary = summary[:200]
+        print(f"[summary] {title[:30]}")
+        return summary
+    except Exception as e:
+        print(f"[summary] API error {title[:30]!r}: {e}")
+        return ""
+
+
 def _is_old_unverified(published: str, date_verified: bool) -> bool:
     """date_verified=False かつ published が30日以上前の JST 日付なら True を返す。
     パース不能な日付はスキップ対象外（False）として扱う。
@@ -398,6 +463,7 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
             print(f"[fetch] skip old unverified: {url}")
             continue
         importance = _score_article_importance(title, user_plan)
+        summary = _summarize_article(title, url, user_plan)
         articles.append({
             "keyword":       keyword,
             "title":         title,
@@ -406,6 +472,7 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
             "published":     published,
             "date_verified": date_verified,
             "importance":    importance,
+            "summary":       summary,
         })
     return articles
 
@@ -480,6 +547,7 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
                 print(f"[fetch] skip old unverified: {url}")
                 continue
             importance = _score_article_importance(title, user_plan)
+            summary = _summarize_article(title, url, user_plan)
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
@@ -488,6 +556,7 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
                 "published":     published,
                 "date_verified": date_verified,
                 "importance":    importance,
+                "summary":       summary,
             })
     db.update_source_health("bing_news", True)
     return articles

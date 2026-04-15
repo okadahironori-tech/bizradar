@@ -378,6 +378,11 @@ def _run_migrations():
                 "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
                 "importance TEXT NOT NULL DEFAULT 'low';"
             )
+            # articles: Claude による本文要約（business/pro のみ）
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "summary TEXT NOT NULL DEFAULT '';"
+            )
 
             # sites / keywords: company_id カラム追加
             cur.execute(
@@ -1133,7 +1138,7 @@ def load_articles_data(user_id=None) -> dict:
             if user_id is not None:
                 cur.execute(
                     "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, "
-                    "a.is_read, a.date_verified, a.duplicate_count, a.importance "
+                    "a.is_read, a.date_verified, a.duplicate_count, a.importance, a.summary "
                     "FROM articles a "
                     "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                     "WHERE a.user_id = %s AND a.is_representative = TRUE "
@@ -1149,7 +1154,7 @@ def load_articles_data(user_id=None) -> dict:
             else:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, "
-                    "is_read, date_verified, duplicate_count, importance "
+                    "is_read, date_verified, duplicate_count, importance, summary "
                     "FROM articles WHERE is_representative = TRUE "
                     "ORDER BY "
                     "CASE WHEN importance='high' THEN 0 "
@@ -1174,13 +1179,14 @@ def insert_articles(articles: list, user_id: int):
                     importance = "low"
                 cur.execute(
                     "INSERT INTO articles "
-                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified, importance) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s) ON CONFLICT DO NOTHING",
+                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified, importance, summary) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s, %s) ON CONFLICT DO NOTHING",
                     (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
                      article.get("source", ""), article.get("published", ""),
                      article.get("found_at", ""), user_id,
                      bool(article.get("date_verified", False)),
-                     importance)
+                     importance,
+                     article.get("summary", ""))
                 )
 
 

@@ -70,6 +70,16 @@
     .article-date-unverified { color: #aaa; }
     .article-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; text-decoration: none; display: block; line-height: 1.45; margin-bottom: 8px; }
     .article-title:hover { color: #3949ab; text-decoration: underline; }
+    .article-summary {
+      color: #555;
+      font-size: 0.85rem;
+      margin-top: 4px;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
     .article-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .article-source { font-size: 0.72rem; color: #9ca3af; }
     .article-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -388,6 +398,9 @@
             </div>
             <!-- 2行目：タイトル + メタ + ボタン -->
             <a class="article-title" href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a>
+            {% if article.summary %}
+            <div class="article-summary">{{ article.summary }}</div>
+            {% endif %}
             <div class="article-card-bottom">
               <span class="article-source">
                 {{ article.source if article.source else '' }}
