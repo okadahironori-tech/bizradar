@@ -335,7 +335,7 @@ def _is_old_unverified(published: str, date_verified: bool) -> bool:
     return pub < datetime.now(JST) - timedelta(days=30)
 
 
-def fetch_news_articles(keyword: str, user_plan: str = "free") -> list:
+def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
     """Google News RSSからキーワード関連記事を取得する（最新20件）
 
     urllib 経由の feedparser 直取得はサーバー環境でブロックされやすいため、
@@ -410,7 +410,7 @@ def fetch_news_articles(keyword: str, user_plan: str = "free") -> list:
     return articles
 
 
-def fetch_bing_news_articles(keyword: str, user_plan: str = "free") -> list:
+def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
     """Bing News RSSからキーワード関連記事を取得する（最新20件）
 
     Yahoo!ニュースのキーワードRSS（2020年8月廃止）の代替ソースとして使用する。
@@ -493,7 +493,7 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "free") -> list:
     return articles
 
 
-def fetch_prtimes_articles(keyword: str, user_plan: str = "free") -> list:
+def fetch_prtimes_articles(keyword: str, user_plan: str = "basic") -> list:
     """PR TIMES 全件フィードからキーワードに一致するプレスリリースを返す。
 
     旧検索エンドポイント (rss/search.rss) は廃止されたため、
@@ -1005,7 +1005,7 @@ def check_single_keyword(keyword: str, user_id=None):
     db.add_running_task("keyword_check", keyword)
     seen_urls   = db.load_article_seen_urls(user_id)
     seen_titles = db.load_article_seen_titles(user_id)
-    user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "free")
+    user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
     try:
         google_articles = fetch_news_articles(keyword, user_plan)
         db.update_source_health("google_news", True)
@@ -1074,7 +1074,7 @@ def check_all_keywords():
         seen_urls   = db.load_article_seen_urls(user_id)
         seen_titles = db.load_article_seen_titles(user_id)
         exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
-        user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "free")
+        user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
 
         for keyword, _notify_enabled_cached, keyword_id, company_id in keywords:
             if not keyword:
