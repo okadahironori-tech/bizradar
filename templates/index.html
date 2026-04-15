@@ -290,6 +290,7 @@
     .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
     .article-meta .article-date { color: #1a1a2e; }
     .article-meta .article-date.date-uncertain { color: #bdbdbd; }
+    .article-date-unverified { color: #aaa; }
     .article-item.article-read { background: #f3f4f6; }
     .article-item.article-read .article-title { color: #9ca3af; }
     .article-item.article-read .article-meta { color: #cbd5e1; }
@@ -798,8 +799,9 @@ function _articleItemHtml(article) {
   const pub = article.published || '';
   const pubUncertain = pub.startsWith('~');
   const pubText = pubUncertain ? pub.replace(/^~+/, '') : pub;
+  const pubUnverified = article.date_verified === false;
   const pubHtml = pubText
-    ? `<span class="article-date${pubUncertain ? ' date-uncertain' : ''}">${_esc(pubText)}</span>`
+    ? `<span class="article-date${pubUncertain ? ' date-uncertain' : ''}${pubUnverified ? ' article-date-unverified' : ''}">${_esc(pubText)}</span>`
     : '';
   const sourceHtml = article.source ? `<span>${_esc(article.source)}</span>` : '';
   const metaInner = [sourceHtml, pubHtml].filter(Boolean).join(' · ');

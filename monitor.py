@@ -223,6 +223,56 @@ def _fetch_article_published_date(url: str) -> str:
     return ""
 
 
+def _verify_and_repair_published(published_str: str, url: str) -> tuple:
+    """RSS の published 文字列を検証し、必要なら元記事から取得して差し替える。
+    - 戻り値: (確定済み JST 文字列, date_verified)
+    - 未来 / 30日以上前 / パース不能なら _fetch_article_published_date(url) で再取得
+    - 取得成功: 新しい JST 文字列 + True
+    - 取得失敗 or パース不能: 元の文字列 (空なら現在時刻) + False
+    - 妥当な範囲内: 元の文字列 + True
+    """
+    now = datetime.now(JST)
+    # 既存 JST 文字列をパース試行（"~" プレフィックスは除去してから）
+    pub = None
+    if published_str:
+        try:
+            pub = datetime.strptime(published_str.lstrip("~").strip(), "%Y-%m-%d %H:%M")
+            pub = pub.replace(tzinfo=JST)
+        except Exception:
+            pub = None
+
+    needs_check = (pub is None) or (pub > now) or (pub < now - timedelta(days=30))
+
+    if needs_check:
+        fetched_str = _fetch_article_published_date(url) if url else ""
+        if fetched_str:
+            fetched_dt = None
+            try:
+                # ISO8601 (meta/JSON-LD で一般的)
+                fetched_dt = datetime.fromisoformat(fetched_str.replace("Z", "+00:00"))
+            except Exception:
+                try:
+                    # RFC822 (feedparser.parse 内では処理されないケース向け)
+                    import email.utils as _eu
+                    tup = _eu.parsedate_tz(fetched_str)
+                    if tup:
+                        ts = _eu.mktime_tz(tup)
+                        fetched_dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                except Exception:
+                    fetched_dt = None
+            if fetched_dt:
+                if fetched_dt.tzinfo:
+                    fetched_dt = fetched_dt.astimezone(JST)
+                else:
+                    fetched_dt = fetched_dt.replace(tzinfo=JST)
+                return fetched_dt.strftime("%Y-%m-%d %H:%M"), True
+        # 再取得失敗 or パース不能: 元値を維持（空なら now を入れる）
+        fallback = published_str if published_str else now.strftime("%Y-%m-%d %H:%M")
+        return fallback, False
+
+    return published_str, True
+
+
 def fetch_news_articles(keyword: str) -> list:
     """Google News RSSからキーワード関連記事を取得する（最新20件）
 
@@ -279,12 +329,15 @@ def fetch_news_articles(keyword: str) -> list:
                 pass
         # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
         published = _try_parse_uncertain_published(published)
+        # 未来 / 30日以上前 / パース不能 のときは元記事から日付を再取得
+        published, date_verified = _verify_and_repair_published(published, url)
         articles.append({
-            "keyword":   keyword,
-            "title":     title,
-            "url":       url,
-            "source":    source,
-            "published": published,
+            "keyword":       keyword,
+            "title":         title,
+            "url":           url,
+            "source":        source,
+            "published":     published,
+            "date_verified": date_verified,
         })
     return articles
 
@@ -353,12 +406,14 @@ def fetch_bing_news_articles(keyword: str) -> list:
         # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
         published = _try_parse_uncertain_published(published)
         if title and url:
+            published, date_verified = _verify_and_repair_published(published, url)
             articles.append({
-                "keyword":   keyword,
-                "title":     title,
-                "url":       url,
-                "source":    source,
-                "published": published,
+                "keyword":       keyword,
+                "title":         title,
+                "url":           url,
+                "source":        source,
+                "published":     published,
+                "date_verified": date_verified,
             })
     db.update_source_health("bing_news", True)
     return articles
@@ -421,12 +476,14 @@ def fetch_prtimes_articles(keyword: str) -> list:
         # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
         published = _try_parse_uncertain_published(published)
         if title and url:
+            published, date_verified = _verify_and_repair_published(published, url)
             articles.append({
-                "keyword":   keyword,
-                "title":     title,
-                "url":       url,
-                "source":    "PR TIMES",
-                "published": published,
+                "keyword":       keyword,
+                "title":         title,
+                "url":           url,
+                "source":        "PR TIMES",
+                "published":     published,
+                "date_verified": date_verified,
             })
         if len(articles) >= 20:
             break

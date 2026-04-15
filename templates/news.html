@@ -64,6 +64,7 @@
     .article-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
     .article-date { font-size: 0.72rem; color: #1a1a2e; white-space: nowrap; flex-shrink: 0; }
     .date-uncertain { color: #bdbdbd; }
+    .article-date-unverified { color: #aaa; }
     .article-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; text-decoration: none; display: block; line-height: 1.45; margin-bottom: 8px; }
     .article-title:hover { color: #3949ab; text-decoration: underline; }
     .article-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -377,7 +378,7 @@
               <span class="article-source">
                 {{ article.source if article.source else '' }}
                 {% if article.source %}・{% endif %}
-                <span class="article-date {{ 'date-uncertain' if article.published.startswith('~') else '' }}">{{ article.published.lstrip('~') }}</span>
+                <span class="article-date {{ 'date-uncertain' if article.published.startswith('~') else '' }} {{ 'article-date-unverified' if not article.date_verified else '' }}">{{ article.published.lstrip('~') }}</span>
               </span>
               <div class="article-card-actions">
                 <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>

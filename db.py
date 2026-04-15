@@ -354,6 +354,11 @@ def _run_migrations():
             cur.execute(
                 "ALTER TABLE articles ADD COLUMN IF NOT EXISTS notified_at TIMESTAMPTZ;"
             )
+            # articles: 取得日付が信頼できるか（未来/30日超前は fetch で差し替え or False）
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "date_verified BOOLEAN DEFAULT FALSE;"
+            )
 
             # sites / keywords: company_id カラム追加
             cur.execute(
@@ -1072,7 +1077,7 @@ def load_articles_data(user_id=None) -> dict:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
                 cur.execute(
-                    "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, a.is_read "
+                    "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, a.is_read, a.date_verified "
                     "FROM articles a "
                     "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                     "WHERE a.user_id = %s "
@@ -1084,7 +1089,7 @@ def load_articles_data(user_id=None) -> dict:
                 seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
                 cur.execute(
-                    "SELECT id, keyword, title, url, source, published, found_at, is_read "
+                    "SELECT id, keyword, title, url, source, published, found_at, is_read, date_verified "
                     "FROM articles ORDER BY published DESC LIMIT 3000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
@@ -1101,11 +1106,13 @@ def insert_articles(articles: list, user_id: int):
         with conn.cursor() as cur:
             for article in articles:
                 cur.execute(
-                    "INSERT INTO articles (keyword, title, url, source, published, found_at, user_id, is_read) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE) ON CONFLICT DO NOTHING",
+                    "INSERT INTO articles "
+                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s) ON CONFLICT DO NOTHING",
                     (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
                      article.get("source", ""), article.get("published", ""),
-                     article.get("found_at", ""), user_id)
+                     article.get("found_at", ""), user_id,
+                     bool(article.get("date_verified", False)))
                 )
 
 
@@ -1667,6 +1674,7 @@ def load_unnotified_articles(user_id: int) -> list:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, "
+                "       a.date_verified, "
                 "       COALESCE(k.notify_enabled, TRUE) AS notify_enabled "
                 "FROM articles a "
                 "LEFT JOIN keywords k "
@@ -2503,7 +2511,7 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, "
-                "       a.found_at, a.is_read "
+                "       a.found_at, a.is_read, a.date_verified "
                 "FROM articles a "
                 "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                 "WHERE a.user_id=%s AND k.company_id=%s "
