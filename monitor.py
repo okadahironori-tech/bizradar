@@ -1399,6 +1399,7 @@ def check_listed_company_urls():
     - リダイレクトが発生（resp.history 非空）: 最終到達 URL を website_url に上書き
     - それ以外・例外: url_status='error'
     - 1件ごとに time.sleep(1) でレートリミット
+    - 終了後 err_count > 0 なら管理者へメール通知
     """
     rows = db.load_listed_companies_with_url()
     total = len(rows)
@@ -1406,6 +1407,7 @@ def check_listed_company_urls():
     ok_count = 0
     err_count = 0
     updated_url_count = 0
+    error_rows = []
     for i, row in enumerate(rows, 1):
         code = row.get("securities_code")
         name = row.get("company_name") or ""
@@ -1438,6 +1440,7 @@ def check_listed_company_urls():
                 ok_count += 1
             else:
                 err_count += 1
+                error_rows.append({"company_name": name, "website_url": url})
         except Exception as e:
             print(f"[url_check] DB update failed code={code} err={e}")
         if i % 50 == 0:
@@ -1447,6 +1450,74 @@ def check_listed_company_urls():
         f"[url_check] done total={total} ok={ok_count} err={err_count} "
         f"url_updated={updated_url_count}"
     )
+
+    # error があれば管理者メール通知（DB から最新 summary を取る）
+    if err_count > 0:
+        try:
+            summary = db.get_url_check_summary()
+        except Exception:
+            summary = {"ok": ok_count, "error": err_count, "unchecked": 0}
+        try:
+            _send_url_check_error_email(err_count, summary, error_rows[:20])
+        except Exception as e:
+            print(f"[url_check] email send failed: {e}")
+
+
+def _send_url_check_error_email(err_count: int, summary: dict, error_rows: list):
+    """URL 死活チェック結果で error があれば管理者に通知する"""
+    import html as _html
+    now = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
+    subject = f"[BizRadar] URLエラー検出: {err_count}件"
+    ok = summary.get("ok", 0)
+    err = summary.get("error", err_count)
+    unchecked = summary.get("unchecked", 0)
+    rows_html = "".join(
+        f"<tr>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{_html.escape(r.get('company_name',''))}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #eee;word-break:break-all'>"
+        f"<a href='{_html.escape(r.get('website_url',''))}' style='color:#3949ab'>"
+        f"{_html.escape(r.get('website_url',''))}</a></td>"
+        f"</tr>"
+        for r in error_rows
+    )
+    more_note = (
+        f"<p style='color:#9ca3af;font-size:0.82em'>※ 全 {err} 件のうち 20 件まで表示。"
+        f"残りは管理画面でご確認ください。</p>"
+        if err > len(error_rows) else ""
+    )
+    body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:640px;margin:0 auto;padding:16px">
+<h2 style="font-size:1.1em;color:#dc2626">⚠ URLエラー検出: {err_count}件</h2>
+<p style="color:#6b7280;font-size:0.85em">チェック日時: {now}</p>
+<p style="font-size:0.95em">ok: {ok} 件 / error: {err} 件 / unchecked: {unchecked} 件</p>
+<table style="width:100%;border-collapse:collapse;font-size:0.88em;margin-top:12px">
+  <thead>
+    <tr style="background:#f9fafb;color:#6b7280;text-align:left">
+      <th style="padding:6px 10px;border-bottom:1px solid #e5e7eb">企業名</th>
+      <th style="padding:6px 10px;border-bottom:1px solid #e5e7eb">website_url</th>
+    </tr>
+  </thead>
+  <tbody>
+{rows_html}
+  </tbody>
+</table>
+{more_note}
+<hr style="margin-top:24px;border:none;border-top:1px solid #e5e7eb">
+<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
+    msg = MIMEMultipart()
+    msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
+    msg["To"]      = EMAIL_SETTINGS["recipient_email"]
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "html", "utf-8"))
+    try:
+        with smtplib.SMTP(EMAIL_SETTINGS["smtp_server"], EMAIL_SETTINGS["smtp_port"]) as server:
+            server.starttls()
+            server.login(EMAIL_SETTINGS["sender_email"], EMAIL_SETTINGS["sender_password"])
+            server.send_message(msg)
+        print(f"[url_check] 管理者へエラー通知メール送信: {err_count} 件")
+    except smtplib.SMTPException as e:
+        print(f"[url_check] メール送信失敗: {e}")
 
 
 if __name__ == "__main__":
