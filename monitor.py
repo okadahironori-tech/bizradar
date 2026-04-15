@@ -273,6 +273,52 @@ def _verify_and_repair_published(published_str: str, url: str) -> tuple:
     return published_str, True
 
 
+def _score_article_importance(title: str, plan: str) -> str:
+    """記事タイトルの重要度を 'high' / 'medium' / 'low' で返す。
+    business または pro プラン以外は AI を呼ばず 'low' を返す。
+    Claude Haiku API 失敗時も 'low' にフォールバックする。
+    """
+    if plan not in ("business", "pro"):
+        return "low"
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        print(f"[importance] low: {title[:30]} (no API key)")
+        return "low"
+    try:
+        import anthropic
+    except ImportError:
+        print(f"[importance] low: {title[:30]} (anthropic not installed)")
+        return "low"
+    prompt = (
+        "次のニュースタイトルを重要度で分類してください。\n"
+        "high: 決算、人事（就任・退任）、M&A、経営統合、倒産、リコール、新製品発表\n"
+        "medium: 業務提携、新規事業、イベント開催\n"
+        "low: お知らせ、サイト更新、定例報告、その他\n"
+        f"タイトル: {title}\n"
+        "high/medium/low のいずれか1単語だけ回答してください。"
+    )
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=10,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = ""
+        for block in msg.content:
+            if getattr(block, "type", None) == "text":
+                text += block.text or ""
+        text = text.strip().lower()
+        for level in ("high", "medium", "low"):
+            if level in text:
+                print(f"[importance] {level}: {title[:30]}")
+                return level
+    except Exception as e:
+        print(f"[importance] API error title={title[:30]!r}: {e}")
+    print(f"[importance] low: {title[:30]}")
+    return "low"
+
+
 def _is_old_unverified(published: str, date_verified: bool) -> bool:
     """date_verified=False かつ published が30日以上前の JST 日付なら True を返す。
     パース不能な日付はスキップ対象外（False）として扱う。
@@ -289,7 +335,7 @@ def _is_old_unverified(published: str, date_verified: bool) -> bool:
     return pub < datetime.now(JST) - timedelta(days=30)
 
 
-def fetch_news_articles(keyword: str) -> list:
+def fetch_news_articles(keyword: str, user_plan: str = "free") -> list:
     """Google News RSSからキーワード関連記事を取得する（最新20件）
 
     urllib 経由の feedparser 直取得はサーバー環境でブロックされやすいため、
@@ -351,6 +397,7 @@ def fetch_news_articles(keyword: str) -> list:
         if _is_old_unverified(published, date_verified):
             print(f"[fetch] skip old unverified: {url}")
             continue
+        importance = _score_article_importance(title, user_plan)
         articles.append({
             "keyword":       keyword,
             "title":         title,
@@ -358,11 +405,12 @@ def fetch_news_articles(keyword: str) -> list:
             "source":        source,
             "published":     published,
             "date_verified": date_verified,
+            "importance":    importance,
         })
     return articles
 
 
-def fetch_bing_news_articles(keyword: str) -> list:
+def fetch_bing_news_articles(keyword: str, user_plan: str = "free") -> list:
     """Bing News RSSからキーワード関連記事を取得する（最新20件）
 
     Yahoo!ニュースのキーワードRSS（2020年8月廃止）の代替ソースとして使用する。
@@ -431,6 +479,7 @@ def fetch_bing_news_articles(keyword: str) -> list:
             if _is_old_unverified(published, date_verified):
                 print(f"[fetch] skip old unverified: {url}")
                 continue
+            importance = _score_article_importance(title, user_plan)
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
@@ -438,12 +487,13 @@ def fetch_bing_news_articles(keyword: str) -> list:
                 "source":        source,
                 "published":     published,
                 "date_verified": date_verified,
+                "importance":    importance,
             })
     db.update_source_health("bing_news", True)
     return articles
 
 
-def fetch_prtimes_articles(keyword: str) -> list:
+def fetch_prtimes_articles(keyword: str, user_plan: str = "free") -> list:
     """PR TIMES 全件フィードからキーワードに一致するプレスリリースを返す。
 
     旧検索エンドポイント (rss/search.rss) は廃止されたため、
@@ -501,6 +551,7 @@ def fetch_prtimes_articles(keyword: str) -> list:
         published = _try_parse_uncertain_published(published)
         if title and url:
             published, date_verified = _verify_and_repair_published(published, url)
+            importance = _score_article_importance(title, user_plan)
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
@@ -508,6 +559,7 @@ def fetch_prtimes_articles(keyword: str) -> list:
                 "source":        "PR TIMES",
                 "published":     published,
                 "date_verified": date_verified,
+                "importance":    importance,
             })
         if len(articles) >= 20:
             break
@@ -953,16 +1005,17 @@ def check_single_keyword(keyword: str, user_id=None):
     db.add_running_task("keyword_check", keyword)
     seen_urls   = db.load_article_seen_urls(user_id)
     seen_titles = db.load_article_seen_titles(user_id)
+    user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "free")
     try:
-        google_articles = fetch_news_articles(keyword)
+        google_articles = fetch_news_articles(keyword, user_plan)
         db.update_source_health("google_news", True)
     except Exception as e:
         print(f"  [エラー] Google News 取得失敗: {e}")
         db.update_source_health("google_news", False, str(e))
         db.fail_running_task("keyword_check", keyword, str(e))
         return
-    yahoo_articles = fetch_bing_news_articles(keyword)
-    prtimes_articles = fetch_prtimes_articles(keyword)
+    yahoo_articles = fetch_bing_news_articles(keyword, user_plan)
+    prtimes_articles = fetch_prtimes_articles(keyword, user_plan)
     articles = google_articles + yahoo_articles + prtimes_articles
 
     now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
@@ -1021,6 +1074,7 @@ def check_all_keywords():
         seen_urls   = db.load_article_seen_urls(user_id)
         seen_titles = db.load_article_seen_titles(user_id)
         exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
+        user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "free")
 
         for keyword, _notify_enabled_cached, keyword_id, company_id in keywords:
             if not keyword:
@@ -1034,7 +1088,7 @@ def check_all_keywords():
                 if company_id else set()
             )
             try:
-                google_articles = fetch_news_articles(keyword)
+                google_articles = fetch_news_articles(keyword, user_plan)
                 db.update_source_health("google_news", True)
             except Exception as e:
                 import traceback
@@ -1045,7 +1099,7 @@ def check_all_keywords():
                 continue
 
             try:
-                yahoo_articles = fetch_bing_news_articles(keyword)
+                yahoo_articles = fetch_bing_news_articles(keyword, user_plan)
             except Exception as e:
                 import traceback
                 print(f"  [エラー] Yahoo/Bing News 取得失敗 user_id={user_id} keyword={keyword!r}: {e}")
@@ -1053,7 +1107,7 @@ def check_all_keywords():
                 yahoo_articles = []
 
             try:
-                prtimes_articles = fetch_prtimes_articles(keyword)
+                prtimes_articles = fetch_prtimes_articles(keyword, user_plan)
             except Exception as e:
                 import traceback
                 print(f"  [エラー] PR TIMES 取得失敗 user_id={user_id} keyword={keyword!r}: {e}")

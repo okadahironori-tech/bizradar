@@ -373,6 +373,11 @@ def _run_migrations():
                 "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
                 "duplicate_count INTEGER NOT NULL DEFAULT 0;"
             )
+            # articles: Claude 重要度スコア (high/medium/low)
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "importance TEXT NOT NULL DEFAULT 'low';"
+            )
 
             # sites / keywords: company_id カラム追加
             cur.execute(
@@ -1128,11 +1133,14 @@ def load_articles_data(user_id=None) -> dict:
             if user_id is not None:
                 cur.execute(
                     "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, "
-                    "a.is_read, a.date_verified, a.duplicate_count "
+                    "a.is_read, a.date_verified, a.duplicate_count, a.importance "
                     "FROM articles a "
                     "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                     "WHERE a.user_id = %s AND a.is_representative = TRUE "
-                    "ORDER BY a.published DESC LIMIT 3000",
+                    "ORDER BY "
+                    "CASE WHEN a.importance='high' THEN 0 "
+                    "     WHEN a.importance='medium' THEN 1 ELSE 2 END, "
+                    "a.found_at DESC LIMIT 3000",
                     (user_id,)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
@@ -1141,9 +1149,12 @@ def load_articles_data(user_id=None) -> dict:
             else:
                 cur.execute(
                     "SELECT id, keyword, title, url, source, published, found_at, "
-                    "is_read, date_verified, duplicate_count "
+                    "is_read, date_verified, duplicate_count, importance "
                     "FROM articles WHERE is_representative = TRUE "
-                    "ORDER BY published DESC LIMIT 3000"
+                    "ORDER BY "
+                    "CASE WHEN importance='high' THEN 0 "
+                    "     WHEN importance='medium' THEN 1 ELSE 2 END, "
+                    "found_at DESC LIMIT 3000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
@@ -1158,14 +1169,18 @@ def insert_articles(articles: list, user_id: int):
     with _conn() as conn:
         with conn.cursor() as cur:
             for article in articles:
+                importance = article.get("importance", "low")
+                if importance not in ("high", "medium", "low"):
+                    importance = "low"
                 cur.execute(
                     "INSERT INTO articles "
-                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s) ON CONFLICT DO NOTHING",
+                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified, importance) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s) ON CONFLICT DO NOTHING",
                     (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
                      article.get("source", ""), article.get("published", ""),
                      article.get("found_at", ""), user_id,
-                     bool(article.get("date_verified", False)))
+                     bool(article.get("date_verified", False)),
+                     importance)
                 )
 
 

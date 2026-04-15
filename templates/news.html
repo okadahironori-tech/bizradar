@@ -58,7 +58,10 @@
     }
     .article-item.article-read { opacity: 0.55; border-left-color: #e8eaf0; }
     .article-item.article-alert { background: #fff8f8; border-left-color: #dc2626; }
+    .article-item.article-importance-high { border-left: 3px solid #e53935; }
     .article-alert-badge { font-size: 0.68rem; font-weight: 700; background: #dc2626; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .article-importance-high-badge { font-size: 0.68rem; font-weight: 700; background: #e53935; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .article-importance-medium-badge { font-size: 0.68rem; font-weight: 700; background: #3949ab; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
     .article-kw { font-size: 0.72rem; background: #e8eaf6; color: #3949ab; border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
     .article-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
     .article-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
@@ -368,11 +371,13 @@
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
           {% for article in articles %}
-          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %} data-init-read="{{ '1' if article.is_read else '0' }}">
+          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %} {% if article.importance == 'high' %}article-importance-high{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %} data-init-read="{{ '1' if article.is_read else '0' }}">
             <!-- 上段：キーワードバッジ（左）＋日時（右） -->
             <div class="article-card-top">
               <div class="article-card-top-left">
                 {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
+                {% if article.importance == 'high' %}<span class="article-importance-high-badge">重要</span>{% endif %}
+                {% if article.importance == 'medium' %}<span class="article-importance-medium-badge">注目</span>{% endif %}
                 <span class="article-kw">{{ article.keyword }}</span>
                 {% if article.alert_matches %}
                   {% for mkw in article.alert_matches %}
