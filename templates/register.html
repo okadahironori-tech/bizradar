@@ -160,11 +160,21 @@
         </div>
         <div class="form-group">
           <label for="password">パスワード（6文字以上）</label>
-          <input type="password" id="password" name="password" autocomplete="new-password" required>
+          <div style="position:relative;">
+            <input type="password" id="password" name="password" autocomplete="new-password" required>
+            <button type="button" onclick="togglePassword('password')" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#6b7280; font-size:0.85rem; padding:4px;">
+              表示
+            </button>
+          </div>
         </div>
         <div class="form-group">
           <label for="confirm_password">パスワード（確認）</label>
-          <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+          <div style="position:relative;">
+            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+            <button type="button" onclick="togglePassword('confirm_password')" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#6b7280; font-size:0.85rem; padding:4px;">
+              表示
+            </button>
+          </div>
         </div>
         <div class="form-group">
           <label>プラン</label>
@@ -207,5 +217,18 @@
       <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 6px;">プライバシーポリシー</a>
     </p>
   </div>
+<script>
+function togglePassword(inputId) {
+  const input = document.getElementById(inputId);
+  const btn = event.currentTarget;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '隠す';
+  } else {
+    input.type = 'password';
+    btn.textContent = '表示';
+  }
+}
+</script>
 </body>
 </html>
