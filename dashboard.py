@@ -600,7 +600,7 @@ def _fetch_and_update_listed_companies():
     import requests, tempfile, os
     try:
         import pykakasi
-        import openpyxl
+        import xlrd
     except ImportError as e:
         logger.error(f"[jpx] missing library: {e}")
         return
@@ -620,11 +620,13 @@ def _fetch_and_update_listed_companies():
             tmp_path = f.name
 
         try:
-            wb = openpyxl.load_workbook(tmp_path, read_only=True, data_only=True)
-            ws = wb.active
+            import xlrd
+            wb = xlrd.open_workbook(tmp_path)
+            ws = wb.sheet_by_index(0)
             kks = pykakasi.kakasi()
             rows = []
-            for i, row in enumerate(ws.iter_rows(values_only=True)):
+            for i in range(ws.nrows):
+                row = ws.row_values(i)
                 if i == 0:
                     continue
                 try:
