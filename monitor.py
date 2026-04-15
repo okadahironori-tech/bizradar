@@ -502,6 +502,64 @@ _SOURCE_NAMES = {
 }
 _CONSECUTIVE_FAIL_THRESHOLD = 3
 
+# 類似度計算時に除去する企業接頭辞・各種括弧・空白（半角/全角）
+_TITLE_CLEAN_RE = re.compile(r"株式会社|（株）|\(株\)|有限会社|「|」|【|】|『|』|\s")
+_GROUP_SIMILARITY_THRESHOLD = 0.75
+
+
+def _calc_title_similarity(title1: str, title2: str) -> float:
+    """2つのタイトルの類似度を 0.0〜1.0 で返す。
+    比較前に企業接頭辞（株式会社/（株）/有限会社）、各種括弧（「」【】『』）、空白を除去する。
+    """
+    t1 = _TITLE_CLEAN_RE.sub("", title1 or "")
+    t2 = _TITLE_CLEAN_RE.sub("", title2 or "")
+    if not t1 or not t2:
+        return 0.0
+    return difflib.SequenceMatcher(None, t1, t2).ratio()
+
+
+def _group_duplicate_articles(user_id: int):
+    """直近7日間の未グループ記事をタイトル類似度でグルーピングする。
+    類似度 >= 0.75 を同一ニュースとみなし、最古の記事を代表として group_id にまとめる。
+    """
+    try:
+        rows = db.load_articles_for_grouping(user_id, days=7)
+    except Exception as e:
+        print(f"[group] user_id={user_id} load失敗: {e}")
+        return
+    if not rows:
+        print(f"[group] user_id={user_id} grouped=0")
+        return
+
+    # 既にグループ化済みの代表を起点に、古い順で未処理記事を突き合わせる
+    reps = [
+        {"id": r["id"], "title": r["title"] or ""}
+        for r in rows
+        if r.get("group_id") is not None and r.get("is_representative")
+    ]
+    grouped = 0
+    for r in rows:
+        if r.get("group_id") is not None:
+            continue
+        matched = None
+        for rep in reps:
+            if _calc_title_similarity(r["title"] or "", rep["title"]) >= _GROUP_SIMILARITY_THRESHOLD:
+                matched = rep
+                break
+        if matched:
+            try:
+                db.add_duplicate_to_group(r["id"], matched["id"])
+                grouped += 1
+            except Exception as e:
+                print(f"[group] user_id={user_id} dup更新失敗 id={r['id']}: {e}")
+        else:
+            try:
+                db.set_article_as_representative(r["id"])
+                reps.append({"id": r["id"], "title": r["title"] or ""})
+            except Exception as e:
+                print(f"[group] user_id={user_id} rep更新失敗 id={r['id']}: {e}")
+    print(f"[group] user_id={user_id} grouped={grouped}")
+
 
 def send_system_error_email(errors: list):
     """システムエラーを管理者に通知するメールを送信する"""
@@ -897,6 +955,10 @@ def check_single_keyword(keyword: str, user_id=None):
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
         db.insert_articles(new_articles, user_id)
+        try:
+            _group_duplicate_articles(user_id)
+        except Exception as e:
+            print(f"  [警告] グルーピング失敗 user_id={user_id}: {e}")
         notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
         print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
         if notify_ok:
@@ -1025,6 +1087,12 @@ def check_all_keywords():
             else:
                 print(f"  → 新着なし")
             db.remove_running_task("keyword_check", keyword)
+
+        # ユーザー単位で 1 回、直近7日分の記事を重複グルーピング
+        try:
+            _group_duplicate_articles(user_id)
+        except Exception as e:
+            print(f"  [警告] グルーピング失敗 user_id={user_id}: {e}")
 
     print(f"[ニュースチェック完了]")
     check_and_notify_source_errors()

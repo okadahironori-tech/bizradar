@@ -363,6 +363,16 @@ def _run_migrations():
                 "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
                 "date_verified BOOLEAN DEFAULT FALSE;"
             )
+            # articles: 類似タイトルによる重複グルーピング用
+            cur.execute("ALTER TABLE articles ADD COLUMN IF NOT EXISTS group_id INTEGER;")
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "is_representative BOOLEAN NOT NULL DEFAULT TRUE;"
+            )
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "duplicate_count INTEGER NOT NULL DEFAULT 0;"
+            )
 
             # sites / keywords: company_id カラム追加
             cur.execute(
@@ -1117,10 +1127,11 @@ def load_articles_data(user_id=None) -> dict:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
                 cur.execute(
-                    "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, a.is_read, a.date_verified "
+                    "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, "
+                    "a.is_read, a.date_verified, a.duplicate_count "
                     "FROM articles a "
                     "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
-                    "WHERE a.user_id = %s "
+                    "WHERE a.user_id = %s AND a.is_representative = TRUE "
                     "ORDER BY a.published DESC LIMIT 3000",
                     (user_id,)
                 )
@@ -1129,8 +1140,10 @@ def load_articles_data(user_id=None) -> dict:
                 seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
                 cur.execute(
-                    "SELECT id, keyword, title, url, source, published, found_at, is_read, date_verified "
-                    "FROM articles ORDER BY published DESC LIMIT 3000"
+                    "SELECT id, keyword, title, url, source, published, found_at, "
+                    "is_read, date_verified, duplicate_count "
+                    "FROM articles WHERE is_representative = TRUE "
+                    "ORDER BY published DESC LIMIT 3000"
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
@@ -1154,6 +1167,47 @@ def insert_articles(articles: list, user_id: int):
                      article.get("found_at", ""), user_id,
                      bool(article.get("date_verified", False)))
                 )
+
+
+def load_articles_for_grouping(user_id: int, days: int = 7) -> list:
+    """直近 days 日間の記事を id 昇順（古い順）で返す。重複グルーピング処理の対象取得用。"""
+    from datetime import datetime, timedelta, timezone
+    jst = timezone(timedelta(hours=9))
+    cutoff = (datetime.now(jst) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, title, group_id, is_representative, duplicate_count "
+                "FROM articles "
+                "WHERE user_id = %s AND found_at != '' AND found_at >= %s "
+                "ORDER BY id ASC",
+                (user_id, cutoff),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def set_article_as_representative(article_id: int):
+    """記事を代表にする（group_id を自身の id に、is_representative を TRUE に揃える）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE articles SET group_id = id, is_representative = TRUE WHERE id = %s",
+                (article_id,),
+            )
+
+
+def add_duplicate_to_group(dup_id: int, rep_id: int):
+    """重複記事を代表のグループに紐付け、代表の duplicate_count をインクリメントする"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE articles SET group_id = %s, is_representative = FALSE WHERE id = %s",
+                (rep_id, dup_id),
+            )
+            cur.execute(
+                "UPDATE articles SET duplicate_count = duplicate_count + 1 WHERE id = %s",
+                (rep_id,),
+            )
 
 
 def count_articles_by_keyword(user_id: int, keyword: str) -> int:
