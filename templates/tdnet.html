@@ -103,10 +103,12 @@
             <div style="font-weight:700; color:#1a1a2e; font-size:0.9rem;">{{ t.company_name }}</div>
             <div style="font-size:0.72rem; color:#6b7280;">{{ t.disclosed_at.strftime('%Y-%m-%d %H:%M') if t.disclosed_at else '' }}</div>
           </div>
-          <div style="font-size:0.88rem; color:#1a1a2e; margin-top:4px; line-height:1.45;">{{ t.title }}</div>
-          <div style="margin-top:6px;">
+          <div style="margin-top:4px; line-height:1.45;">
+            <span style="color:#222; font-weight:500; font-size:0.88rem;">{{ t.title }}</span>
+            {% if t.document_url %}
             <a href="{{ t.document_url }}" target="_blank" rel="noopener"
-               style="font-size:0.82rem; color:#3949ab; text-decoration:none; font-weight:600;">PDFを見る →</a>
+               style="font-size:0.82rem; color:#3949ab; text-decoration:none; font-weight:600; margin-left:8px; white-space:nowrap;">PDFを見る</a>
+            {% endif %}
           </div>
         </div>
         {% endfor %}
