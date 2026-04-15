@@ -434,6 +434,11 @@ def _run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "stripe_customer_id TEXT;"
             )
+            # users: Slack Incoming Webhook URL
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "slack_webhook_url TEXT NOT NULL DEFAULT '';"
+            )
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "last_login_at TIMESTAMP WITH TIME ZONE;"
@@ -587,6 +592,16 @@ def create_user(email: str, password: str, plan: str = "basic") -> int:
             return cur.fetchone()[0]
 
 
+def update_slack_webhook_url(user_id: int, webhook_url: str):
+    """users.slack_webhook_url を更新する。空文字は解除扱い。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET slack_webhook_url = %s WHERE id = %s",
+                (webhook_url or "", user_id),
+            )
+
+
 def update_user_plan(user_id: int, plan: str) -> str:
     """users.plan を更新し、変更前の値を返す。無効な plan は 'basic' に正規化する。"""
     if plan not in ("basic", "business", "pro"):
@@ -604,7 +619,7 @@ def get_user_by_email(email: str):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan FROM users WHERE email = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url FROM users WHERE email = %s",
                 (email.lower(),)
             )
             row = cur.fetchone()
@@ -615,7 +630,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()

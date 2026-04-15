@@ -2233,6 +2233,7 @@ def settings():
                            user_email=session.get("email", ""),
                            is_admin=session.get("is_admin", False),
                            current_plan=user.get("plan", "basic"),
+                           current_slack_webhook_url=user.get("slack_webhook_url", "") or "",
                            dashboard_settings=db.get_dashboard_settings(user_id))
 
 
@@ -2281,6 +2282,35 @@ def change_plan():
 
     flash("プランを変更しました", "success")
     return redirect(url_for("settings"))
+
+
+@app.route("/settings/slack", methods=["POST"])
+@login_required
+def save_slack_webhook():
+    user_id = session["user_id"]
+    webhook_url = request.form.get("slack_webhook_url", "").strip()
+    if webhook_url and not webhook_url.startswith("https://hooks.slack.com/"):
+        flash("Slack Webhook URL の形式が正しくありません", "error")
+        return redirect(url_for("settings"))
+    db.update_slack_webhook_url(user_id, webhook_url)
+    flash("Slack通知を設定しました", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/slack/test", methods=["POST"])
+@login_required
+def test_slack_webhook():
+    import monitor as _monitor
+    user_id = session["user_id"]
+    user = db.get_user_by_id(user_id) or {}
+    webhook_url = (user.get("slack_webhook_url") or "").strip()
+    if not webhook_url:
+        return jsonify({"success": False, "error": "Slack Webhook URL が設定されていません"})
+    message = "BizRadarからのテスト通知です。Slack連携が正常に設定されました。"
+    ok, err = _monitor._send_slack_notification(webhook_url, message)
+    if ok:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": err or "送信失敗"})
 
 
 @app.route("/settings/dashboard", methods=["POST"])

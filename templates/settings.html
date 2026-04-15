@@ -218,18 +218,70 @@
           <input type="radio" name="plan" value="business" {% if current_plan == 'business' %}checked{% endif %}>
           <span>
             <strong>ビジネス</strong> <span style="color:#4a4a6a;font-size:0.85rem;">2,980円/月</span><br>
-            <span style="color:#6b7280;font-size:0.78rem;">企業30社・キーワード30・メールに加えLINE/Slack通知（準備中）・AI重要度スコアリング・AI記事要約</span>
+            <span style="color:#6b7280;font-size:0.78rem;">企業30社・キーワード30・メール/Slack通知（LINEは準備中）・AI重要度スコアリング・AI記事要約</span>
           </span>
         </label>
         <label style="display:flex;gap:10px;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;cursor:pointer;">
           <input type="radio" name="plan" value="pro" {% if current_plan == 'pro' %}checked{% endif %}>
           <span>
             <strong>Pro</strong> <span style="color:#4a4a6a;font-size:0.85rem;">9,800円/月</span><br>
-            <span style="color:#6b7280;font-size:0.78rem;">企業500社・キーワード50・TDnet・メールに加えLINE/Slack通知（準備中）・AI重要度スコアリング・AI記事要約</span>
+            <span style="color:#6b7280;font-size:0.78rem;">企業500社・キーワード50・TDnet・メール/Slack通知（LINEは準備中）・AI重要度スコアリング・AI記事要約</span>
           </span>
         </label>
         <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">プラン変更を申請する</button></div>
       </form>
+    </div>
+  </section>
+
+  <!-- ── Slack通知 ── -->
+  <section>
+    <div class="section-title">Slack通知</div>
+    <div class="card">
+      {% if current_plan in ('business', 'pro') %}
+      <form id="slack-form" method="POST" action="/settings/slack" style="display:flex;flex-direction:column;gap:10px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label style="font-size:0.88rem;font-weight:600;color:#4a4a6a;">Slack Incoming Webhook URL</label>
+        <input type="url" id="slack-webhook-input" name="slack_webhook_url"
+               value="{{ current_slack_webhook_url }}"
+               placeholder="https://hooks.slack.com/services/..."
+               style="padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;">
+        <div style="font-size:0.78rem;color:#6b7280;">
+          Webhook URL の取得方法は
+          <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener"
+             style="color:#3949ab;text-decoration:none;">こちら (api.slack.com)</a>
+        </div>
+        <div class="settings-btn-wrap" style="gap:8px;">
+          <button type="button" id="slack-test-btn" class="btn"
+                  style="background:#e5e7eb;color:#1a1a2e;">テスト送信</button>
+          <button type="submit" class="btn btn-save">保存</button>
+        </div>
+      </form>
+      <script>
+        document.getElementById('slack-test-btn').addEventListener('click', function() {
+          var btn = this;
+          var csrf = document.querySelector('#slack-form input[name="csrf_token"]').value;
+          btn.disabled = true;
+          var originalText = btn.textContent;
+          btn.textContent = '送信中…';
+          fetch('/settings/slack/test', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf, 'Accept': 'application/json' },
+            credentials: 'same-origin',
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.success) alert('テスト通知を送信しました');
+            else alert('テスト送信に失敗: ' + (data.error || '不明なエラー'));
+          })
+          .catch(function(e) { alert('送信エラー: ' + e); })
+          .finally(function() { btn.disabled = false; btn.textContent = originalText; });
+        });
+      </script>
+      {% else %}
+      <div style="padding:10px 4px;font-size:0.88rem;color:#6b7280;">
+        ビジネス以上のプランで利用可能
+      </div>
+      {% endif %}
     </div>
   </section>
 

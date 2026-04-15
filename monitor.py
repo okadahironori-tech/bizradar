@@ -273,6 +273,44 @@ def _verify_and_repair_published(published_str: str, url: str) -> tuple:
     return published_str, True
 
 
+def _send_slack_notification(webhook_url: str, message: str) -> tuple:
+    """Slack Incoming Webhook にメッセージを送信する。(ok: bool, error: str) を返す。"""
+    if not webhook_url:
+        return False, "webhook_url is empty"
+    try:
+        resp = requests.post(webhook_url, json={"text": message}, timeout=10)
+        if 200 <= resp.status_code < 300:
+            return True, ""
+        err = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        print(f"[slack] send failed: {err}")
+        return False, err
+    except Exception as e:
+        print(f"[slack] send failed: {e}")
+        return False, str(e)
+
+
+def _send_slack_for_keyword(user_id: int, keyword: str, articles: list):
+    """ユーザーの Slack Webhook にキーワード単位の新着通知を送る。
+    未設定 / 失敗時は silent（通知メール処理を阻害しない）。
+    """
+    if not articles:
+        return
+    try:
+        user = db.get_user_by_id(user_id) or {}
+    except Exception as e:
+        print(f"[slack] user取得失敗 user_id={user_id}: {e}")
+        return
+    webhook_url = (user.get("slack_webhook_url") or "").strip()
+    if not webhook_url:
+        return
+    lines = [f"【BizRadar】{keyword}の新着ニュース {len(articles)}件"]
+    for a in articles[:3]:
+        title = a.get("title", "") or ""
+        url = a.get("url", "") or ""
+        lines.append(f"{title} {url}")
+    _send_slack_notification(webhook_url, "\n".join(lines))
+
+
 def _score_article_importance(title: str, plan: str) -> str:
     """記事タイトルの重要度を 'high' / 'medium' / 'low' で返す。
     business または pro プラン以外は AI を呼ばず 'low' を返す。
@@ -931,6 +969,9 @@ def send_digest_for_user(user_id: int):
                 _a["is_alert"] = _is_alert(_a.get("title", ""), effective)
 
         send_digest_email(user_email, articles_by_keyword, alert_kws=alert_kws, user_name=user_name)
+        # メール送信と同じ粒度でキーワードごとに Slack へも通知
+        for _kw, _arts in articles_by_keyword.items():
+            _send_slack_for_keyword(user_id, _kw, _arts)
 
     # 送信有無にかかわらず全未通知を通知済みにする（再送防止）
     db.mark_all_unnotified_notified(user_id)
@@ -1111,6 +1152,7 @@ def check_single_keyword(keyword: str, user_id=None):
             timing = db.get_user_notify_timing(user_id)
             if timing == "immediate":
                 send_news_email(keyword, new_articles, user_id=user_id)
+                _send_slack_for_keyword(user_id, keyword, new_articles)
                 db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
             else:
                 print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
@@ -1222,6 +1264,7 @@ def check_all_keywords():
                     if timing == "immediate":
                         try:
                             send_news_email(keyword, new_articles, user_id=user_id)
+                            _send_slack_for_keyword(user_id, keyword, new_articles)
                             db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
                         except Exception as e:
                             import traceback
