@@ -273,6 +273,22 @@ def _verify_and_repair_published(published_str: str, url: str) -> tuple:
     return published_str, True
 
 
+def _is_old_unverified(published: str, date_verified: bool) -> bool:
+    """date_verified=False かつ published が30日以上前の JST 日付なら True を返す。
+    パース不能な日付はスキップ対象外（False）として扱う。
+    """
+    if date_verified:
+        return False
+    raw = (published or "").lstrip("~").strip()
+    if not raw:
+        return False
+    try:
+        pub = datetime.strptime(raw, "%Y-%m-%d %H:%M").replace(tzinfo=JST)
+    except Exception:
+        return False
+    return pub < datetime.now(JST) - timedelta(days=30)
+
+
 def fetch_news_articles(keyword: str) -> list:
     """Google News RSSからキーワード関連記事を取得する（最新20件）
 
@@ -331,6 +347,10 @@ def fetch_news_articles(keyword: str) -> list:
         published = _try_parse_uncertain_published(published)
         # 未来 / 30日以上前 / パース不能 のときは元記事から日付を再取得
         published, date_verified = _verify_and_repair_published(published, url)
+        # 再取得に失敗した30日以上前の記事は保存しない（古い記事の紛れ込みを防ぐ）
+        if _is_old_unverified(published, date_verified):
+            print(f"[fetch] skip old unverified: {url}")
+            continue
         articles.append({
             "keyword":       keyword,
             "title":         title,
@@ -407,6 +427,10 @@ def fetch_bing_news_articles(keyword: str) -> list:
         published = _try_parse_uncertain_published(published)
         if title and url:
             published, date_verified = _verify_and_repair_published(published, url)
+            # 再取得に失敗した30日以上前の記事は保存しない（古い記事の紛れ込みを防ぐ）
+            if _is_old_unverified(published, date_verified):
+                print(f"[fetch] skip old unverified: {url}")
+                continue
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
