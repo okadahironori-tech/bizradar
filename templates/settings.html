@@ -283,6 +283,59 @@
     </div>
   </section>
 
+  <!-- ── LINE連携 ── -->
+  <section>
+    <div class="section-title">LINE通知</div>
+    <div class="card">
+      {% if current_plan in ('business', 'pro') %}
+        {% if current_line_user_id %}
+          <div style="padding:10px 4px;font-size:0.88rem;color:#065f46;">
+            LINE連携済み（User ID 末尾: ...{{ current_line_user_id[-6:] }}）
+          </div>
+          <form method="POST" action="/settings/line/unlink" style="margin-top:10px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="settings-btn-wrap">
+              <button type="submit" class="btn"
+                      style="background:#e5e7eb;color:#1a1a2e;"
+                      onclick="return confirm('LINE連携を解除しますか？');">連携を解除する</button>
+            </div>
+          </form>
+        {% else %}
+          <ol style="margin:4px 0 12px 20px;padding:0;font-size:0.85rem;color:#4a4a6a;line-height:1.7;">
+            <li>
+              下のリンクから BizRadar 公式 LINE アカウント
+              <strong>{{ line_official_id }}</strong> を友達追加してください。
+              <div style="margin-top:6px;">
+                <a href="https://line.me/R/ti/p/{{ line_official_id | urlencode }}"
+                   target="_blank" rel="noopener"
+                   style="color:#06c755;font-weight:600;text-decoration:none;">
+                  BizRadar LINE を友達追加する →
+                </a>
+              </div>
+            </li>
+            <li>友達追加直後に LINE から 4 桁の連携コードが届きます。</li>
+            <li>下の入力欄にコードを入力して「連携完了」を押してください（30分で失効）。</li>
+          </ol>
+          <form method="POST" action="/settings/line"
+                style="display:flex;flex-direction:column;gap:10px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="line_code" style="font-size:0.88rem;font-weight:600;color:#4a4a6a;">連携コード</label>
+            <input type="text" id="line_code" name="line_code" maxlength="8"
+                   inputmode="numeric" pattern="[0-9]*" placeholder="1234"
+                   style="padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:1rem;letter-spacing:0.2em;max-width:160px;">
+            <div class="settings-btn-wrap">
+              <button type="submit" class="btn btn-save">連携完了</button>
+            </div>
+          </form>
+        {% endif %}
+      {% else %}
+        <div style="padding:10px 4px;font-size:0.88rem;color:#6b7280;">
+          ビジネス以上のプランで利用可能
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
   <!-- ── パスワード変更 ── -->
   <section>
     <div class="section-title">パスワード変更</div>

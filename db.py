@@ -439,6 +439,19 @@ def _run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "slack_webhook_url TEXT NOT NULL DEFAULT '';"
             )
+            # users: LINE Messaging API の userId（Webhook follow イベントで取得）
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "line_user_id TEXT NOT NULL DEFAULT '';"
+            )
+            # line_pending_links: follow 直後〜設定画面で連携コードを入力するまでの一時テーブル
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS line_pending_links (
+                    line_user_id TEXT PRIMARY KEY,
+                    code         VARCHAR(8) NOT NULL,
+                    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+            """)
             # users: 氏名（メール本文の宛名表示に使用、任意入力）
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
@@ -630,6 +643,51 @@ def get_salutation_for_email(email: str) -> str:
     return f"{email} 様"
 
 
+def upsert_line_pending_link(line_user_id: str, code: str):
+    """LINE follow 時に発行した連携コードを upsert する（既存コードがあれば上書き）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO line_pending_links (line_user_id, code) "
+                "VALUES (%s, %s) "
+                "ON CONFLICT (line_user_id) DO UPDATE "
+                "SET code = EXCLUDED.code, created_at = NOW()",
+                (line_user_id, code),
+            )
+
+
+def consume_line_pending_link(code: str, expiry_minutes: int = 30) -> str:
+    """code に一致する未期限切れの line_user_id を返し、該当レコードを削除する。
+    見つからなければ空文字。複数一致時は最新を採用。
+    """
+    from datetime import datetime, timedelta, timezone
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=expiry_minutes)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM line_pending_links "
+                "WHERE line_user_id = ("
+                "  SELECT line_user_id FROM line_pending_links "
+                "  WHERE code = %s AND created_at > %s "
+                "  ORDER BY created_at DESC LIMIT 1"
+                ") "
+                "RETURNING line_user_id",
+                (code, cutoff),
+            )
+            row = cur.fetchone()
+            return row[0] if row else ""
+
+
+def update_user_line_id(user_id: int, line_user_id: str):
+    """users.line_user_id を更新する。空文字は連携解除扱い。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET line_user_id = %s WHERE id = %s",
+                (line_user_id or "", user_id),
+            )
+
+
 def update_slack_webhook_url(user_id: int, webhook_url: str):
     """users.slack_webhook_url を更新する。空文字は解除扱い。"""
     with _conn() as conn:
@@ -657,7 +715,7 @@ def get_user_by_email(email: str):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url FROM users WHERE email = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id FROM users WHERE email = %s",
                 (email.lower(),)
             )
             row = cur.fetchone()
@@ -668,7 +726,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()

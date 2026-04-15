@@ -289,6 +289,59 @@ def _send_slack_notification(webhook_url: str, message: str) -> tuple:
         return False, str(e)
 
 
+def _send_line_notification(line_user_id: str, message: str) -> tuple:
+    """LINE Messaging API の Push Message エンドポイントに送信する。(ok, error) を返す。"""
+    if not line_user_id:
+        return False, "line_user_id is empty"
+    token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
+    if not token:
+        print("[line] send failed: LINE_CHANNEL_ACCESS_TOKEN not set")
+        return False, "LINE_CHANNEL_ACCESS_TOKEN not set"
+    try:
+        resp = requests.post(
+            "https://api.line.me/v2/bot/message/push",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "to": line_user_id,
+                "messages": [{"type": "text", "text": message}],
+            },
+            timeout=10,
+        )
+        if 200 <= resp.status_code < 300:
+            return True, ""
+        err = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        print(f"[line] send failed: {err}")
+        return False, err
+    except Exception as e:
+        print(f"[line] send failed: {e}")
+        return False, str(e)
+
+
+def _send_line_for_keyword(user_id: int, keyword: str, articles: list):
+    """ユーザーの LINE にキーワード単位の新着通知を送る。
+    未連携（line_user_id 空）/ 失敗時は silent（メール・Slack 通知を阻害しない）。
+    """
+    if not articles:
+        return
+    try:
+        user = db.get_user_by_id(user_id) or {}
+    except Exception as e:
+        print(f"[line] user取得失敗 user_id={user_id}: {e}")
+        return
+    line_user_id = (user.get("line_user_id") or "").strip()
+    if not line_user_id:
+        return
+    lines = [f"【BizRadar】{keyword}の新着ニュース {len(articles)}件"]
+    for a in articles[:3]:
+        title = a.get("title", "") or ""
+        url = a.get("url", "") or ""
+        lines.append(f"{title} {url}")
+    _send_line_notification(line_user_id, "\n".join(lines))
+
+
 def _send_slack_for_keyword(user_id: int, keyword: str, articles: list):
     """ユーザーの Slack Webhook にキーワード単位の新着通知を送る。
     未設定 / 失敗時は silent（通知メール処理を阻害しない）。
@@ -971,9 +1024,10 @@ def send_digest_for_user(user_id: int):
                 _a["is_alert"] = _is_alert(_a.get("title", ""), effective)
 
         send_digest_email(user_email, articles_by_keyword, alert_kws=alert_kws, user_name=user_name)
-        # メール送信と同じ粒度でキーワードごとに Slack へも通知
+        # メール送信と同じ粒度でキーワードごとに Slack / LINE へも通知
         for _kw, _arts in articles_by_keyword.items():
             _send_slack_for_keyword(user_id, _kw, _arts)
+            _send_line_for_keyword(user_id, _kw, _arts)
 
     # 送信有無にかかわらず全未通知を通知済みにする（再送防止）
     db.mark_all_unnotified_notified(user_id)
@@ -1155,6 +1209,7 @@ def check_single_keyword(keyword: str, user_id=None):
             if timing == "immediate":
                 send_news_email(keyword, new_articles, user_id=user_id)
                 _send_slack_for_keyword(user_id, keyword, new_articles)
+                _send_line_for_keyword(user_id, keyword, new_articles)
                 db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
             else:
                 print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
@@ -1267,6 +1322,7 @@ def check_all_keywords():
                         try:
                             send_news_email(keyword, new_articles, user_id=user_id)
                             _send_slack_for_keyword(user_id, keyword, new_articles)
+                            _send_line_for_keyword(user_id, keyword, new_articles)
                             db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
                         except Exception as e:
                             import traceback

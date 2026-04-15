@@ -2242,6 +2242,8 @@ def settings():
                            is_admin=session.get("is_admin", False),
                            current_plan=user.get("plan", "basic"),
                            current_slack_webhook_url=user.get("slack_webhook_url", "") or "",
+                           current_line_user_id=user.get("line_user_id", "") or "",
+                           line_official_id=os.environ.get("LINE_OFFICIAL_ID", "@490kqrnm"),
                            dashboard_settings=db.get_dashboard_settings(user_id))
 
 
@@ -2301,6 +2303,122 @@ def save_slack_webhook():
     db.update_slack_webhook_url(user_id, webhook_url)
     flash("Slack通知を設定しました", "success")
     return redirect(url_for("settings"))
+
+
+@app.route("/settings/line", methods=["POST"])
+@login_required
+def save_line_link():
+    """ユーザーが LINE で受け取った4桁連携コードを入力して line_user_id を紐付けする"""
+    user_id = session["user_id"]
+    code = (request.form.get("line_code") or "").strip()
+    if not code:
+        flash("連携コードを入力してください", "error")
+        return redirect(url_for("settings"))
+    line_user_id = db.consume_line_pending_link(code)
+    if not line_user_id:
+        flash("連携コードが一致しないか、有効期限が切れています", "error")
+        return redirect(url_for("settings"))
+    db.update_user_line_id(user_id, line_user_id)
+    flash("LINE連携が完了しました", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/line/unlink", methods=["POST"])
+@login_required
+def unlink_line():
+    """LINE 連携を解除する（line_user_id を空に戻す）"""
+    user_id = session["user_id"]
+    db.update_user_line_id(user_id, "")
+    flash("LINE連携を解除しました", "success")
+    return redirect(url_for("settings"))
+
+
+def _send_line_reply(reply_token: str, message: str):
+    """LINE Messaging API の Reply エンドポイントに送信する（失敗時は silent）"""
+    import requests as _requests
+    token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
+    if not token or not reply_token:
+        return
+    try:
+        _requests.post(
+            "https://api.line.me/v2/bot/message/reply",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "replyToken": reply_token,
+                "messages": [{"type": "text", "text": message}],
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        logger.error("[line-reply] failed: %s", e)
+
+
+@app.route("/line/webhook", methods=["POST"])
+@csrf.exempt
+def line_webhook():
+    """LINE Messaging API Webhook 受信。X-Line-Signature を検証し、
+    follow イベントで4桁連携コードを発行して reply する。"""
+    import hmac, hashlib, base64, random, json as _json
+
+    channel_secret = os.environ.get("LINE_CHANNEL_SECRET", "").strip()
+    if not channel_secret:
+        logger.error("[line-webhook] LINE_CHANNEL_SECRET not configured")
+        return ("line channel secret not configured", 503)
+
+    body = request.get_data()
+    signature = request.headers.get("X-Line-Signature", "")
+    expected = base64.b64encode(
+        hmac.new(channel_secret.encode("utf-8"), body, hashlib.sha256).digest()
+    ).decode("utf-8")
+    if not signature or not hmac.compare_digest(signature, expected):
+        logger.warning("[line-webhook] signature mismatch")
+        return ("invalid signature", 401)
+
+    try:
+        payload = _json.loads(body.decode("utf-8"))
+    except Exception as e:
+        logger.error("[line-webhook] invalid JSON: %s", e)
+        return ("invalid json", 400)
+
+    for event in payload.get("events", []):
+        etype = event.get("type") or ""
+        source = event.get("source") or {}
+        line_user_id = source.get("userId") or ""
+        if not line_user_id:
+            continue
+        if etype == "follow":
+            code = f"{random.randint(0, 9999):04d}"
+            try:
+                db.upsert_line_pending_link(line_user_id, code)
+            except Exception as e:
+                logger.error("[line-webhook] pending save failed: %s", e)
+                continue
+            reply_token = event.get("replyToken") or ""
+            _send_line_reply(
+                reply_token,
+                f"BizRadarをご利用いただきありがとうございます。\n"
+                f"連携コード: {code}\n"
+                f"BizRadarの設定画面に入力すると通知連携が完了します（30分以内に入力してください）。",
+            )
+        elif etype == "unfollow":
+            # ブロック時は紐付けを解除する
+            try:
+                with db._conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "UPDATE users SET line_user_id = '' WHERE line_user_id = %s",
+                            (line_user_id,),
+                        )
+                        cur.execute(
+                            "DELETE FROM line_pending_links WHERE line_user_id = %s",
+                            (line_user_id,),
+                        )
+            except Exception as e:
+                logger.error("[line-webhook] unfollow cleanup failed: %s", e)
+    return ("ok", 200)
 
 
 @app.route("/settings/slack/test", methods=["POST"])
