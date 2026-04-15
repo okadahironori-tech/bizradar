@@ -1045,6 +1045,7 @@ _NOISE_RE = re.compile(
     r"pager|pagination|pagenav|page.nav|"
     r"ranking|popular|recommend|related|"
     r"\bad\b|ads|advertisement|banner|"
+    r"tracking|analytics|cookie|"
     r"breadcrumb|pankuzu|sitemap|sns|share|"
     r"counter|access.?count|"
     r"menu|gnav|\bnav\b|global.nav|local.nav|sidebar|"
@@ -1147,6 +1148,25 @@ _DIFF_DATE_RE = re.compile(
     r"|^\d{1,2}[月/]\d{1,2}日?$"              # 4月7日
 )
 
+# 行内の日付・時刻を正規化して差分比較からノイズを除外するための正規表現。
+# 例: 「2024年3月15日」「2025/4/1」「2025-04-01」「10:30」「23:59:59」「最終更新日 2025-04-01」
+_DATE_NORMALIZE_RE = re.compile(
+    r"\d{4}\s*[年./\-]\s*\d{1,2}\s*[月./\-]\s*\d{1,2}\s*日?"  # 年月日
+    r"|\d{1,2}\s*[月/]\s*\d{1,2}\s*日?"                        # 月日のみ
+    r"|\d{1,2}:\d{2}(?::\d{2})?"                                # 時刻 HH:MM[:SS]
+)
+# 残りの数字（カンマ区切り含む）を 0 に潰して数値だけの変化を無視する
+_NUMBER_NORMALIZE_RE = re.compile(r"[\d,]*\d")
+
+
+def _normalize_for_diff(text: str) -> str:
+    """差分比較用に日付・時刻を <DATE> に、その他の数字を 0 に正規化する。
+    行表示には使わない（diff の等価判定専用）。
+    """
+    text = _DATE_NORMALIZE_RE.sub("<DATE>", text)
+    text = _NUMBER_NORMALIZE_RE.sub("0", text)
+    return text
+
 # ナビゲーション・カテゴリ文字列判定：以下のいずれも含まない行は除外
 # （全角スペース・読点・句点・中黒・半角スペース・半角数字・半角英字・ひらがな・カタカナ）
 # ひらがな/カタカナを含む行は文章的な見出しとして通す
@@ -1189,6 +1209,10 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
     new_lines = new_content.splitlines()
     diff = difflib.unified_diff(old_lines, new_lines, lineterm="", n=0)
 
+    # 日付/数字のみ差異の行を抑制するため、反対側の正規化行セットを作成
+    normalized_old_set = {_normalize_for_diff(ln.strip()) for ln in old_lines if ln.strip()}
+    normalized_new_set = {_normalize_for_diff(ln.strip()) for ln in new_lines if ln.strip()}
+
     # --- デバッグ用カウンター ---
     raw_added = 0
     raw_removed = 0
@@ -1198,6 +1222,8 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
     skip_date_r = 0
     skip_nav_a = 0
     skip_nav_r = 0
+    skip_norm_a = 0
+    skip_norm_r = 0
     skip_nav_examples = []
     # ----------------------------
 
@@ -1221,6 +1247,9 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
                 if len(skip_nav_examples) < 5:
                     skip_nav_examples.append(f"+{text}")
                 continue
+            # 正規化後に旧側にも同一行があれば、日付/時刻/数字だけの変化としてスキップ
+            if _normalize_for_diff(text) in normalized_old_set:
+                skip_norm_a += 1; continue
             if len(added) < 20:
                 added.append({"type": "added", "text": text})
         elif line.startswith("-") and not line.startswith("---"):
@@ -1240,6 +1269,9 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
                 if len(skip_nav_examples) < 5:
                     skip_nav_examples.append(f"-{text}")
                 continue
+            # 正規化後に新側にも同一行があれば、日付/時刻/数字だけの変化としてスキップ
+            if _normalize_for_diff(text) in normalized_new_set:
+                skip_norm_r += 1; continue
             if len(removed) < 5:
                 removed.append({"type": "removed", "text": text})
         if len(added) >= 20 and len(removed) >= 5:
@@ -1248,8 +1280,8 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
     # --- デバッグログ出力 ---
     label = f"[diff:{_debug_url}]" if _debug_url else "[diff]"
     print(f"{label} 生diff: added={raw_added}, removed={raw_removed}")
-    print(f"{label} 除外(added):  短い={skip_short_a}, 日付={skip_date_a}, nav={skip_nav_a}")
-    print(f"{label} 除外(removed): 短い={skip_short_r}, 日付={skip_date_r}, nav={skip_nav_r}")
+    print(f"{label} 除外(added):  短い={skip_short_a}, 日付={skip_date_a}, nav={skip_nav_a}, 正規化一致={skip_norm_a}")
+    print(f"{label} 除外(removed): 短い={skip_short_r}, 日付={skip_date_r}, nav={skip_nav_r}, 正規化一致={skip_norm_r}")
     print(f"{label} 保存: added={len(added)}, removed={len(removed)}")
     if skip_nav_examples:
         print(f"{label} nav除外サンプル: {skip_nav_examples}")
