@@ -8,6 +8,10 @@ import logging
 import bcrypt as _bcrypt
 
 logger = logging.getLogger(__name__)
+_gunicorn_error = logging.getLogger("gunicorn.error")
+if _gunicorn_error.handlers:
+    logger.handlers = _gunicorn_error.handlers
+    logger.setLevel(_gunicorn_error.level)
 import json
 import os
 import secrets
