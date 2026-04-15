@@ -569,7 +569,13 @@ function dismissAlert(btn) {
     <div class="card tdnet-list">
       {% for d in tdnet_disclosures %}
       <div class="history-item">
-        <div class="article-title">{{ d.company_name }} — {{ d.title }}</div>
+        <div>
+          <span style="color:#222; font-weight:500;">{{ d.company_name }} — {{ d.title }}</span>
+          {% if d.document_url %}
+          <a href="{{ d.document_url }}" target="_blank" rel="noopener"
+             style="font-size:0.85rem; color:#3949ab; margin-left:8px; white-space:nowrap;">PDFを見る</a>
+          {% endif %}
+        </div>
         <div style="font-size:0.75rem; color:#9ca3af; margin-top:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
       </div>
       {% endfor %}
