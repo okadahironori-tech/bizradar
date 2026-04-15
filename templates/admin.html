@@ -192,6 +192,43 @@
     </table>
   </div>
 
+  <div class="section-title" style="margin-top:32px;">URLステータス確認
+    <span style="font-size:0.82rem; color:#6b7280; font-weight:500; margin-left:8px;">
+      ok: {{ url_summary.ok }} 件 / error: {{ url_summary.error }} 件 / unchecked: {{ url_summary.unchecked }} 件
+    </span>
+  </div>
+  <div class="card">
+    {% if url_errors %}
+    <table>
+      <thead>
+        <tr>
+          <th>企業名</th>
+          <th>website_url</th>
+          <th>最終チェック日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in url_errors %}
+        <tr>
+          <td>{{ e.company_name }}</td>
+          <td style="word-break:break-all;">
+            <a href="{{ e.website_url }}" target="_blank" rel="noopener"
+               style="color:#3949ab; text-decoration:none;">{{ e.website_url }}</a>
+          </td>
+          <td style="color:#9ca3af; font-size:0.82rem; white-space:nowrap;">
+            {% if e.url_checked_at %}{{ e.url_checked_at.strftime('%Y-%m-%d %H:%M') if e.url_checked_at.strftime is defined else e.url_checked_at }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:24px; text-align:center; color:#9ca3af; font-size:0.88rem;">
+      エラー状態の企業はありません
+    </div>
+    {% endif %}
+  </div>
+
   <div class="section-title" style="margin-top:32px;">管理ツール</div>
   <div class="card" style="padding:16px 20px;">
     <a href="/admin/domain-overrides" style="color:#3949ab; text-decoration:none; font-size:0.88rem; font-weight:600;">推奨URL設定 →</a>

@@ -1393,5 +1393,61 @@ def main():
         time.sleep(interval)
 
 
+def check_listed_company_urls():
+    """listed_companies の website_url 死活確認（週1回のバックグラウンドジョブ想定）。
+    - ステータスコード 200-299: url_status='ok'
+    - リダイレクトが発生（resp.history 非空）: 最終到達 URL を website_url に上書き
+    - それ以外・例外: url_status='error'
+    - 1件ごとに time.sleep(1) でレートリミット
+    """
+    rows = db.load_listed_companies_with_url()
+    total = len(rows)
+    print(f"[url_check] start total={total}")
+    ok_count = 0
+    err_count = 0
+    updated_url_count = 0
+    for i, row in enumerate(rows, 1):
+        code = row.get("securities_code")
+        name = row.get("company_name") or ""
+        url = (row.get("website_url") or "").strip()
+        if not url:
+            continue
+        final_url = None
+        status = "error"
+        try:
+            resp = requests.get(
+                url, timeout=10, allow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; BizRadar-url-check/1.0)"},
+            )
+            if 200 <= resp.status_code < 300:
+                status = "ok"
+                # リダイレクトで URL が変わっていれば最終到達 URL に差し替え
+                if resp.history and resp.url and resp.url.rstrip("/") != url.rstrip("/"):
+                    final_url = resp.url
+                    updated_url_count += 1
+            else:
+                print(
+                    f"[url_check] HTTP {resp.status_code} code={code} "
+                    f"name={name!r} url={url}"
+                )
+        except Exception as e:
+            print(f"[url_check] error code={code} name={name!r} url={url} err={e}")
+        try:
+            db.update_listed_company_url_check(code, status, final_url)
+            if status == "ok":
+                ok_count += 1
+            else:
+                err_count += 1
+        except Exception as e:
+            print(f"[url_check] DB update failed code={code} err={e}")
+        if i % 50 == 0:
+            print(f"[url_check] progress {i}/{total} ok={ok_count} err={err_count}")
+        time.sleep(1)
+    print(
+        f"[url_check] done total={total} ok={ok_count} err={err_count} "
+        f"url_updated={updated_url_count}"
+    )
+
+
 if __name__ == "__main__":
     main()

@@ -703,6 +703,44 @@ def _start_securities_master_scheduler():
 _start_securities_master_scheduler()
 
 
+def _next_sunday_2am_jst():
+    """次の日曜日 JST 02:00 を返す"""
+    jst = timezone(timedelta(hours=9))
+    now = datetime.now(jst)
+    days_ahead = (6 - now.weekday()) % 7  # 日曜=6
+    target = now.replace(hour=2, minute=0, second=0, microsecond=0) + timedelta(days=days_ahead)
+    if target <= now:
+        target += timedelta(days=7)
+    return target
+
+
+def _start_listed_url_check_scheduler():
+    """listed_companies の website_url 死活監視を毎週日曜 02:00 JST に実行する daemon。
+    起動時の即時実行はしない（手動で走らせたい場合は別途エンドポイントから）。"""
+    def _run():
+        while True:
+            try:
+                jst = timezone(timedelta(hours=9))
+                next_run = _next_sunday_2am_jst()
+                sleep_sec = (next_run - datetime.now(jst)).total_seconds()
+                time.sleep(max(60, sleep_sec))
+                import monitor as _monitor
+                _monitor.check_listed_company_urls()
+            except Exception:
+                logger.exception("[url_check] scheduler error (continuing)")
+                try:
+                    time.sleep(60)
+                except Exception:
+                    pass
+
+    t = threading.Thread(target=_run, daemon=True, name="listed-url-check-scheduler")
+    t.start()
+    logger.info("[url_check] scheduler thread started name=%s", t.name)
+
+
+_start_listed_url_check_scheduler()
+
+
 @app.before_request
 def track_user_activity():
     user_id = session.get("user_id")
@@ -2217,7 +2255,11 @@ def save_dashboard_settings():
 @admin_required
 def admin():
     users = db.get_all_users()
+    url_summary = db.get_url_check_summary()
+    url_errors  = db.get_url_check_errors()
     return render_template("admin.html", users=users,
+                           url_summary=url_summary,
+                           url_errors=url_errors,
                            user_email=session.get("email", ""))
 
 

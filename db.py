@@ -480,6 +480,15 @@ def _run_migrations():
                 "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "
                 "website_url TEXT NOT NULL DEFAULT '';"
             )
+            # listed_companies: URL 死活監視用カラム
+            cur.execute(
+                "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "
+                "url_status TEXT NOT NULL DEFAULT 'unchecked';"
+            )
+            cur.execute(
+                "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "
+                "url_checked_at TIMESTAMPTZ;"
+            )
             # 既存 domain_overrides の URL を listed_companies に反映する
             # （一回限りのマイグレーション: website_url が空のレコードだけ更新）
             cur.execute(
@@ -2749,6 +2758,70 @@ def search_listed_company(company_name):
             )
             row = cur.fetchone()
             return dict(row) if row else None
+
+
+def load_listed_companies_with_url() -> list:
+    """website_url が非空の listed_companies を返す（URL 死活監視用）。
+    戻り値: [{securities_code, company_name, website_url}, ...]"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT securities_code, company_name, website_url "
+                "FROM listed_companies WHERE website_url <> '' "
+                "ORDER BY securities_code"
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def update_listed_company_url_check(securities_code: str,
+                                    status: str,
+                                    final_url: str = None) -> None:
+    """1企業の URL チェック結果を反映する。final_url が与えられた場合は website_url を上書き。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            if final_url:
+                cur.execute(
+                    "UPDATE listed_companies "
+                    "SET url_status = %s, url_checked_at = NOW(), website_url = %s "
+                    "WHERE securities_code = %s",
+                    (status, final_url, securities_code),
+                )
+            else:
+                cur.execute(
+                    "UPDATE listed_companies "
+                    "SET url_status = %s, url_checked_at = NOW() "
+                    "WHERE securities_code = %s",
+                    (status, securities_code),
+                )
+
+
+def get_url_check_summary() -> dict:
+    """url_status の集計（対象は website_url 非空のみ）を返す。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT url_status, COUNT(*) FROM listed_companies "
+                "WHERE website_url <> '' GROUP BY url_status"
+            )
+            counts = {row[0]: row[1] for row in cur.fetchall()}
+    return {
+        "ok":        counts.get("ok", 0),
+        "error":     counts.get("error", 0),
+        "unchecked": counts.get("unchecked", 0),
+    }
+
+
+def get_url_check_errors() -> list:
+    """url_status='error' の企業一覧を返す。"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT securities_code, company_name, website_url, url_checked_at "
+                "FROM listed_companies "
+                "WHERE url_status = 'error' "
+                "ORDER BY url_checked_at DESC NULLS LAST, company_name"
+            )
+            return [dict(r) for r in cur.fetchall()]
 
 
 def get_listed_companies_count() -> int:
