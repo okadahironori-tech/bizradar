@@ -614,7 +614,9 @@ def _fetch_and_update_listed_companies():
             logger.error(f"[jpx] download failed: {r.status_code}")
             return
         content = r.content.decode('cp932', errors='replace')
-        reader = csv.reader(io.StringIO(content), delimiter='\t')
+        # 改行コードを統一
+        content = content.replace('\r\n', '\n').replace('\r', '\n')
+        reader = csv.reader(io.StringIO(content), delimiter=',')
         kks = pykakasi.kakasi()
         rows = []
         for i, row in enumerate(reader):
