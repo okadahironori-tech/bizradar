@@ -518,14 +518,15 @@
       <div class="section-title">TDnet開示情報</div>
       {% if tdnet_disclosures %}
         {% for d in tdnet_disclosures %}
-        <div class="history-item" style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div class="history-item">
           <div>
-            <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
             <span style="color:#222; font-weight:500;">{{ d.title }}</span>
+            {% if d.document_url %}
+            <a href="{{ d.document_url }}" target="_blank" rel="noopener"
+               style="font-size:0.85rem; color:#3949ab; margin-left:8px; white-space:nowrap;">PDFを見る</a>
+            {% endif %}
           </div>
-          {% if d.document_url %}
-          <a href="{{ d.document_url }}" target="_blank" style="font-size:0.85rem; color:#3949ab; white-space:nowrap; margin-left:12px;">PDFを見る</a>
-          {% endif %}
+          <div style="font-size:0.75rem; color:#9ca3af; margin-top:4px;">{{ d.disclosed_at.strftime('%Y-%m-%d %H:%M') if d.disclosed_at else '' }}</div>
         </div>
         {% endfor %}
       {% else %}
