@@ -401,8 +401,13 @@ function openAddCompanyModal() {
   document.body.style.overflow = 'hidden';
 }
 function closeAddCompanyModal() {
-  document.getElementById('add-company-modal').classList.remove('open');
+  var modal = document.getElementById('add-company-modal');
+  modal.classList.remove('open');
   document.body.style.overflow = '';
+  var form = modal.querySelector('form');
+  if (form) form.reset();
+  var match = document.getElementById('tdnet-match-result');
+  if (match) match.textContent = '';
 }
 function closeAddCompanyModalOnOverlay(e) {
   if (e.target === document.getElementById('add-company-modal')) closeAddCompanyModal();
