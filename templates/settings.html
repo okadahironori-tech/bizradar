@@ -130,28 +130,6 @@
     <span class="bc-current">設定</span>
   </nav>
 
-  {% if is_admin %}
-  <!-- ── チェック間隔（管理者のみ） ── -->
-  <section>
-    <div class="section-title">チェック間隔</div>
-    <div class="card">
-      <form class="settings-panel" method="POST" action="/set_interval">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>チェック間隔（管理者）</label>
-        <div class="interval-options">
-          {% for lbl, val in [("30分", 1800), ("1時間", 3600), ("3時間", 10800), ("6時間", 21600)] %}
-          <label>
-            <input type="radio" name="seconds" value="{{ val }}" {% if check_interval == val %}checked{% endif %}>
-            <span>{{ lbl }}</span>
-          </label>
-          {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-save">保存</button>
-      </form>
-    </div>
-  </section>
-  {% endif %}
-
   <!-- ── ニュース通知タイミング ── -->
   <section>
     <div class="section-title">ニュース通知タイミング</div>
