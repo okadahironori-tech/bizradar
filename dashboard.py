@@ -2389,7 +2389,8 @@ def news():
     for a in raw_articles:
         a["published"] = a.get("published", "")
     deduped_articles = _deduplicate_articles(raw_articles)
-    alert_count = sum(1 for a in deduped_articles if a.get("is_alert") and not a.get("is_read"))
+    alert_count = sum(1 for a in deduped_articles
+                      if (a.get("is_alert") or a.get("importance") == "high") and not a.get("is_read"))
     all_articles = deduped_articles
 
     return render_template(

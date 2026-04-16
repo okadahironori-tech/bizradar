@@ -382,7 +382,7 @@
         <div class="pagination-bar" id="articles-pagination-top"></div>
         <div id="articles-container">
           {% for article in articles %}
-          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert %}article-alert{% endif %} {% if article.importance == 'high' %}article-importance-high{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert %} data-is-alert="1"{% endif %} data-init-read="{{ '1' if article.is_read else '0' }}">
+          <div class="article-item {% if article.is_read %}article-read{% endif %} {% if article.is_alert or article.importance == 'high' %}article-alert{% endif %} {% if article.importance == 'high' %}article-importance-high{% endif %}" data-keyword="{{ article.keyword }}" data-article-id="{{ article.id }}" data-published="{{ article.published }}"{% if article.is_alert or article.importance == 'high' %} data-is-alert="1"{% endif %} data-init-read="{{ '1' if article.is_read else '0' }}">
             <!-- 上段：キーワードバッジ（左）＋日時（右） -->
             <div class="article-card-top">
               <div class="article-card-top-left">
