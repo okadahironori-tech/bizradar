@@ -312,51 +312,47 @@
     .empty-msg { padding: 16px; font-size: 0.82rem; color: #9ca3af; text-align: center; }
 
     @media (max-width: 768px) {
-      .kw-linked-table { padding: 0 12px; }
-      .kw-linked-table thead { display: none; }
-      .kw-linked-table tbody { display: block; }
-      .kw-linked-table tr {
-        display: flex;
-        flex-wrap: wrap;
+      section .card table.kw-linked-table { display: block; padding: 0 12px; }
+      section .card .kw-linked-table thead { display: none; }
+      section .card .kw-linked-table tbody { display: block; }
+      section .card .kw-linked-table tr {
+        display: grid;
+        grid-template-columns: 24px 1fr auto;
+        grid-template-rows: auto auto;
         align-items: center;
         padding: 10px 0;
         border-bottom: 1px solid #e5e7eb;
         border-radius: 0;
-        gap: 4px 8px;
+        gap: 2px 8px;
       }
-      .kw-linked-table tr:last-child { border-bottom: none; }
-      .kw-linked-table td {
-        display: inline-flex;
-        align-items: center;
-        border: none;
-        padding: 0;
+      section .card .kw-linked-table tr:last-child { border-bottom: none; }
+      section .card .kw-linked-table td {
+        border: none; padding: 0; display: block;
       }
-      /* handle */
-      .kw-linked-table td:nth-child(1) {
-        flex: 0 0 24px;
-        font-size: 1rem;
-        color: #aaa;
-        user-select: none;
-        text-align: center;
+      /* handle — spans both rows */
+      section .card .kw-linked-table td:nth-child(1) {
+        grid-row: 1 / 3; grid-column: 1;
+        font-size: 1rem; color: #aaa; user-select: none; text-align: center;
+        align-self: center;
       }
-      /* keyword — fills first line */
-      .kw-linked-table td:nth-child(2) {
-        flex: 1 1 0;
-        font-weight: 700;
-        font-size: 0.9rem;
-        color: #1a1a2e;
-        white-space: normal;
+      /* keyword — row 1, cols 2-3 */
+      section .card .kw-linked-table td:nth-child(2) {
+        grid-row: 1; grid-column: 2 / 4;
+        font-weight: 700; font-size: 0.9rem; color: #1a1a2e;
         word-break: break-all;
       }
-      /* ON/OFF — second line, indent past handle */
-      .kw-linked-table td:nth-child(3) {
-        margin-left: 32px;
-        font-size: 0.78rem;
-        font-weight: 600;
+      /* ON/OFF — row 2, col 2 */
+      section .card .kw-linked-table td:nth-child(3) {
+        grid-row: 2; grid-column: 2;
+        font-size: 0.78rem; font-weight: 600;
+        display: inline-flex; align-items: center;
+        flex: none; margin: 0;
       }
-      /* delete — second line, right edge */
-      .kw-linked-table td:nth-child(4) {
-        margin-left: auto;
+      /* delete — row 2, col 3 */
+      section .card .kw-linked-table td:nth-child(4) {
+        grid-row: 2; grid-column: 3;
+        justify-self: end;
+        margin: 0;
       }
     }
     @media (max-width: 640px) {
