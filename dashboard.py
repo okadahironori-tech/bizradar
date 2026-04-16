@@ -1523,15 +1523,53 @@ def api_company_youtube(company_id):
     return jsonify({"success": True, "youtube_channel_id": channel_id})
 
 
+def _resolve_youtube_channel_id(raw: str) -> str | None:
+    """@ハンドル名やURLからYouTubeチャンネルID（UC...）を解決する。
+    UC始まりならそのまま返す。解決できなければ None。"""
+    import re as _re
+    import requests as _requests
+    raw = raw.strip()
+    if raw.startswith("UC") and len(raw) >= 20:
+        return raw
+    # URL から @handle 部分を抽出
+    handle = ""
+    if "youtube.com/" in raw:
+        m = _re.search(r'youtube\.com/([@\w][^\s/?#]+)', raw)
+        if m:
+            handle = m.group(1)
+    elif raw.startswith("@"):
+        handle = raw
+    if not handle:
+        return None
+    url = f"https://www.youtube.com/{handle}"
+    try:
+        resp = _requests.get(url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "ja,en;q=0.9",
+        })
+        resp.raise_for_status()
+        # HTML 内の channel_id / externalId を探す
+        m = _re.search(r'"(?:channel_id|externalId)"\s*:\s*"(UC[a-zA-Z0-9_-]{20,})"', resp.text)
+        if m:
+            return m.group(1)
+    except Exception as e:
+        logger.warning("[youtube-resolve] failed handle=%s err=%s", handle, e)
+    return None
+
+
 @app.route("/api/company_youtube_channel/<int:company_id>", methods=["POST"])
 @login_required
 def api_add_youtube_channel(company_id):
     user_id = session["user_id"]
     data = request.get_json(silent=True) or {}
-    channel_id = (data.get("channel_id") or "").strip()
+    raw_input = (data.get("channel_id") or "").strip()
     label = (data.get("label") or "").strip()
-    if not channel_id:
+    if not raw_input:
         return jsonify({"success": False, "message": "チャンネルIDを入力してください"})
+    channel_id = _resolve_youtube_channel_id(raw_input)
+    if not channel_id:
+        return jsonify({"success": False, "message": "チャンネルIDを取得できませんでした"})
     result = db.add_company_youtube_channel(user_id, company_id, channel_id, label)
     if result is None:
         return jsonify({"success": False, "message": "追加に失敗しました（重複または権限エラー）"})
