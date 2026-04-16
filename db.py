@@ -1311,6 +1311,7 @@ def load_articles_data(user_id=None) -> dict:
     from datetime import datetime, timedelta, timezone
     jst = timezone(timedelta(hours=9))
     cutoff = (datetime.now(jst) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    pub_cutoff = (datetime.now(jst) - timedelta(days=30)).strftime("%Y-%m-%d")
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
@@ -1321,11 +1322,12 @@ def load_articles_data(user_id=None) -> dict:
                     "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
                     "WHERE a.user_id = %s AND a.is_representative = TRUE "
                     "AND a.found_at >= %s "
+                    "AND (a.published = '' OR REPLACE(a.published, '~', '') >= %s) "
                     "ORDER BY "
                     "CASE WHEN a.importance='high' THEN 0 "
                     "     WHEN a.importance='medium' THEN 1 ELSE 2 END, "
                     "a.found_at DESC LIMIT 3000",
-                    (user_id, cutoff)
+                    (user_id, cutoff, pub_cutoff)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles WHERE user_id = %s", (user_id,))
@@ -1336,11 +1338,12 @@ def load_articles_data(user_id=None) -> dict:
                     "is_read, date_verified, duplicate_count, importance, summary "
                     "FROM articles WHERE is_representative = TRUE "
                     "AND found_at >= %s "
+                    "AND (published = '' OR REPLACE(published, '~', '') >= %s) "
                     "ORDER BY "
                     "CASE WHEN importance='high' THEN 0 "
                     "     WHEN importance='medium' THEN 1 ELSE 2 END, "
                     "found_at DESC LIMIT 3000",
-                    (cutoff,)
+                    (cutoff, pub_cutoff)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
                 cur.execute("SELECT url FROM articles")
