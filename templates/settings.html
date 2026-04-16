@@ -172,6 +172,31 @@
     </div>
   </section>
 
+  <!-- ── 全社共通 重要アラートキーワード ── -->
+  <section>
+    <div class="section-title">全社共通 重要アラートキーワード</div>
+    <div class="card">
+      <div style="padding:16px 20px;">
+        <div style="font-size:0.82rem;color:#6b7280;margin-bottom:12px;line-height:1.6;">
+          登録した全企業に共通して適用される重要アラートキーワードです。記事タイトルにこのキーワードが含まれると重要アラートとして表示されます。
+        </div>
+        <div id="global-alert-kw-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+          {% for ak in global_alert_keywords %}
+          <button type="button" class="btn btn-ghost btn-sm" data-id="{{ ak.id }}"
+                  onclick="deleteGlobalAlertKw(this)"
+                  style="border-radius:20px;padding:4px 12px;font-size:0.8rem;background:#fff7ed;border-color:#fed7aa;color:#b45309;"
+                  title="クリックで削除">{{ ak.keyword }} ×</button>
+          {% endfor %}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="global-alert-kw-input" placeholder="例: 倒産、訴訟、リコール" maxlength="50"
+                 style="padding:7px 12px;font-size:0.88rem;border:1.5px solid #d1d5db;border-radius:8px;flex:1;min-width:160px;">
+          <button type="button" class="btn btn-primary" onclick="addGlobalAlertKw()">追加</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── メールアドレス変更 ── -->
   <section>
     <div class="section-title">メールアドレス</div>
@@ -217,31 +242,6 @@
         </label>
         <div class="settings-btn-wrap"><button type="submit" class="btn btn-save" style="margin-right:20px;">変更する</button></div>
       </form>
-    </div>
-  </section>
-
-  <!-- ── 全社共通 重要アラートキーワード ── -->
-  <section>
-    <div class="section-title">全社共通 重要アラートキーワード</div>
-    <div class="card">
-      <div style="padding:16px 20px;">
-        <div style="font-size:0.82rem;color:#6b7280;margin-bottom:12px;line-height:1.6;">
-          登録した全企業に共通して適用される重要アラートキーワードです。記事タイトルにこのキーワードが含まれると重要アラートとして表示されます。
-        </div>
-        <div id="global-alert-kw-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
-          {% for ak in global_alert_keywords %}
-          <button type="button" class="btn btn-ghost btn-sm" data-id="{{ ak.id }}"
-                  onclick="deleteGlobalAlertKw(this)"
-                  style="border-radius:20px;padding:4px 12px;font-size:0.8rem;background:#fff7ed;border-color:#fed7aa;color:#b45309;"
-                  title="クリックで削除">{{ ak.keyword }} ×</button>
-          {% endfor %}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="text" id="global-alert-kw-input" placeholder="例: 倒産、訴訟、リコール" maxlength="50"
-                 style="padding:7px 12px;font-size:0.88rem;border:1.5px solid #d1d5db;border-radius:8px;flex:1;min-width:160px;">
-          <button type="button" class="btn btn-primary" onclick="addGlobalAlertKw()">追加</button>
-        </div>
-      </div>
     </div>
   </section>
 
