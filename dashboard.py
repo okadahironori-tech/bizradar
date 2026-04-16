@@ -1558,6 +1558,52 @@ def _resolve_youtube_channel_id(raw: str) -> str | None:
     return None
 
 
+@app.route("/api/youtube_search")
+@login_required
+def api_youtube_search():
+    import requests as _requests
+    api_key = os.environ.get("YOUTUBE_API_KEY", "").strip()
+    if not api_key:
+        return jsonify({"error": "API key not set"})
+    q = (request.args.get("q") or "").strip()
+    if not q:
+        return jsonify({"results": []})
+    try:
+        resp = _requests.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params={"part": "snippet", "type": "channel", "q": q,
+                    "maxResults": 5, "key": api_key},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        channel_ids = [i["snippet"]["channelId"] for i in items]
+        # 登録者数を取得
+        stats = {}
+        if channel_ids:
+            resp2 = _requests.get(
+                "https://www.googleapis.com/youtube/v3/channels",
+                params={"part": "statistics", "id": ",".join(channel_ids),
+                        "key": api_key},
+                timeout=10,
+            )
+            if resp2.ok:
+                for ch in resp2.json().get("items", []):
+                    stats[ch["id"]] = ch.get("statistics", {}).get("subscriberCount", "")
+        results = []
+        for i in items:
+            cid = i["snippet"]["channelId"]
+            results.append({
+                "channelId": cid,
+                "title": i["snippet"].get("title", ""),
+                "subscriberCount": stats.get(cid, ""),
+            })
+        return jsonify({"results": results})
+    except Exception as e:
+        logger.error("[youtube-search] err=%s", e)
+        return jsonify({"error": str(e)})
+
+
 @app.route("/api/company_youtube_channel/<int:company_id>", methods=["POST"])
 @login_required
 def api_add_youtube_channel(company_id):

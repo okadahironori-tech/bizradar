@@ -902,12 +902,16 @@
           </div>
           {% endfor %}
         </div>
-        <div id="yt-add-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;{% if youtube_channels | length >= 5 %} display:none;{% endif %}">
-          <input type="text" id="yt-ch-id-input" placeholder="例：UCxxxxxxxxxxxxxxxxxxxxxx" maxlength="100"
-                 style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; min-width:180px;">
-          <input type="text" id="yt-ch-label-input" placeholder="ラベル（任意）" maxlength="50"
-                 style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px;">
-          <button type="button" class="btn btn-primary" onclick="addYtChannel()">追加</button>
+        <div id="yt-add-form" style="{% if youtube_channels | length >= 5 %}display:none;{% endif %}">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input type="text" id="yt-ch-id-input" placeholder="例：UCxxxxxxxxxxxxxxxxxxxxxx" maxlength="100"
+                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; min-width:180px;">
+            <input type="text" id="yt-ch-label-input" placeholder="ラベル（任意）" maxlength="50"
+                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px;">
+            <button type="button" class="btn btn-primary" onclick="addYtChannel()">追加</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="searchYtChannel()" style="white-space:nowrap;">チャンネル名で検索</button>
+          </div>
+          <div id="yt-search-results" style="display:none; margin-top:8px; border:1px solid #d1d5db; border-radius:8px; overflow:hidden;"></div>
         </div>
       </div>
     </div>
@@ -1340,6 +1344,36 @@ function _ytUpdateCount() {
   if (cnt) cnt.textContent = n;
   var form = document.getElementById('yt-add-form');
   if (form) form.style.display = n >= 5 ? 'none' : 'flex';
+}
+function searchYtChannel() {
+  var input = document.getElementById('yt-ch-id-input');
+  var q = (input.value || '').trim();
+  if (!q) return;
+  var box = document.getElementById('yt-search-results');
+  box.style.display = 'block';
+  box.innerHTML = '<div style="padding:10px;color:#6b7280;font-size:0.85rem;">検索中...</div>';
+  fetch('/api/youtube_search?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) { box.innerHTML = '<div style="padding:10px;color:#dc2626;font-size:0.85rem;">' + d.error + '</div>'; return; }
+      if (!d.results || !d.results.length) { box.innerHTML = '<div style="padding:10px;color:#6b7280;font-size:0.85rem;">該当なし</div>'; return; }
+      box.innerHTML = d.results.map(function(r) {
+        var sub = r.subscriberCount ? Number(r.subscriberCount).toLocaleString() + '人' : '';
+        return '<div onclick="selectYtResult(\'' + r.channelId + '\',\'' + r.title.replace(/'/g,"\\'") + '\')" '
+          + 'style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f2f5;font-size:0.88rem;display:flex;justify-content:space-between;align-items:center;" '
+          + 'onmouseenter="this.style.background=\'#f5f7ff\'" onmouseleave="this.style.background=\'\'">'
+          + '<span style="font-weight:600;color:#1a1a2e;">' + r.title + '</span>'
+          + (sub ? '<span style="color:#6b7280;font-size:0.78rem;flex-shrink:0;margin-left:12px;">' + sub + '</span>' : '')
+          + '</div>';
+      }).join('');
+    })
+    .catch(function(e) { box.innerHTML = '<div style="padding:10px;color:#dc2626;font-size:0.85rem;">エラー: ' + e + '</div>'; });
+}
+function selectYtResult(channelId, title) {
+  document.getElementById('yt-ch-id-input').value = channelId;
+  var labelInput = document.getElementById('yt-ch-label-input');
+  if (!labelInput.value.trim()) labelInput.value = title;
+  document.getElementById('yt-search-results').style.display = 'none';
 }
 function addYtChannel() {
   var chId = (document.getElementById('yt-ch-id-input').value || '').trim();
