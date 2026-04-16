@@ -2118,6 +2118,10 @@ def set_notify_timing():
     else:
         timing = ",".join(selected)
     if db.set_user_notify_timing(user_id, timing):
+        # 曜日設定も同じフォームで保存
+        days = request.form.getlist("notify_days")
+        if days:
+            db.set_user_notify_days(user_id, ",".join(days))
         flash("通知タイミングを変更しました", "success")
     else:
         flash("通知タイミングの更新に失敗しました", "error")
@@ -2268,11 +2272,13 @@ def settings():
     user_id = session["user_id"]
     config = db.load_config()
     raw_timing = db.get_user_notify_timing(user_id)
+    raw_days = db.get_user_notify_days(user_id)
     user = db.get_user_by_id(user_id) or {}
     return render_template("settings.html",
                            check_interval=config.get("check_interval_seconds", 3600),
                            notify_timing=raw_timing,
                            notify_timing_list=raw_timing.split(","),
+                           notify_days_list=raw_days.split(","),
                            user_email=session.get("email", ""),
                            is_admin=session.get("is_admin", False),
                            current_plan=user.get("plan", "basic"),

@@ -289,6 +289,21 @@ def _send_slack_notification(webhook_url: str, message: str) -> tuple:
         return False, str(e)
 
 
+def _is_notify_day(user_id: int) -> bool:
+    """現在の曜日(JST)がユーザーの通知曜日に含まれるか判定する。"""
+    try:
+        days_str = db.get_user_notify_days(user_id)
+    except Exception:
+        return True
+    allowed = {d.strip() for d in days_str.split(",") if d.strip()}
+    if not allowed:
+        return True
+    today = str(datetime.now(JST).weekday())
+    # Python weekday: 0=月 ... 6=日 → DB: 0=日 1=月 ... 6=土
+    py_to_db = {"0": "1", "1": "2", "2": "3", "3": "4", "4": "5", "5": "6", "6": "0"}
+    return py_to_db.get(today, today) in allowed
+
+
 def _send_line_notification(line_user_id: str, message: str) -> tuple:
     """LINE Messaging API の Push Message エンドポイントに送信する。(ok, error) を返す。"""
     if not line_user_id:
@@ -978,6 +993,9 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
 
 def send_digest_for_user(user_id: int):
     """ユーザーの未通知記事をダイジェストメールで送信する"""
+    if not _is_notify_day(user_id):
+        print(f"[ダイジェスト] user_id={user_id} 今日は通知対象外の曜日です")
+        return
     unnotified = db.load_unnotified_articles(user_id)
     if not unnotified:
         print(f"[ダイジェスト] user_id={user_id} 未通知記事なし")
@@ -1205,14 +1223,17 @@ def check_single_keyword(keyword: str, user_id=None):
         notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
         print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
         if notify_ok:
-            timing = db.get_user_notify_timing(user_id)
-            if timing == "immediate":
-                send_news_email(keyword, new_articles, user_id=user_id)
-                _send_slack_for_keyword(user_id, keyword, new_articles)
-                _send_line_for_keyword(user_id, keyword, new_articles)
-                db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+            if not _is_notify_day(user_id):
+                print(f"  [スキップ] 今日は通知対象外の曜日です")
             else:
-                print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
+                timing = db.get_user_notify_timing(user_id)
+                if timing == "immediate":
+                    send_news_email(keyword, new_articles, user_id=user_id)
+                    _send_slack_for_keyword(user_id, keyword, new_articles)
+                    _send_line_for_keyword(user_id, keyword, new_articles)
+                    db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+                else:
+                    print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
         else:
             print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
     else:
@@ -1317,19 +1338,22 @@ def check_all_keywords():
                 notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
                 print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
                 if notify_ok:
-                    timing = db.get_user_notify_timing(user_id)
-                    if timing == "immediate":
-                        try:
-                            send_news_email(keyword, new_articles, user_id=user_id)
-                            _send_slack_for_keyword(user_id, keyword, new_articles)
-                            _send_line_for_keyword(user_id, keyword, new_articles)
-                            db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
-                        except Exception as e:
-                            import traceback
-                            print(f"  [エラー] メール送信失敗 user_id={user_id} keyword={keyword!r}: {e}")
-                            print(f"  [トレース] {traceback.format_exc()}")
+                    if not _is_notify_day(user_id):
+                        print(f"  [スキップ] 今日は通知対象外の曜日です")
                     else:
-                        print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
+                        timing = db.get_user_notify_timing(user_id)
+                        if timing == "immediate":
+                            try:
+                                send_news_email(keyword, new_articles, user_id=user_id)
+                                _send_slack_for_keyword(user_id, keyword, new_articles)
+                                _send_line_for_keyword(user_id, keyword, new_articles)
+                                db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+                            except Exception as e:
+                                import traceback
+                                print(f"  [エラー] メール送信失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                                print(f"  [トレース] {traceback.format_exc()}")
+                        else:
+                            print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
                 else:
                     print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
             else:

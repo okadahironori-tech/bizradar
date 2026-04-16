@@ -178,6 +178,17 @@
             {% endfor %}
           </div>
         </div>
+        <hr style="border:none; border-top:1px solid #f0f2f5; width:100%; margin:4px 0;">
+        <div style="font-size:0.8rem; color:#6b7280; font-weight:600; margin-bottom:4px;">通知する曜日</div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px 16px;">
+          {% for val, lbl in [("0","日"),("1","月"),("2","火"),("3","水"),("4","木"),("5","金"),("6","土")] %}
+          <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; cursor:pointer;">
+            <input type="checkbox" name="notify_days" value="{{ val }}"
+              {% if val in notify_days_list %}checked{% endif %}>
+            <span>{{ lbl }}</span>
+          </label>
+          {% endfor %}
+        </div>
         <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">保存</button></div>
       </form>
     </div>

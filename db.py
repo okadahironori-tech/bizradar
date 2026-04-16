@@ -463,6 +463,12 @@ def _run_migrations():
             cur.execute("UPDATE users SET plan = 'basic' WHERE plan = 'free';")
             cur.execute("ALTER TABLE users ALTER COLUMN plan SET DEFAULT 'basic';")
 
+            # users: 通知曜日（カンマ区切り 0=日 1=月 ... 6=土）
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "notify_days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6';"
+            )
+
             # users: 氏名（メール本文の宛名表示に使用、任意入力）
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
@@ -1842,6 +1848,33 @@ _VALID_TIMINGS = {
     "immediate", "digest_05", "digest_06", "digest_07", "digest_08",
     "digest_09", "digest_16", "digest_17", "digest_18",
 }
+
+
+def get_user_notify_days(user_id: int) -> str:
+    """ユーザーの通知曜日設定を返す（カンマ区切り、例: '1,2,3,4,5'）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(notify_days, '0,1,2,3,4,5,6') FROM users WHERE id = %s",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            return row[0] if row else "0,1,2,3,4,5,6"
+
+
+def set_user_notify_days(user_id: int, days: str) -> bool:
+    """ユーザーの通知曜日設定を更新する。days は '0,1,2,3,4,5' のようなカンマ区切り文字列。"""
+    values = [v.strip() for v in days.split(",") if v.strip()]
+    valid = {"0", "1", "2", "3", "4", "5", "6"}
+    if any(v not in valid for v in values):
+        return False
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET notify_days = %s WHERE id = %s",
+                (",".join(values), user_id),
+            )
+            return cur.rowcount > 0
 
 
 def set_user_notify_timing(user_id: int, timing: str) -> bool:
