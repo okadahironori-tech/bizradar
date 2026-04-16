@@ -584,7 +584,7 @@ function dismissAlert(btn) {
   {% endif %}
 
   <!-- 重要アラート（JS再描画） -->
-  <section id="dash-alert-section"{% if not summary_alert %} style="display:none"{% endif %}>
+  <section id="dash-alert-section">
     <div class="section-title">
       重要アラート
       <span class="count" id="dash-alert-count" data-server-count="{{ summary_alert }}">{{ summary_alert }} 件</span>
@@ -852,9 +852,11 @@ function renderDashSections() {
     var unreadAlerts = _dashArticles.filter(function(a) { return isHigh(a) && !_readState.get(a.id); });
     var serverAlert = parseInt(alertCountEl ? alertCountEl.dataset.serverCount || '0' : '0', 10);
     var displayAlert = Math.max(0, serverAlert + _calcDelta(isHigh));
-    if (alertSection) alertSection.style.display = displayAlert > 0 ? '' : 'none';
+    if (alertSection) alertSection.style.display = '';
     if (alertCountEl) alertCountEl.textContent = displayAlert + ' 件';
-    alertContainer.innerHTML = unreadAlerts.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR;
+    alertContainer.innerHTML = unreadAlerts.length
+      ? unreadAlerts.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR
+      : '<div style="padding:16px;font-size:0.85rem;color:#9ca3af;">未読の重要アラートはありません</div>';
     var cardAlert = document.getElementById('summary-card-val-alert');
     if (cardAlert) cardAlert.textContent = displayAlert;
   }
