@@ -1042,10 +1042,6 @@ def send_digest_for_user(user_id: int):
                 _a["is_alert"] = _is_alert(_a.get("title", ""), effective)
 
         send_digest_email(user_email, articles_by_keyword, alert_kws=alert_kws, user_name=user_name)
-        # メール送信と同じ粒度でキーワードごとに Slack / LINE へも通知
-        for _kw, _arts in articles_by_keyword.items():
-            _send_slack_for_keyword(user_id, _kw, _arts)
-            _send_line_for_keyword(user_id, _kw, _arts)
 
     # 送信有無にかかわらず全未通知を通知済みにする（再送防止）
     db.mark_all_unnotified_notified(user_id)
@@ -1229,8 +1225,6 @@ def check_single_keyword(keyword: str, user_id=None):
                 timing = db.get_user_notify_timing(user_id)
                 if timing == "immediate":
                     send_news_email(keyword, new_articles, user_id=user_id)
-                    _send_slack_for_keyword(user_id, keyword, new_articles)
-                    _send_line_for_keyword(user_id, keyword, new_articles)
                     db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
                 else:
                     print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
@@ -1346,8 +1340,6 @@ def check_all_keywords():
                     if timing == "immediate":
                         try:
                             send_news_email(keyword, new_articles, user_id=user_id)
-                            _send_slack_for_keyword(user_id, keyword, new_articles)
-                            _send_line_for_keyword(user_id, keyword, new_articles)
                             db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
                         except Exception as e:
                             import traceback

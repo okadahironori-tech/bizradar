@@ -474,6 +474,25 @@ def _notify_tdnet_new(new_doc_ids: list):
             )
             if matched:
                 _send_tdnet_alert(email, matched)
+                # Slack / LINE 通知（Proプランのみ）
+                try:
+                    import monitor as _monitor
+                    user_detail = db.get_user_by_id(uid) or {}
+                    webhook_url = (user_detail.get("slack_webhook_url") or "").strip()
+                    line_uid = (user_detail.get("line_user_id") or "").strip()
+                    if webhook_url or line_uid:
+                        for d in matched:
+                            msg = (
+                                f"[BizRadar] {d.get('company_name', '')}が適時開示を発表しました。\n"
+                                f"{d.get('title', '')}\n"
+                                f"{d.get('document_url', '')}"
+                            )
+                            if webhook_url:
+                                _monitor._send_slack_notification(webhook_url, msg)
+                            if line_uid:
+                                _monitor._send_line_notification(line_uid, msg)
+                except Exception as e2:
+                    logger.error("[tdnet-notify] slack/line failed uid=%s: %s", uid, e2)
         except Exception as e:
             logger.error("[tdnet-alert] user_id=%s error=%s", uid, e)
 

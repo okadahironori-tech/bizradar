@@ -224,7 +224,7 @@
   <section>
     <div class="section-title">Slack通知</div>
     <div class="card">
-      {% if current_plan in ('business', 'pro') %}
+      {% if current_plan == 'pro' %}
       <form id="slack-form" method="POST" action="/settings/slack" style="display:flex;flex-direction:column;gap:10px;padding-bottom:16px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label style="font-size:0.88rem;font-weight:600;color:#4a4a6a;">Slack Incoming Webhook URL</label>
@@ -266,7 +266,7 @@
       </script>
       {% else %}
       <div style="padding:10px 4px;font-size:0.88rem;color:#6b7280;">
-        ビジネス以上のプランで利用可能
+        Proプランで利用可能
       </div>
       {% endif %}
     </div>
@@ -276,7 +276,7 @@
   <section>
     <div class="section-title">LINE通知</div>
     <div class="card">
-      {% if current_plan in ('business', 'pro') %}
+      {% if current_plan == 'pro' %}
         {% if current_line_user_id %}
           <div style="padding:10px 4px;font-size:0.88rem;color:#065f46;">
             LINE連携済み（User ID 末尾: ...{{ current_line_user_id[-6:] }}）
@@ -319,7 +319,7 @@
         {% endif %}
       {% else %}
         <div style="padding:10px 4px;font-size:0.88rem;color:#6b7280;">
-          ビジネス以上のプランで利用可能
+          Proプランで利用可能
         </div>
       {% endif %}
     </div>
