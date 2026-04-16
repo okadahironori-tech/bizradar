@@ -2820,6 +2820,29 @@ def is_company_notify_enabled(user_id: int, company_id: int) -> bool:
             return row[0] if row else True
 
 
+def count_user_unread(user_id: int) -> int:
+    """ユーザーの全未読記事数を返す（フィルタなし・LIMIT なし）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM articles WHERE user_id = %s AND is_read = FALSE",
+                (user_id,),
+            )
+            return cur.fetchone()[0]
+
+
+def count_user_high_importance_unread(user_id: int) -> int:
+    """ユーザーの importance='high' かつ未読の記事数を返す"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM articles "
+                "WHERE user_id = %s AND is_read = FALSE AND importance = 'high'",
+                (user_id,),
+            )
+            return cur.fetchone()[0]
+
+
 def update_keyword_order(user_id: int, keyword_ids: list):
     """keyword_ids の配列順に sort_order を振り直す。自ユーザーのキーワードのみ更新する。"""
     with _conn() as conn:

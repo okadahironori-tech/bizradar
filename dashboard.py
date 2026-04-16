@@ -934,9 +934,9 @@ def index():
     for a in all_articles:
         a["published"] = a.get("published", "")
 
-    # ---- サマリー集計 ---- 重複排除後の all_articles をカウント
-    unread_count       = sum(1 for a in all_articles if not a.get("is_read"))
-    alert_count        = sum(1 for a in all_articles if a.get("importance") == "high" and not a.get("is_read"))
+    # ---- サマリー集計 ---- SQL で全件カウント（LIMIT・重複排除の影響を受けない）
+    unread_count       = db.count_user_unread(user_id)
+    alert_count        = db.count_user_high_importance_unread(user_id)
     error_site_count   = sum(1 for s in sites if s["status"] == "error")
     today_company_list = db.load_active_companies_today(user_id)
 
