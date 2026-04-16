@@ -589,6 +589,16 @@ def _run_migrations():
                     (admin_email,)
                 )
 
+            # データ修正: 愛三工業のかな読み
+            cur.execute(
+                "UPDATE listed_companies SET company_name_kana = 'あいさんこうぎょう' "
+                "WHERE company_name = '愛三工業';"
+            )
+            cur.execute(
+                "UPDATE companies SET name_kana = 'あいさんこうぎょう' "
+                "WHERE name = '愛三工業';"
+            )
+
 
 # ============================================================
 # Users
