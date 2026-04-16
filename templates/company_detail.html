@@ -326,6 +326,10 @@
     .kw-toggle input:checked + .slider { background: #3949ab; }
     .kw-toggle input:checked + .slider::before { transform: translateX(18px); }
 
+    @media (min-width: 769px) {
+      #yt-ch-id-input { flex: 6; }
+      #yt-ch-label-input { flex: 4; }
+    }
     @media (max-width: 768px) {
       section .card table.kw-linked-table { display: block; padding: 0 12px; }
       section .card .kw-linked-table thead { display: none; }
