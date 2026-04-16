@@ -428,7 +428,7 @@ def _run_migrations():
             # users: 課金プラン ('free' / 'pro' / 'corporate') と Stripe 顧客 ID
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
-                "plan TEXT NOT NULL DEFAULT 'free';"
+                "plan TEXT NOT NULL DEFAULT 'basic';"
             )
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
@@ -452,6 +452,10 @@ def _run_migrations():
                     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
             """)
+            # users: plan='free' を 'basic' に一括移行 + デフォルト値も更新
+            cur.execute("UPDATE users SET plan = 'basic' WHERE plan = 'free';")
+            cur.execute("ALTER TABLE users ALTER COLUMN plan SET DEFAULT 'basic';")
+
             # users: 氏名（メール本文の宛名表示に使用、任意入力）
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
