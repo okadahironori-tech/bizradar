@@ -840,7 +840,7 @@ def get_all_users() -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT u.id, u.email, u.is_admin, u.created_at,
+                SELECT u.id, u.email, u.is_admin, u.plan, u.created_at,
                     (SELECT COUNT(*) FROM sites    s WHERE s.user_id = u.id) AS site_count,
                     (SELECT COUNT(*) FROM keywords k WHERE k.user_id = u.id) AS keyword_count,
                     (SELECT COUNT(*) FROM articles a WHERE a.user_id = u.id) AS article_count

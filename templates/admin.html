@@ -155,9 +155,11 @@
   <div class="section-title">ユーザー一覧 <span style="font-size:0.85rem; color:#9ca3af;">（{{ users | length }} 人）</span></div>
   <div class="card">
     <table>
+      {% set plan_labels = {'basic': 'ベーシック', 'business': 'ビジネス', 'pro': 'Pro'} %}
       <thead>
         <tr>
           <th>メールアドレス</th>
+          <th>プラン</th>
           <th style="text-align:right">サイト数</th>
           <th style="text-align:right">キーワード数</th>
           <th style="text-align:right">記事数</th>
@@ -171,6 +173,7 @@
             {{ user.email }}
             {% if user.is_admin %}<span class="badge-admin">管理者</span>{% endif %}
           </td>
+          <td style="color:#4a4a6a;">{{ plan_labels.get(user.plan, user.plan) }}</td>
           <td style="text-align:right; color:#6b7280;">{{ user.site_count }}</td>
           <td style="text-align:right; color:#6b7280;">{{ user.keyword_count }}</td>
           <td style="text-align:right; color:#6b7280;">{{ user.article_count }}</td>
@@ -183,7 +186,7 @@
         {% endfor %}
         {% if not users %}
         <tr>
-          <td colspan="5" style="text-align:center; padding:40px; color:#9ca3af;">
+          <td colspan="6" style="text-align:center; padding:40px; color:#9ca3af;">
             ユーザーが登録されていません
           </td>
         </tr>
