@@ -514,6 +514,7 @@
       {% if company.website_url %}
       <div class="url"><a href="{{ company.website_url }}" target="_blank" rel="noopener">{{ company.website_url }}</a></div>
       {% endif %}
+      {% if company.securities_code %}<div class="kana">証券コード: {{ company.securities_code }}</div>{% endif %}
       {% if company.memo %}<div class="memo">{{ company.memo }}</div>{% endif %}
     </div>
     <div class="company-header-actions" style="display:flex;align-items:center;gap:10px;">
