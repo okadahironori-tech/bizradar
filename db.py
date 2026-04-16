@@ -399,6 +399,13 @@ def _run_migrations():
                 "company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
             )
 
+            # keywords: 表示順カラム（ドラッグ&ドロップ並び替え用）
+            cur.execute(
+                "ALTER TABLE keywords ADD COLUMN IF NOT EXISTS "
+                "sort_order INTEGER NOT NULL DEFAULT 0;"
+            )
+            cur.execute("UPDATE keywords SET sort_order = id WHERE sort_order = 0;")
+
             # keywords: 重複行を削除してUNIQUE制約を確実に追加
             cur.execute("""
                 DELETE FROM keywords k1
@@ -1107,12 +1114,12 @@ def load_keywords(user_id=None) -> list:
             if user_id is not None:
                 cur.execute(
                     "SELECT keyword, COALESCE(notify_enabled, TRUE) FROM keywords "
-                    "WHERE user_id = %s ORDER BY id",
+                    "WHERE user_id = %s ORDER BY sort_order, id",
                     (user_id,),
                 )
             else:
                 cur.execute(
-                    "SELECT keyword, COALESCE(notify_enabled, TRUE) FROM keywords ORDER BY id"
+                    "SELECT keyword, COALESCE(notify_enabled, TRUE) FROM keywords ORDER BY sort_order, id"
                 )
             return [{"keyword": row[0], "notify_enabled": bool(row[1])} for row in cur.fetchall()]
 
@@ -1201,7 +1208,7 @@ def load_all_keywords_with_users() -> list:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE), id, company_id "
-                "FROM keywords WHERE user_id IS NOT NULL ORDER BY id"
+                "FROM keywords WHERE user_id IS NOT NULL ORDER BY sort_order, id"
             )
             return [
                 (row[0], row[1], bool(row[2]), row[3], row[4])
@@ -2737,13 +2744,24 @@ def load_company_sites(user_id: int, company_id: int) -> list:
             return [dict(row) for row in cur.fetchall()]
 
 
+def update_keyword_order(user_id: int, keyword_ids: list):
+    """keyword_ids の配列順に sort_order を振り直す。自ユーザーのキーワードのみ更新する。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            for i, kid in enumerate(keyword_ids):
+                cur.execute(
+                    "UPDATE keywords SET sort_order = %s WHERE id = %s AND user_id = %s",
+                    (i, int(kid), user_id),
+                )
+
+
 def load_company_keywords(user_id: int, company_id: int) -> list:
     """企業に紐づくキーワード一覧"""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT id, keyword, notify_enabled FROM keywords "
-                "WHERE user_id=%s AND company_id=%s ORDER BY id",
+                "WHERE user_id=%s AND company_id=%s ORDER BY sort_order, id",
                 (user_id, company_id),
             )
             return [dict(row) for row in cur.fetchall()]
@@ -2854,7 +2872,7 @@ def load_keywords_with_company(user_id: int) -> list:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT id, keyword, notify_enabled, company_id FROM keywords "
-                "WHERE user_id=%s ORDER BY id",
+                "WHERE user_id=%s ORDER BY sort_order, id",
                 (user_id,),
             )
             return [dict(row) for row in cur.fetchall()]

@@ -1497,6 +1497,26 @@ def delete_company_alert(company_id, alert_id):
     return redirect(url_for("company_detail", company_id=company_id))
 
 
+@app.route("/api/keyword_order", methods=["POST"])
+@login_required
+def api_keyword_order():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    keyword_ids = data.get("keyword_ids", [])
+    if not keyword_ids or not isinstance(keyword_ids, list):
+        return jsonify({"success": False, "message": "invalid request"})
+    try:
+        keyword_ids = [int(k) for k in keyword_ids]
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "invalid keyword_ids"})
+    try:
+        db.update_keyword_order(user_id, keyword_ids)
+    except Exception as e:
+        logger.error("[keyword_order] failed: %s", e)
+        return jsonify({"success": False, "message": "update failed"})
+    return jsonify({"success": True})
+
+
 @app.route("/api/delete_keyword", methods=["POST"])
 @login_required
 def api_delete_keyword():
