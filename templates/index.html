@@ -549,7 +549,7 @@ function dismissAlert(btn) {
       <div data-key="{{ key }}" style="text-decoration:none; color:inherit; display:block;">
       {% endif %}
         <div class="summary-card {% if c.color == 'red' %}card-alert{% elif c.color == 'blue' %}card-unread{% endif %}">
-          <div class="summary-card-val">{{ c.value }}</div>
+          <div class="summary-card-val" id="summary-card-val-{{ key }}">{{ c.value }}</div>
           <div class="summary-card-label">{{ c.label }}</div>
         </div>
       {% if c.anchor %}</a>{% else %}</div>{% endif %}
@@ -826,57 +826,53 @@ function _articleItemHtml(article) {
 
 const _VIEW_ALL_BAR = '<div class="view-all-bar"><div style="text-align:right;"><div style="font-size:0.8rem; color:#aaa; margin-bottom:6px;">既読記事はニュースページで確認できます</div><a href="/news" class="view-all-link">一覧を見る</a></div></div>';
 
+function _calcDelta(filterFn) {
+  return _dashArticles.reduce(function(acc, a) {
+    if (!filterFn(a)) return acc;
+    var nowRead = !!_readState.get(a.id);
+    var initRead = !!a.is_read;
+    if (!initRead && nowRead) return acc - 1;
+    if (initRead && !nowRead) return acc + 1;
+    return acc;
+  }, 0);
+}
+
 function renderDashSections() {
-  // ── 重要アラート: 未読アラート 上位3件 ──
-  // 件数はサーバ計算値（summary_alert）を起点にクライアント既読トグル差分で補正
-  const alertSection   = document.getElementById('dash-alert-section');
-  const alertContainer = document.getElementById('dash-alert-container');
-  const alertCount     = document.getElementById('dash-alert-count');
+  var isHigh = function(a) { return a.importance === 'high'; };
+
+  // ── 重要アラート: importance='high' かつ未読 ──
+  var alertSection   = document.getElementById('dash-alert-section');
+  var alertContainer = document.getElementById('dash-alert-container');
+  var alertCountEl   = document.getElementById('dash-alert-count');
   if (alertContainer) {
-    const unreadAlerts = _dashArticles.filter(a => a.is_alert && !_readState.get(a.id));
-    // 表示対象のアラート（_dashArticles は最大300件）
-    // ヘッダー件数: サーバ値 + （クライアントでの未読→既読切替数 - 既読→未読切替数）
-    const serverCount = parseInt(alertCount ? alertCount.dataset.serverCount || '0' : '0', 10);
-    const clientDelta = _dashArticles.reduce((acc, a) => {
-      if (!a.is_alert) return acc;
-      const nowRead = !!_readState.get(a.id);
-      const initRead = !!a.is_read;
-      if (!initRead && nowRead) return acc - 1;   // 未読→既読
-      if (initRead && !nowRead) return acc + 1;   // 既読→未読
-      return acc;
-    }, 0);
-    const displayCount = Math.max(0, serverCount + clientDelta);
-    if (alertSection) alertSection.style.display = displayCount > 0 ? '' : 'none';
-    if (alertCount)   alertCount.textContent = displayCount + ' 件';
+    var unreadAlerts = _dashArticles.filter(function(a) { return isHigh(a) && !_readState.get(a.id); });
+    var serverAlert = parseInt(alertCountEl ? alertCountEl.dataset.serverCount || '0' : '0', 10);
+    var displayAlert = Math.max(0, serverAlert + _calcDelta(isHigh));
+    if (alertSection) alertSection.style.display = displayAlert > 0 ? '' : 'none';
+    if (alertCountEl) alertCountEl.textContent = displayAlert + ' 件';
     alertContainer.innerHTML = unreadAlerts.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR;
+    var cardAlert = document.getElementById('summary-card-val-alert');
+    if (cardAlert) cardAlert.textContent = displayAlert;
   }
 
-  // ── ニュース: 未読・非アラート 上位3件 ──
-  // 件数はサーバ計算値（summary_unread）を起点にクライアント既読トグル差分で補正
-  const newsContainer = document.getElementById('dash-news-container');
-  const newsCount     = document.getElementById('dash-news-count');
+  // ── ニュース: 全未読 ──
+  var newsContainer = document.getElementById('dash-news-container');
+  var newsCountEl   = document.getElementById('dash-news-count');
   if (newsContainer) {
-    let unreadNews = _dashArticles.filter(a => !a.is_alert && !_readState.get(a.id));
-    unreadNews = [...unreadNews].sort((a, b) => {
-      const da = new Date(a.published || 0), db = new Date(b.published || 0);
-      return _newsOrder === 'asc' ? da - db : db - da;
+    var unreadNews = _dashArticles.filter(function(a) { return !isHigh(a) && !_readState.get(a.id); });
+    unreadNews = [].concat(unreadNews).sort(function(a, b) {
+      var da = new Date(a.published || 0), db2 = new Date(b.published || 0);
+      return _newsOrder === 'asc' ? da - db2 : db2 - da;
     });
-    if (newsCount) {
-      const serverCount = parseInt(newsCount.dataset.serverCount || '0', 10);
-      const clientDelta = _dashArticles.reduce((acc, a) => {
-        if (a.is_alert) return acc;
-        const nowRead = !!_readState.get(a.id);
-        const initRead = !!a.is_read;
-        if (!initRead && nowRead) return acc - 1;   // 未読→既読
-        if (initRead && !nowRead) return acc + 1;   // 既読→未読
-        return acc;
-      }, 0);
-      const displayCount = Math.max(0, serverCount + clientDelta);
-      newsCount.textContent = displayCount + ' 件';
-    }
+    // 未読記事カード: 全未読数（アラート含む）
+    var serverUnread = parseInt(newsCountEl ? newsCountEl.dataset.serverCount || '0' : '0', 10);
+    var displayUnread = Math.max(0, serverUnread + _calcDelta(function() { return true; }));
+    if (newsCountEl) newsCountEl.textContent = displayUnread + ' 件';
     newsContainer.innerHTML = unreadNews.length
       ? unreadNews.slice(0, 3).map(_articleItemHtml).join('') + _VIEW_ALL_BAR
       : '<div class="empty-state">未読記事はありません</div>' + _VIEW_ALL_BAR;
+    var cardUnread = document.getElementById('summary-card-val-unread');
+    if (cardUnread) cardUnread.textContent = displayUnread;
   }
 }
 
