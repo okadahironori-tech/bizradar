@@ -909,7 +909,11 @@
             <input type="text" id="yt-ch-label-input" placeholder="ラベル（任意）" maxlength="50"
                    style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px;">
             <button type="button" class="btn btn-primary" onclick="addYtChannel()">追加</button>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="searchYtChannel()" style="white-space:nowrap;">チャンネル名で検索</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px;">
+            <input type="text" id="yt-search-input" placeholder="チャンネル名で検索" maxlength="100"
+                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; min-width:180px; flex:1;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="searchYtChannel()" style="white-space:nowrap;">検索</button>
           </div>
           <div id="yt-search-results" style="display:none; margin-top:8px; border:1px solid #d1d5db; border-radius:8px; overflow:hidden;"></div>
         </div>
@@ -1346,7 +1350,7 @@ function _ytUpdateCount() {
   if (form) form.style.display = n >= 5 ? 'none' : 'flex';
 }
 function searchYtChannel() {
-  var input = document.getElementById('yt-ch-id-input');
+  var input = document.getElementById('yt-search-input');
   var q = (input.value || '').trim();
   if (!q) return;
   var box = document.getElementById('yt-search-results');
