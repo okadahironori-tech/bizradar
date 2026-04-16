@@ -220,6 +220,31 @@
     </div>
   </section>
 
+  <!-- ── 全社共通 重要アラートキーワード ── -->
+  <section>
+    <div class="section-title">全社共通 重要アラートキーワード</div>
+    <div class="card">
+      <div style="padding:16px 20px;">
+        <div style="font-size:0.82rem;color:#6b7280;margin-bottom:12px;line-height:1.6;">
+          登録した全企業に共通して適用される重要アラートキーワードです。記事タイトルにこのキーワードが含まれると重要アラートとして表示されます。
+        </div>
+        <div id="global-alert-kw-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+          {% for ak in global_alert_keywords %}
+          <button type="button" class="btn btn-ghost btn-sm" data-id="{{ ak.id }}"
+                  onclick="deleteGlobalAlertKw(this)"
+                  style="border-radius:20px;padding:4px 12px;font-size:0.8rem;background:#fff7ed;border-color:#fed7aa;color:#b45309;"
+                  title="クリックで削除">{{ ak.keyword }} ×</button>
+          {% endfor %}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="global-alert-kw-input" placeholder="例: 倒産、訴訟、リコール" maxlength="50"
+                 style="padding:7px 12px;font-size:0.88rem;border:1.5px solid #d1d5db;border-radius:8px;flex:1;min-width:160px;">
+          <button type="button" class="btn btn-primary" onclick="addGlobalAlertKw()">追加</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── Slack通知 ── -->
   <section>
     <div class="section-title">Slack通知</div>
@@ -528,6 +553,48 @@
 <button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
+</script>
+<script>
+function _settingsCsrf() {
+  var el = document.querySelector('input[name="csrf_token"]');
+  return el ? el.value : '';
+}
+function addGlobalAlertKw() {
+  var input = document.getElementById('global-alert-kw-input');
+  var kw = (input.value || '').trim();
+  if (!kw) return;
+  fetch('/api/global_alert_keyword', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _settingsCsrf() },
+    credentials: 'same-origin',
+    body: JSON.stringify({ keyword: kw })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.success) { alert(d.message || 'エラー'); return; }
+    var list = document.getElementById('global-alert-kw-list');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-ghost btn-sm';
+    btn.dataset.id = d.id;
+    btn.setAttribute('onclick', 'deleteGlobalAlertKw(this)');
+    btn.style.cssText = 'border-radius:20px;padding:4px 12px;font-size:0.8rem;background:#fff7ed;border-color:#fed7aa;color:#b45309;';
+    btn.title = 'クリックで削除';
+    btn.textContent = d.keyword + ' ×';
+    list.appendChild(btn);
+    input.value = '';
+  }).catch(function(e) { alert('送信エラー: ' + e); });
+}
+function deleteGlobalAlertKw(btn) {
+  if (!confirm('このキーワードを削除しますか？')) return;
+  var id = btn.dataset.id;
+  fetch('/api/global_alert_keyword/' + id, {
+    method: 'DELETE',
+    headers: { 'X-CSRFToken': _settingsCsrf() },
+    credentials: 'same-origin'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) btn.remove();
+    else alert(d.message || '削除に失敗しました');
+  }).catch(function(e) { alert('削除エラー: ' + e); });
+}
 </script>
 </body>
 </html>

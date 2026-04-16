@@ -2313,11 +2313,38 @@ def settings():
                            notify_days_list=raw_days.split(","),
                            user_email=session.get("email", ""),
                            is_admin=session.get("is_admin", False),
+                           global_alert_keywords=db.load_alert_keywords(user_id),
                            current_plan=user.get("plan", "basic"),
                            current_slack_webhook_url=user.get("slack_webhook_url", "") or "",
                            current_line_user_id=user.get("line_user_id", "") or "",
                            line_official_id=os.environ.get("LINE_OFFICIAL_ID", "@490kqrnm"),
                            dashboard_settings=db.get_dashboard_settings(user_id))
+
+
+@app.route("/api/global_alert_keyword", methods=["POST"])
+@login_required
+def api_global_alert_keyword_add():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    keyword = (data.get("keyword") or "").strip()
+    if not keyword:
+        return jsonify({"success": False, "message": "キーワードを入力してください"})
+    if len(keyword) > 50:
+        return jsonify({"success": False, "message": "50文字以内で入力してください"})
+    result = db.add_alert_keyword(user_id, keyword)
+    if result is False:
+        return jsonify({"success": False, "message": f"「{keyword}」は登録済みです"})
+    return jsonify({"success": True, "keyword": keyword, "id": result})
+
+
+@app.route("/api/global_alert_keyword/<int:keyword_id>", methods=["DELETE"])
+@login_required
+def api_global_alert_keyword_delete(keyword_id):
+    user_id = session["user_id"]
+    ok = db.delete_alert_keyword(user_id, keyword_id)
+    if ok:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "message": "削除に失敗しました"})
 
 
 @app.route("/settings/plan", methods=["POST"])
