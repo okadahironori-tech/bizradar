@@ -885,7 +885,14 @@
         YouTube チャンネル
         <span class="count-badge" id="yt-count">{{ youtube_channels | length }}</span>
       </div>
-      <div class="section-desc">チャンネルID・@ハンドル名・YouTubeのURLのいずれかを入力してください。新着動画を自動収集します（最大5チャンネル）</div>
+      <div class="section-desc">
+        以下のいずれかの形式で入力してください（最大5チャンネル）
+        <ul style="margin:6px 0 0 18px;padding:0;font-size:0.82rem;color:#6b7280;line-height:1.7;">
+          <li>チャンネルID：UC5G0T_tIPj0aCHMi-ihvfiw</li>
+          <li>ハンドル名：@ToyotaGlobalNewsJP</li>
+          <li>URL：https://www.youtube.com/@ToyotaGlobalNewsJP</li>
+        </ul>
+      </div>
       <div style="padding:14px 20px 18px;">
         <div id="yt-channel-list" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
           {% for ch in youtube_channels %}
