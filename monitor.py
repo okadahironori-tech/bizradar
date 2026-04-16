@@ -569,7 +569,7 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
             print(f"[fetch] skip old unverified: {url}")
             continue
         importance = _score_article_importance(title, user_plan)
-        summary = _summarize_article(title, url, user_plan)
+        summary = ""
         articles.append({
             "keyword":       keyword,
             "title":         title,
@@ -653,7 +653,7 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
                 print(f"[fetch] skip old unverified: {url}")
                 continue
             importance = _score_article_importance(title, user_plan)
-            summary = _summarize_article(title, url, user_plan)
+            summary = ""
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
