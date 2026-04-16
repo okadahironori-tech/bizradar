@@ -877,15 +877,26 @@
   <!-- YouTube チャンネル -->
   <section>
     <div class="card">
-      <div class="section-title">YouTube チャンネルID</div>
-      <div class="section-desc">YouTubeチャンネルIDを登録すると新着動画を収集します</div>
+      <div class="section-title">
+        YouTube チャンネル
+        <span class="count-badge" id="yt-count">{{ youtube_channels | length }}</span>
+      </div>
+      <div class="section-desc">YouTubeチャンネルIDを登録すると新着動画を収集します（最大5件）</div>
       <div style="padding:14px 20px 18px;">
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input type="text" id="yt-channel-input"
-                 value="{{ company.youtube_channel_id or '' }}"
-                 placeholder="例：UCxxxxxxxxxxxxxxxxxxxxxx" maxlength="100"
+        <div id="yt-channel-list" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+          {% for ch in youtube_channels %}
+          <div class="yt-ch-item" data-id="{{ ch.id }}" style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:#f9fafb; border-radius:8px;">
+            <span style="flex:1; font-size:0.85rem; color:#1a1a2e; word-break:break-all;">{{ ch.channel_id }}{% if ch.label %} <span style="color:#6b7280;">（{{ ch.label }}）</span>{% endif %}</span>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="deleteYtChannel(this)" style="flex-shrink:0;">削除</button>
+          </div>
+          {% endfor %}
+        </div>
+        <div id="yt-add-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;{% if youtube_channels | length >= 5 %} display:none;{% endif %}">
+          <input type="text" id="yt-ch-id-input" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx" maxlength="100"
                  style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1; min-width:180px;">
-          <button type="button" class="btn btn-primary" onclick="saveYoutubeChannel()">保存</button>
+          <input type="text" id="yt-ch-label-input" placeholder="ラベル（任意）" maxlength="50"
+                 style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; width:120px;">
+          <button type="button" class="btn btn-primary" onclick="addYtChannel()">追加</button>
         </div>
       </div>
     </div>
@@ -1312,18 +1323,50 @@ function toggleCompanyNotify(cb) {
     if (!d.success) cb.checked = !cb.checked;
   }).catch(function() { cb.checked = !cb.checked; });
 }
-function saveYoutubeChannel() {
-  var input = document.getElementById('yt-channel-input');
-  var val = (input.value || '').trim();
-  fetch('/api/company_youtube/{{ company.id }}', {
+function _ytUpdateCount() {
+  var n = document.querySelectorAll('.yt-ch-item').length;
+  var cnt = document.getElementById('yt-count');
+  if (cnt) cnt.textContent = n;
+  var form = document.getElementById('yt-add-form');
+  if (form) form.style.display = n >= 5 ? 'none' : 'flex';
+}
+function addYtChannel() {
+  var chId = (document.getElementById('yt-ch-id-input').value || '').trim();
+  var label = (document.getElementById('yt-ch-label-input').value || '').trim();
+  if (!chId) return;
+  fetch('/api/company_youtube_channel/{{ company.id }}', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
     credentials: 'same-origin',
-    body: JSON.stringify({ youtube_channel_id: val })
+    body: JSON.stringify({ channel_id: chId, label: label })
   }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.success) alert(val ? 'YouTube チャンネルIDを保存しました' : 'YouTube チャンネルIDを解除しました');
-    else alert('保存に失敗しました');
+    if (!d.success) { alert(d.message || 'エラー'); return; }
+    var list = document.getElementById('yt-channel-list');
+    var div = document.createElement('div');
+    div.className = 'yt-ch-item';
+    div.dataset.id = d.id;
+    div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9fafb;border-radius:8px;';
+    var labelHtml = d.label ? ' <span style="color:#6b7280;">（' + d.label + '）</span>' : '';
+    div.innerHTML = '<span style="flex:1;font-size:0.85rem;color:#1a1a2e;word-break:break-all;">' + d.channel_id + labelHtml + '</span>'
+      + '<button type="button" class="btn btn-ghost btn-sm" onclick="deleteYtChannel(this)" style="flex-shrink:0;">削除</button>';
+    list.appendChild(div);
+    document.getElementById('yt-ch-id-input').value = '';
+    document.getElementById('yt-ch-label-input').value = '';
+    _ytUpdateCount();
   }).catch(function(e) { alert('エラー: ' + e); });
+}
+function deleteYtChannel(btn) {
+  if (!confirm('このチャンネルを削除しますか？')) return;
+  var item = btn.closest('.yt-ch-item');
+  var id = item.dataset.id;
+  fetch('/api/company_youtube_channel/' + id, {
+    method: 'DELETE',
+    headers: { 'X-CSRFToken': _csrfToken() },
+    credentials: 'same-origin'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { item.remove(); _ytUpdateCount(); }
+    else alert(d.message || '削除に失敗しました');
+  }).catch(function(e) { alert('削除エラー: ' + e); });
 }
 function toggleKwNotify(cb) {
   var keyword = cb.dataset.keyword;

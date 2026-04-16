@@ -1523,6 +1523,33 @@ def api_company_youtube(company_id):
     return jsonify({"success": True, "youtube_channel_id": channel_id})
 
 
+@app.route("/api/company_youtube_channel/<int:company_id>", methods=["POST"])
+@login_required
+def api_add_youtube_channel(company_id):
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    channel_id = (data.get("channel_id") or "").strip()
+    label = (data.get("label") or "").strip()
+    if not channel_id:
+        return jsonify({"success": False, "message": "チャンネルIDを入力してください"})
+    result = db.add_company_youtube_channel(user_id, company_id, channel_id, label)
+    if result is None:
+        return jsonify({"success": False, "message": "追加に失敗しました（重複または権限エラー）"})
+    if result == -1:
+        return jsonify({"success": False, "message": "登録上限（5件）に達しています"})
+    return jsonify({"success": True, "id": result, "channel_id": channel_id, "label": label})
+
+
+@app.route("/api/company_youtube_channel/<int:channel_db_id>", methods=["DELETE"])
+@login_required
+def api_delete_youtube_channel(channel_db_id):
+    user_id = session["user_id"]
+    ok = db.delete_company_youtube_channel(user_id, channel_db_id)
+    if ok:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "message": "削除に失敗しました"})
+
+
 @app.route("/api/company_notify_toggle", methods=["POST"])
 @login_required
 def api_company_notify_toggle():
@@ -3132,6 +3159,7 @@ def company_detail(company_id):
         keywords_linked = db.load_company_keywords(user_id, company_id)
         company_exclude_words = db.get_company_exclude_words(company_id)
         company_alert_words   = db.get_company_alert_keywords(company_id)
+        youtube_channels      = db.load_company_youtube_channels(company_id)
         articles        = db.load_company_articles(user_id, company_id, limit=30)
         history         = db.load_company_change_history(user_id, company_id, limit=10)
 
@@ -3177,6 +3205,7 @@ def company_detail(company_id):
                                keywords_linked=keywords_linked,
                                company_exclude_words=company_exclude_words,
                                company_alert_words=company_alert_words,
+                               youtube_channels=youtube_channels,
                                articles=articles,
                                alert_articles=alert_articles,
                                normal_articles=normal_articles,

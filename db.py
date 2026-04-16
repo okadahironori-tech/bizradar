@@ -463,11 +463,22 @@ def _run_migrations():
             cur.execute("UPDATE users SET plan = 'basic' WHERE plan = 'free';")
             cur.execute("ALTER TABLE users ALTER COLUMN plan SET DEFAULT 'basic';")
 
-            # companies: YouTubeチャンネルID
+            # companies: YouTubeチャンネルID（旧・単一。新テーブルに移行済み）
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
                 "youtube_channel_id TEXT;"
             )
+            # company_youtube_channels: 企業ごとに複数チャンネル登録
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS company_youtube_channels (
+                    id          SERIAL PRIMARY KEY,
+                    company_id  INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    channel_id  TEXT NOT NULL,
+                    label       TEXT,
+                    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE (company_id, channel_id)
+                );
+            """)
             # companies: 企業単位の通知オン/オフ
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
@@ -2812,6 +2823,73 @@ def load_company_sites(user_id: int, company_id: int) -> list:
                 (user_id, company_id),
             )
             return [dict(row) for row in cur.fetchall()]
+
+
+def load_company_youtube_channels(company_id: int) -> list:
+    """企業に紐づく YouTube チャンネル一覧を返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, channel_id, label FROM company_youtube_channels "
+                "WHERE company_id = %s ORDER BY id",
+                (company_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def add_company_youtube_channel(user_id: int, company_id: int,
+                                channel_id: str, label: str = "") -> int | None:
+    """YouTube チャンネルを追加する。成功時は新規 ID、5件上限超過時は -1、重複時は None。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM companies WHERE id = %s AND user_id = %s",
+                (company_id, user_id),
+            )
+            if not cur.fetchone():
+                return None
+            cur.execute(
+                "SELECT COUNT(*) FROM company_youtube_channels WHERE company_id = %s",
+                (company_id,),
+            )
+            if cur.fetchone()[0] >= 5:
+                return -1
+            try:
+                cur.execute(
+                    "INSERT INTO company_youtube_channels (company_id, channel_id, label) "
+                    "VALUES (%s, %s, %s) RETURNING id",
+                    (company_id, channel_id.strip(), (label or "").strip() or None),
+                )
+                return cur.fetchone()[0]
+            except psycopg2.errors.UniqueViolation:
+                return None
+
+
+def delete_company_youtube_channel(user_id: int, channel_db_id: int) -> bool:
+    """YouTube チャンネルを削除する（所有権チェック付き）"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM company_youtube_channels "
+                "WHERE id = %s AND company_id IN "
+                "(SELECT id FROM companies WHERE user_id = %s)",
+                (channel_db_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
+def load_all_youtube_channels_for_user(user_id: int) -> list:
+    """ユーザーの全企業の YouTube チャンネルを返す（収集用）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT yc.channel_id, yc.company_id, c.name AS company_name "
+                "FROM company_youtube_channels yc "
+                "JOIN companies c ON c.id = yc.company_id "
+                "WHERE c.user_id = %s ORDER BY yc.company_id, yc.id",
+                (user_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
 
 
 def update_company_youtube(user_id: int, company_id: int, channel_id: str):

@@ -1404,25 +1404,26 @@ def check_all_keywords():
         except Exception as e:
             print(f"  [警告] グルーピング失敗 user_id={user_id}: {e}")
 
-        # YouTube RSS 収集（youtube_channel_id 設定済みの企業のみ）
+        # YouTube RSS 収集（company_youtube_channels テーブルから）
         try:
-            companies = db.load_companies(user_id)
-            for c in companies:
-                yt_id = (c.get("youtube_channel_id") or "").strip()
-                if not yt_id:
+            yt_rows = db.load_all_youtube_channels_for_user(user_id)
+            # company_id → 最初のキーワードをキャッシュ
+            _yt_kw_cache: dict = {}
+            for row in yt_rows:
+                cid = row["company_id"]
+                ch_id = row["channel_id"]
+                if cid not in _yt_kw_cache:
+                    kw_list = db.load_company_keywords(user_id, cid)
+                    _yt_kw_cache[cid] = kw_list[0]["keyword"] if kw_list else None
+                keyword = _yt_kw_cache[cid]
+                if not keyword:
                     continue
-                kw_list = db.load_company_keywords(user_id, c["id"])
-                if not kw_list:
-                    continue
-                keyword = kw_list[0]["keyword"]
-                yt_articles = fetch_youtube_videos(yt_id, keyword)
-                new_yt = []
-                for a in yt_articles:
-                    if a["url"] not in seen_urls:
-                        new_yt.append(a)
-                        seen_urls.add(a["url"])
+                yt_articles = fetch_youtube_videos(ch_id, keyword)
+                new_yt = [a for a in yt_articles if a["url"] not in seen_urls]
+                for a in new_yt:
+                    seen_urls.add(a["url"])
                 if new_yt:
-                    print(f"  [YouTube] {c['name']}: {len(new_yt)} 件の新着動画")
+                    print(f"  [YouTube] {row['company_name']}({ch_id}): {len(new_yt)} 件の新着動画")
                     db.insert_articles(new_yt, user_id)
         except Exception as e:
             print(f"  [YouTube] 収集エラー user_id={user_id}: {e}")
