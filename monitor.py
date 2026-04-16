@@ -1645,6 +1645,8 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
 
     added = []
     removed = []
+    seen_added = set()
+    seen_removed = set()
     for line in diff:
         if line.startswith("+") and not line.startswith("+++"):
             text = line[1:].strip()
@@ -1663,9 +1665,11 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
                 if len(skip_nav_examples) < 5:
                     skip_nav_examples.append(f"+{text}")
                 continue
-            # 正規化後に旧側にも同一行があれば、日付/時刻/数字だけの変化としてスキップ
             if _normalize_for_diff(text) in normalized_old_set:
                 skip_norm_a += 1; continue
+            if text in seen_added:
+                continue
+            seen_added.add(text)
             if len(added) < 20:
                 added.append({"type": "added", "text": text})
         elif line.startswith("-") and not line.startswith("---"):
@@ -1685,9 +1689,11 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
                 if len(skip_nav_examples) < 5:
                     skip_nav_examples.append(f"-{text}")
                 continue
-            # 正規化後に新側にも同一行があれば、日付/時刻/数字だけの変化としてスキップ
             if _normalize_for_diff(text) in normalized_new_set:
                 skip_norm_r += 1; continue
+            if text in seen_removed:
+                continue
+            seen_removed.add(text)
             if len(removed) < 5:
                 removed.append({"type": "removed", "text": text})
         if len(added) >= 20 and len(removed) >= 5:

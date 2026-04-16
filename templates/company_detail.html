@@ -543,44 +543,11 @@
       <div class="summary-val {% if summary.unread_count > 0 %}unread{% endif %}" id="summary-unread-val">{{ summary.unread_count }}</div>
       <div class="summary-label">未読記事</div>
     </div>
-    <div class="summary-item" style="display:none;">
-      <div class="summary-val {% if summary.alert_count > 0 %}alert{% endif %}">{{ summary.alert_count }}</div>
+    <div class="summary-item">
+      <div class="summary-val" id="summary-alert-val" style="{% if alert_articles | length > 0 %}color:#e53935;{% endif %}">{{ alert_articles | length }}</div>
       <div class="summary-label">重要アラート</div>
     </div>
   </div>
-
-  <!-- 重要アラート -->
-  <section>
-    <div class="card">
-      <div class="section-title">
-        重要アラート
-        <span class="count" id="company-alert-count">{{ alert_articles | length }} 件</span>
-      </div>
-      <div style="font-size:12px;color:#888888;margin-top:4px;padding:0 20px;">重要キーワード一致または高重要度の未読記事</div>
-      <div id="company-alert-container" style="padding:0 20px 16px;">
-        {% if alert_articles %}
-          {% for a in alert_articles[:5] %}
-          <div class="article-item article-alert" data-article-id="{{ a.id }}" style="padding:10px 0;border-bottom:1px solid #f0f2f5;">
-            <div class="article-badges-row" style="margin-bottom:4px;">
-              <span class="article-alert-badge">重要</span>
-              <span class="article-kw">{{ a.keyword }}</span>
-              {% for mkw in a.alert_matches %}
-              <span class="article-alert-kw">キーワード: {{ mkw }}</span>
-              {% endfor %}
-            </div>
-            <a class="article-title" href="{{ a.url }}" target="_blank" rel="noopener" style="font-size:0.88rem;font-weight:600;color:#1a1a2e;text-decoration:none;display:block;">{{ a.title }}</a>
-            <div class="article-meta" style="font-size:0.78rem;color:#9ca3af;margin-top:2px;">
-              {% if a.source %}{{ a.source }} · {% endif %}{{ a.published.lstrip('~') }}
-            </div>
-            <button class="btn-check-done" onclick="markRead(this)" style="margin-top:4px;">既読にする</button>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div style="padding:16px 0;font-size:0.85rem;color:#9ca3af;">重要アラートはありません</div>
-        {% endif %}
-      </div>
-    </div>
-  </section>
 
   <!-- TDnet開示情報 -->
   {% if is_pro %}
