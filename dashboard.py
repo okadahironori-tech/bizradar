@@ -2418,6 +2418,28 @@ def line_webhook():
                         )
             except Exception as e:
                 logger.error("[line-webhook] unfollow cleanup failed: %s", e)
+        elif etype == "message":
+            # テキストメッセージに「再送」「コード」「code」が含まれていたら
+            # 新しい 4 桁コードを発行して reply で返す（upsert で既存コードは上書き）
+            message = event.get("message") or {}
+            if message.get("type") != "text":
+                continue
+            text = (message.get("text") or "").strip()
+            text_lower = text.lower()
+            if not ("再送" in text or "コード" in text or "code" in text_lower):
+                continue
+            code = f"{random.randint(0, 9999):04d}"
+            try:
+                db.upsert_line_pending_link(line_user_id, code)
+            except Exception as e:
+                logger.error("[line-webhook] pending save failed: %s", e)
+                continue
+            reply_token = event.get("replyToken") or ""
+            _send_line_reply(
+                reply_token,
+                f"連携コード: {code}\n\n"
+                f"BizRadar設定画面に入力してください。30分で失効します。",
+            )
     return ("ok", 200)
 
 
