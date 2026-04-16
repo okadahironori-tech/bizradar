@@ -516,7 +516,13 @@
       {% endif %}
       {% if company.memo %}<div class="memo">{{ company.memo }}</div>{% endif %}
     </div>
-    <div class="company-header-actions">
+    <div class="company-header-actions" style="display:flex;align-items:center;gap:10px;">
+      <label class="kw-toggle" title="通知ON/OFF">
+        <input type="checkbox" data-company-id="{{ company.id }}"
+               {% if company.notify_enabled %}checked{% endif %}
+               onchange="toggleCompanyNotify(this)">
+        <span class="slider"></span>
+      </label>
       <button type="button" class="btn btn-edit btn-sm" onclick="openEditModal()">編集</button>
       <form method="POST" action="/companies/{{ company.id }}/delete"
             onsubmit="return confirm('「{{ company.name }}」を削除しますか？この操作は取り消せません。')">
@@ -1277,6 +1283,17 @@ function applyUrlHint(hintId, suggested) {
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>
 <script>
+function toggleCompanyNotify(cb) {
+  var cid = parseInt(cb.dataset.companyId, 10);
+  fetch('/api/company_notify_toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    credentials: 'same-origin',
+    body: JSON.stringify({ company_id: cid })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.success) cb.checked = !cb.checked;
+  }).catch(function() { cb.checked = !cb.checked; });
+}
 function toggleKwNotify(cb) {
   var keyword = cb.dataset.keyword;
   var enabled = cb.checked;

@@ -110,6 +110,21 @@
 
     .empty-state { text-align: center; color: #9ca3af; font-size: 0.88rem; padding: 28px 0; }
 
+    /* iOS-style toggle */
+    .co-toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+    .co-toggle input { opacity: 0; width: 0; height: 0; }
+    .co-toggle .slider {
+      position: absolute; inset: 0; background: #ccc; border-radius: 22px;
+      transition: background 0.2s; cursor: pointer;
+    }
+    .co-toggle .slider::before {
+      content: ''; position: absolute; left: 2px; top: 2px;
+      width: 18px; height: 18px; background: #fff; border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .co-toggle input:checked + .slider { background: #3949ab; }
+    .co-toggle input:checked + .slider::before { transform: translateX(18px); }
+
     /* ── ボタン共通 ── */
     .btn { border: none; border-radius: 7px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
     .btn-primary { background: #1a1a2e; color: #fff; }
@@ -260,6 +275,12 @@
             <div class="stat-label">最終記事</div>
           </div>
         </div>
+        <label class="co-toggle" title="通知ON/OFF" onclick="event.preventDefault();event.stopPropagation();">
+          <input type="checkbox" data-company-id="{{ c.id }}"
+                 {% if c.notify_enabled %}checked{% endif %}
+                 onchange="toggleCompanyNotify(this)">
+          <span class="slider"></span>
+        </label>
       </a>
       {% endfor %}
     </div>
@@ -441,6 +462,20 @@ function checkTdnetCompany(code, resultId) {
     .catch(function(){
       el.textContent = '';
     });
+}
+</script>
+<script>
+function toggleCompanyNotify(cb) {
+  var cid = parseInt(cb.dataset.companyId, 10);
+  var csrf = (document.querySelector('meta[name="csrf-token"]') || {content:''}).getAttribute('content') || '';
+  fetch('/api/company_notify_toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+    credentials: 'same-origin',
+    body: JSON.stringify({ company_id: cid })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.success) cb.checked = !cb.checked;
+  }).catch(function() { cb.checked = !cb.checked; });
 }
 </script>
 </body>

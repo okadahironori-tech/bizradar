@@ -1497,6 +1497,23 @@ def delete_company_alert(company_id, alert_id):
     return redirect(url_for("company_detail", company_id=company_id))
 
 
+@app.route("/api/company_notify_toggle", methods=["POST"])
+@login_required
+def api_company_notify_toggle():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    try:
+        company_id = int(data.get("company_id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "invalid company_id"})
+    if company_id <= 0:
+        return jsonify({"success": False, "message": "invalid company_id"})
+    result = db.toggle_company_notify(user_id, company_id)
+    if result is None:
+        return jsonify({"success": False, "message": "company not found"})
+    return jsonify({"success": True, "notify_enabled": result})
+
+
 @app.route("/api/keyword_toggle", methods=["POST"])
 @login_required
 def api_keyword_toggle():

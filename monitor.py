@@ -1334,28 +1334,27 @@ def check_all_keywords():
                     print(f"  [トレース] {traceback.format_exc()}")
                     db.remove_running_task("keyword_check", keyword)
                     continue
-                # 通知設定はDBから直接確認する（キャッシュ値に頼らない）
-                notify_ok = db.is_keyword_notify_enabled(user_id, keyword)
-                print(f"  [通知チェック] keyword={keyword!r} user_id={user_id} notify_enabled={notify_ok}")
-                if notify_ok:
-                    if not _is_notify_day(user_id):
-                        print(f"  [スキップ] 今日は通知対象外の曜日です")
-                    else:
-                        timing = db.get_user_notify_timing(user_id)
-                        if timing == "immediate":
-                            try:
-                                send_news_email(keyword, new_articles, user_id=user_id)
-                                _send_slack_for_keyword(user_id, keyword, new_articles)
-                                _send_line_for_keyword(user_id, keyword, new_articles)
-                                db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
-                            except Exception as e:
-                                import traceback
-                                print(f"  [エラー] メール送信失敗 user_id={user_id} keyword={keyword!r}: {e}")
-                                print(f"  [トレース] {traceback.format_exc()}")
-                        else:
-                            print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
-                else:
+                # 企業通知OFF なら送信をスキップ
+                if company_id and not db.is_company_notify_enabled(user_id, company_id):
+                    print(f"  [スキップ] 企業通知OFFのためスキップ company_id={company_id}")
+                elif not db.is_keyword_notify_enabled(user_id, keyword):
                     print(f"  [スキップ] 通知OFFのためメール送信をスキップします")
+                elif not _is_notify_day(user_id):
+                    print(f"  [スキップ] 今日は通知対象外の曜日です")
+                else:
+                    timing = db.get_user_notify_timing(user_id)
+                    if timing == "immediate":
+                        try:
+                            send_news_email(keyword, new_articles, user_id=user_id)
+                            _send_slack_for_keyword(user_id, keyword, new_articles)
+                            _send_line_for_keyword(user_id, keyword, new_articles)
+                            db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+                        except Exception as e:
+                            import traceback
+                            print(f"  [エラー] メール送信失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                            print(f"  [トレース] {traceback.format_exc()}")
+                    else:
+                        print(f"  [ダイジェスト待機] タイミング={timing} のため送信保留")
             else:
                 print(f"  → 新着なし")
             db.remove_running_task("keyword_check", keyword)

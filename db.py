@@ -463,6 +463,12 @@ def _run_migrations():
             cur.execute("UPDATE users SET plan = 'basic' WHERE plan = 'free';")
             cur.execute("ALTER TABLE users ALTER COLUMN plan SET DEFAULT 'basic';")
 
+            # companies: 企業単位の通知オン/オフ
+            cur.execute(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "notify_enabled BOOLEAN NOT NULL DEFAULT TRUE;"
+            )
+
             # users: 通知曜日（カンマ区切り 0=日 1=月 ... 6=土）
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
@@ -2570,7 +2576,7 @@ def load_companies(user_id: int) -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order, securities_code "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order, securities_code, notify_enabled "
                 "FROM companies WHERE user_id = %s ORDER BY sort_order ASC, id ASC",
                 (user_id,),
             )
@@ -2583,7 +2589,7 @@ def get_company(user_id: int, company_id: int) -> dict | None:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, securities_code "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, securities_code, notify_enabled "
                 "FROM companies WHERE id = %s AND user_id = %s",
                 (company_id, user_id),
             )
@@ -2785,6 +2791,33 @@ def load_company_sites(user_id: int, company_id: int) -> list:
                 (user_id, company_id),
             )
             return [dict(row) for row in cur.fetchall()]
+
+
+def toggle_company_notify(user_id: int, company_id: int) -> bool | None:
+    """companies.notify_enabled を反転し、新しい値を返す。所有外は None。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE companies SET notify_enabled = NOT notify_enabled "
+                "WHERE id = %s AND user_id = %s RETURNING notify_enabled",
+                (company_id, user_id),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def is_company_notify_enabled(user_id: int, company_id: int) -> bool:
+    """企業の通知が有効か（未登録の場合は True 扱い）"""
+    if not company_id:
+        return True
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT notify_enabled FROM companies WHERE id = %s AND user_id = %s",
+                (company_id, user_id),
+            )
+            row = cur.fetchone()
+            return row[0] if row else True
 
 
 def update_keyword_order(user_id: int, keyword_ids: list):
