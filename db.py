@@ -2724,7 +2724,16 @@ def get_company_summary(user_id: int, company_id: int, alert_kws: set) -> dict:
             )
             keyword_count = cur.fetchone()[0]
 
-            # 未読件数をSQLで直接カウント（LIMIT なし・正確な件数）
+            # 全件数（LIMIT なし）
+            cur.execute(
+                "SELECT COUNT(DISTINCT a.id) FROM articles a "
+                "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "WHERE a.user_id=%s AND k.company_id=%s",
+                (user_id, company_id),
+            )
+            article_count = cur.fetchone()[0]
+
+            # 未読件数（同条件 + is_read=FALSE）
             cur.execute(
                 "SELECT COUNT(DISTINCT a.id) FROM articles a "
                 "JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
@@ -2757,10 +2766,11 @@ def get_company_summary(user_id: int, company_id: int, alert_kws: set) -> dict:
             latest_article = cur.fetchone()[0]
 
     return {
-        "site_count":    site_count,
-        "keyword_count": keyword_count,
-        "unread_count":  unread_count,
-        "alert_count":   alert_count,
+        "site_count":     site_count,
+        "keyword_count":  keyword_count,
+        "article_count":  article_count,
+        "unread_count":   unread_count,
+        "alert_count":    alert_count,
         "latest_article": latest_article,
     }
 
