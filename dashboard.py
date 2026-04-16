@@ -3264,12 +3264,14 @@ def company_detail(company_id):
         articles = _deduplicate_articles(articles)
 
         # 重要記事と通常記事に分離（両グループとも公開日時の新しい順）
+        def _is_alert_or_high(a):
+            return (a.get("is_alert") or a.get("importance") == "high") and not a.get("is_read")
         alert_articles  = sorted(
-            [a for a in articles if a.get("is_alert") and not a.get("is_read")],
+            [a for a in articles if _is_alert_or_high(a)],
             key=lambda x: x.get("published", ""), reverse=True,
         )
         normal_articles = sorted(
-            [a for a in articles if not a.get("is_alert") and not a.get("is_read")],
+            [a for a in articles if not _is_alert_or_high(a) and not a.get("is_read")],
             key=lambda x: x.get("published", ""), reverse=True,
         )
 
