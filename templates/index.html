@@ -792,11 +792,14 @@ function _esc(s) {
 
 function _articleItemHtml(article) {
   const companyId = _kwCompanyMap[article.keyword];
-  const kwHtml = companyId
-    ? `<a href="/companies/${companyId}" class="article-kw" style="text-decoration:none;">${_esc(article.keyword)}</a>`
-    : `<span class="article-kw">${_esc(article.keyword)}</span>`;
-  const alertBadge = article.is_alert ? '<span class="article-alert-badge">重要</span>' : '';
-  const alertClass = article.is_alert ? ' article-alert' : '';
+  const kwHtml = article.keyword
+    ? (companyId
+      ? `<a href="/companies/${companyId}" class="article-kw" style="text-decoration:none;">${_esc(article.keyword)}</a>`
+      : `<span class="article-kw">${_esc(article.keyword)}</span>`)
+    : '';
+  const isHighOrAlert = article.importance === 'high' || article.is_alert;
+  const alertBadge = isHighOrAlert ? '<span class="article-alert-badge">重要</span>' : '';
+  const alertClass = isHighOrAlert ? ' article-alert' : '';
   const alertKwHtml = (article.alert_matches || [])
     .map(kw => `<span class="article-alert-kw">キーワード: ${_esc(kw)}</span>`)
     .join('');
@@ -811,9 +814,9 @@ function _articleItemHtml(article) {
   const sourceHtml = article.source ? `<span>${_esc(article.source)}</span>` : '';
   const metaInner = [sourceHtml, pubHtml].filter(Boolean).join(' · ');
   const meta = metaInner ? `<div class="article-meta">${metaInner}</div>` : '';
-  const leftCol = article.is_alert
+  const leftCol = isHighOrAlert
     ? `<div class="article-badges-row">${alertBadge}${kwHtml}${alertKwHtml}</div>`
-    : `${alertBadge}${kwHtml}`;
+    : kwHtml;
   return `<div class="article-item${alertClass}" data-article-id="${article.id}">
     ${leftCol}
     <div class="article-body">
