@@ -311,6 +311,54 @@
 
     .empty-msg { padding: 16px; font-size: 0.82rem; color: #9ca3af; text-align: center; }
 
+    @media (max-width: 768px) {
+      .kw-linked-table { padding: 0 12px; }
+      .kw-linked-table thead { display: none; }
+      .kw-linked-table tbody { display: block; }
+      .kw-linked-table tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #e5e7eb;
+        border-radius: 0;
+        gap: 4px 8px;
+      }
+      .kw-linked-table tr:last-child { border-bottom: none; }
+      .kw-linked-table td {
+        display: inline-flex;
+        align-items: center;
+        border: none;
+        padding: 0;
+      }
+      /* handle */
+      .kw-linked-table td:nth-child(1) {
+        flex: 0 0 24px;
+        font-size: 1rem;
+        color: #aaa;
+        user-select: none;
+        text-align: center;
+      }
+      /* keyword — fills first line */
+      .kw-linked-table td:nth-child(2) {
+        flex: 1 1 0;
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #1a1a2e;
+        white-space: normal;
+        word-break: break-all;
+      }
+      /* ON/OFF — second line, indent past handle */
+      .kw-linked-table td:nth-child(3) {
+        margin-left: 32px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      /* delete — second line, right edge */
+      .kw-linked-table td:nth-child(4) {
+        margin-left: auto;
+      }
+    }
     @media (max-width: 640px) {
       header { padding: 12px 14px; }
       main { margin: 16px auto; }
@@ -367,39 +415,7 @@
         gap: 8px;
         justify-content: flex-end;
       }
-      .kw-linked-table { padding: 0 12px; }
-      .kw-linked-table tr {
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid #f0f0f0;
-        padding: 10px 0;
-        gap: 8px;
-      }
-      .kw-linked-table td {
-        display: inline-flex;
-        align-items: center;
-        border: none;
-        padding: 0;
-        white-space: nowrap;
-      }
-      .kw-linked-table td:first-child {
-        flex: 1 1 auto;
-        font-weight: bold;
-        font-size: 14px;
-        white-space: normal;
-      }
-      .kw-linked-table td:nth-child(2) {
-        color: #4caf50;
-        font-size: 12px;
-        flex: 0 0 auto;
-      }
-      .kw-linked-table td:last-child {
-        flex: 0 0 auto;
-        margin-left: auto;
-      }
-      .kw-linked-table td:nth-child(2) {
-        display: none;
-      }
+      /* kw-linked-table のスマホカード化は 768px ブロックで対応 */
       .new-form {
         flex-direction: column;
       }
