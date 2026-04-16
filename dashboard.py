@@ -1531,17 +1531,17 @@ def _resolve_youtube_channel_id(raw: str) -> str | None:
     raw = raw.strip()
     if raw.startswith("UC") and len(raw) >= 20:
         return raw
-    # URL から @handle 部分を抽出
-    handle = ""
+    # URL から @handle / /c/name / /channel/ID 部分を抽出
+    path = ""
     if "youtube.com/" in raw:
-        m = _re.search(r'youtube\.com/([@\w][^\s/?#]+)', raw)
+        m = _re.search(r'youtube\.com/((?:@|c/|channel/)[\w.-]+|@[\w.-]+)', raw)
         if m:
-            handle = m.group(1)
+            path = m.group(1)
     elif raw.startswith("@"):
-        handle = raw
-    if not handle:
+        path = raw
+    if not path:
         return None
-    url = f"https://www.youtube.com/{handle}"
+    url = f"https://www.youtube.com/{path}"
     try:
         resp = _requests.get(url, timeout=10, headers={
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
