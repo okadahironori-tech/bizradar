@@ -1362,7 +1362,7 @@ def check_all_keywords():
 
     # 保持期間を超えた古い記事を削除（found_at が30日より前）
     try:
-        deleted = db.delete_old_articles(days=30)
+        deleted = db.delete_old_articles(days=90)
         if deleted > 0:
             print(f"[保持期間] 30日以上前の記事を {deleted} 件削除しました")
     except Exception as e:

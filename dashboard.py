@@ -1345,7 +1345,6 @@ def remove_keyword():
         flash("該当キーワードが見つかりません", "error")
         return redirect(url_for("management", _anchor="keywords-section"))
     db.save_keywords(new_keywords, user_id)
-    db.delete_articles_by_keyword(user_id, keyword)
     flash(f"キーワードを削除しました: {keyword}", "success")
     return redirect(url_for("management", _anchor="keywords-section"))
 
@@ -1578,7 +1577,6 @@ def api_delete_keyword():
         if len(new_keywords) == len(keywords):
             return jsonify({"success": False, "message": "該当キーワードが見つかりません"})
         db.save_keywords(new_keywords, user_id)
-        db.delete_articles_by_keyword(user_id, keyword)
         return jsonify({"success": True})
     # 重要アラートキーワード
     try:
@@ -3205,8 +3203,6 @@ def link_keyword_to_company(company_id):
     keyword = request.form.get("keyword", "")
     action  = request.form.get("action", "link")
     if action == "unlink":
-        # 「削除」ボタン: キーワードと関連記事を物理削除する（紐づけ解除ではない）
-        db.delete_articles_by_keyword(user_id, keyword)
         db.delete_keyword_by_text(user_id, keyword)
     else:
         db.set_keyword_company(user_id, keyword, company_id)
