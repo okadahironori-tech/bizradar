@@ -794,7 +794,7 @@
       <div class="form-section-divider">新規登録</div>
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="keyword" id="kw-input-detail" placeholder="例：トヨタ、豊田佐吉、PHEV" maxlength="200" required>
+        <input type="text" name="keyword" id="kw-input-detail" placeholder="例：豊田佐吉、豊田自動織機　TOB" maxlength="200" required>
         <button type="submit" class="btn btn-primary">登録する</button>
       </form>
 
