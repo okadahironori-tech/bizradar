@@ -1497,6 +1497,21 @@ def delete_company_alert(company_id, alert_id):
     return redirect(url_for("company_detail", company_id=company_id))
 
 
+@app.route("/api/keyword_toggle", methods=["POST"])
+@login_required
+def api_keyword_toggle():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    keyword = (data.get("keyword") or "").strip()
+    notify_enabled = bool(data.get("notify_enabled"))
+    if not keyword:
+        return jsonify({"success": False, "message": "keyword is empty"})
+    ok = db.update_keyword_notify(user_id, keyword, notify_enabled)
+    if ok:
+        return jsonify({"success": True, "notify_enabled": notify_enabled})
+    return jsonify({"success": False, "message": "keyword not found"})
+
+
 @app.route("/api/keyword_order", methods=["POST"])
 @login_required
 def api_keyword_order():

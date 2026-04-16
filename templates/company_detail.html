@@ -311,6 +311,21 @@
 
     .empty-msg { padding: 16px; font-size: 0.82rem; color: #9ca3af; text-align: center; }
 
+    /* iOS-style toggle switch */
+    .kw-toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+    .kw-toggle input { opacity: 0; width: 0; height: 0; }
+    .kw-toggle .slider {
+      position: absolute; inset: 0; background: #ccc; border-radius: 22px;
+      transition: background 0.2s; cursor: pointer;
+    }
+    .kw-toggle .slider::before {
+      content: ''; position: absolute; left: 2px; top: 2px;
+      width: 18px; height: 18px; background: #fff; border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .kw-toggle input:checked + .slider { background: #3949ab; }
+    .kw-toggle input:checked + .slider::before { transform: translateX(18px); }
+
     @media (max-width: 768px) {
       section .card table.kw-linked-table { display: block; padding: 0 12px; }
       section .card .kw-linked-table thead { display: none; }
@@ -746,8 +761,13 @@
         <tr draggable="true" data-keyword-id="{{ k.id }}" style="cursor:grab;">
           <td style="width:28px;color:#aaa;font-size:1rem;text-align:center;user-select:none;">&#9776;</td>
           <td>{{ k.keyword }}</td>
-          <td style="color:{% if k.notify_enabled %}#059669{% else %}#9ca3af{% endif %};font-size:0.78rem;font-weight:600;">
-            {% if k.notify_enabled %}ON{% else %}OFF{% endif %}
+          <td>
+            <label class="kw-toggle">
+              <input type="checkbox" data-keyword="{{ k.keyword }}"
+                     {% if k.notify_enabled %}checked{% endif %}
+                     onchange="toggleKwNotify(this)">
+              <span class="slider"></span>
+            </label>
           </td>
           <td>
             <form method="POST" action="/companies/{{ company.id }}/link_keyword" style="display:inline;"
@@ -1255,6 +1275,20 @@ function applyUrlHint(hintId, suggested) {
 <button id="back-to-top" title="ページトップへ" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;width:46px;height:46px;border-radius:50%;border:none;background:#1a1a2e;color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);align-items:center;justify-content:center;">&#8679;</button>
 <script>
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
+</script>
+<script>
+function toggleKwNotify(cb) {
+  var keyword = cb.dataset.keyword;
+  var enabled = cb.checked;
+  fetch('/api/keyword_toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    credentials: 'same-origin',
+    body: JSON.stringify({ keyword: keyword, notify_enabled: enabled })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.success) { cb.checked = !enabled; }
+  }).catch(function() { cb.checked = !enabled; });
+}
 </script>
 <script>
 (function() {
