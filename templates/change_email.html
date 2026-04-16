@@ -52,7 +52,7 @@
       font-size: 0.92rem; background: #f9fafb; color: #4a4a6a;
     }
 
-    .actions { display: flex; align-items: center; gap: 16px; margin-top: 20px; }
+    .actions { display: flex; align-items: center; gap: 16px; margin-top: 20px; justify-content: flex-end; }
     .btn { border: none; border-radius: 7px; padding: 9px 18px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
     .btn-save   { background: #1a1a2e; color: #fff; }
     .btn-save:hover { background: #2d2d4e; }
@@ -113,8 +113,8 @@
       </div>
 
       <div class="actions">
-        <button type="submit" class="btn btn-save">変更する</button>
         <a href="{{ url_for('settings') }}" class="back-link">設定に戻る</a>
+        <button type="submit" class="btn btn-save">変更する</button>
       </div>
     </form>
   </div>
