@@ -203,7 +203,7 @@
       <div style="padding:4px 4px 12px 4px;font-size:0.88rem;color:#4a4a6a;">
         現在のプラン: <strong>{{ plan_labels.get(current_plan, current_plan) }}</strong>
       </div>
-      <form method="POST" action="/settings/plan" style="display:flex;flex-direction:column;gap:10px;">
+      <form method="POST" action="/settings/plan" style="display:flex;flex-direction:column;gap:10px;padding-bottom:16px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label style="display:flex;gap:10px;padding:10px 12px;border:1.5px solid #ffffff;border-radius:8px;cursor:pointer;">
           <input type="radio" name="plan" value="basic" {% if current_plan == 'basic' %}checked{% endif %}>
@@ -236,7 +236,7 @@
     <div class="section-title">Slack通知</div>
     <div class="card">
       {% if current_plan in ('business', 'pro') %}
-      <form id="slack-form" method="POST" action="/settings/slack" style="display:flex;flex-direction:column;gap:10px;">
+      <form id="slack-form" method="POST" action="/settings/slack" style="display:flex;flex-direction:column;gap:10px;padding-bottom:16px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label style="font-size:0.88rem;font-weight:600;color:#4a4a6a;">Slack Incoming Webhook URL</label>
         <input type="url" id="slack-webhook-input" name="slack_webhook_url"
@@ -317,7 +317,7 @@
             <li>下の入力欄にコードを入力して「連携完了」を押してください（30分で失効）。</li>
           </ol>
           <form method="POST" action="/settings/line"
-                style="display:flex;flex-direction:column;gap:10px;">
+                style="display:flex;flex-direction:column;gap:10px;padding-bottom:16px;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="line_code" style="font-size:0.88rem;font-weight:600;color:#4a4a6a;">連携コード</label>
             <input type="text" id="line_code" name="line_code" maxlength="8"
