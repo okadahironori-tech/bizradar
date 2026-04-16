@@ -463,6 +463,11 @@ def _run_migrations():
             cur.execute("UPDATE users SET plan = 'basic' WHERE plan = 'free';")
             cur.execute("ALTER TABLE users ALTER COLUMN plan SET DEFAULT 'basic';")
 
+            # companies: YouTubeチャンネルID
+            cur.execute(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "youtube_channel_id TEXT;"
+            )
             # companies: 企業単位の通知オン/オフ
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
@@ -2592,7 +2597,7 @@ def load_companies(user_id: int) -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order, securities_code, notify_enabled "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order, securities_code, notify_enabled, youtube_channel_id "
                 "FROM companies WHERE user_id = %s ORDER BY sort_order ASC, id ASC",
                 (user_id,),
             )
@@ -2605,7 +2610,7 @@ def get_company(user_id: int, company_id: int) -> dict | None:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, securities_code, notify_enabled "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, securities_code, notify_enabled, youtube_channel_id "
                 "FROM companies WHERE id = %s AND user_id = %s",
                 (company_id, user_id),
             )
@@ -2807,6 +2812,17 @@ def load_company_sites(user_id: int, company_id: int) -> list:
                 (user_id, company_id),
             )
             return [dict(row) for row in cur.fetchall()]
+
+
+def update_company_youtube(user_id: int, company_id: int, channel_id: str):
+    """企業の YouTube チャンネル ID を更新する。空文字は解除扱い。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE companies SET youtube_channel_id = %s "
+                "WHERE id = %s AND user_id = %s",
+                (channel_id or None, company_id, user_id),
+            )
 
 
 def toggle_company_notify(user_id: int, company_id: int) -> bool | None:

@@ -62,6 +62,7 @@
     .article-alert-badge { font-size: 0.68rem; font-weight: 700; background: #dc2626; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
     .article-importance-high-badge { font-size: 0.68rem; font-weight: 700; background: #e53935; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
     .article-importance-medium-badge { font-size: 0.68rem; font-weight: 700; background: #3949ab; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .article-youtube-badge { font-size: 0.68rem; font-weight: 700; background: #dc2626; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
     .article-kw { font-size: 0.72rem; background: #e8eaf6; color: #3949ab; border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
     .article-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
     .article-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
@@ -388,6 +389,7 @@
                 {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
                 {% if article.importance == 'high' %}<span class="article-importance-high-badge">重要</span>{% endif %}
                 {% if article.importance == 'medium' %}<span class="article-importance-medium-badge">注目</span>{% endif %}
+                {% if article.source == 'YouTube' %}<span class="article-youtube-badge">YouTube</span>{% endif %}
                 <span class="article-kw">{{ article.keyword }}</span>
                 {% if article.alert_matches %}
                   {% for mkw in article.alert_matches %}

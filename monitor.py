@@ -490,6 +490,53 @@ def _summarize_article(title: str, url: str, plan: str) -> str:
         return ""
 
 
+def fetch_youtube_videos(channel_id: str, keyword: str) -> list:
+    """YouTube RSS フィードから新着動画を取得する（最新10件）"""
+    rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; BizRadar/1.0)",
+    }
+    print(f"  [YouTube] 取得開始: channel_id={channel_id}")
+    try:
+        response = requests.get(rss_url, headers=headers, timeout=15)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"  [YouTube] 取得失敗: channel_id={channel_id} error={e}")
+        return []
+
+    feed = feedparser.parse(response.content)
+    if not feed.entries:
+        print(f"  [YouTube] 動画なし: channel_id={channel_id}")
+        return []
+    print(f"  [YouTube] 取得完了: channel_id={channel_id} 件数={len(feed.entries)}")
+
+    now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
+    articles = []
+    for entry in feed.entries[:10]:
+        title = _sanitize_text(entry.get("title", ""))
+        url = _sanitize_text(entry.get("link", ""))
+        published = ""
+        if entry.get("published_parsed"):
+            dt = datetime.fromtimestamp(
+                time_module.mktime(entry.published_parsed), tz=timezone.utc
+            ).astimezone(JST)
+            published = dt.strftime("%Y-%m-%d %H:%M")
+        if not title or not url:
+            continue
+        articles.append({
+            "keyword":       keyword,
+            "title":         title,
+            "url":           url,
+            "source":        "YouTube",
+            "published":     published or now_str[:16],
+            "found_at":      now_str,
+            "date_verified": True,
+            "importance":    "low",
+            "summary":       "",
+        })
+    return articles
+
+
 def _is_old_unverified(published: str, date_verified: bool) -> bool:
     """date_verified=False かつ published が30日以上前の JST 日付なら True を返す。
     パース不能な日付はスキップ対象外（False）として扱う。
@@ -1356,6 +1403,29 @@ def check_all_keywords():
             _group_duplicate_articles(user_id)
         except Exception as e:
             print(f"  [警告] グルーピング失敗 user_id={user_id}: {e}")
+
+        # YouTube RSS 収集（youtube_channel_id 設定済みの企業のみ）
+        try:
+            companies = db.load_companies(user_id)
+            for c in companies:
+                yt_id = (c.get("youtube_channel_id") or "").strip()
+                if not yt_id:
+                    continue
+                kw_list = db.load_company_keywords(user_id, c["id"])
+                if not kw_list:
+                    continue
+                keyword = kw_list[0]["keyword"]
+                yt_articles = fetch_youtube_videos(yt_id, keyword)
+                new_yt = []
+                for a in yt_articles:
+                    if a["url"] not in seen_urls:
+                        new_yt.append(a)
+                        seen_urls.add(a["url"])
+                if new_yt:
+                    print(f"  [YouTube] {c['name']}: {len(new_yt)} 件の新着動画")
+                    db.insert_articles(new_yt, user_id)
+        except Exception as e:
+            print(f"  [YouTube] 収集エラー user_id={user_id}: {e}")
 
     print(f"[ニュースチェック完了]")
     check_and_notify_source_errors()

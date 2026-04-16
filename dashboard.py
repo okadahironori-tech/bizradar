@@ -1513,6 +1513,16 @@ def delete_company_alert(company_id, alert_id):
     return redirect(url_for("company_detail", company_id=company_id))
 
 
+@app.route("/api/company_youtube/<int:company_id>", methods=["POST"])
+@login_required
+def api_company_youtube(company_id):
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    channel_id = (data.get("youtube_channel_id") or "").strip()
+    db.update_company_youtube(user_id, company_id, channel_id)
+    return jsonify({"success": True, "youtube_channel_id": channel_id})
+
+
 @app.route("/api/company_notify_toggle", methods=["POST"])
 @login_required
 def api_company_notify_toggle():

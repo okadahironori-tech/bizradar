@@ -874,6 +874,23 @@
     </div>
   </section>
 
+  <!-- YouTube チャンネル -->
+  <section>
+    <div class="card">
+      <div class="section-title">YouTube チャンネルID</div>
+      <div class="section-desc">YouTubeチャンネルIDを登録すると新着動画を収集します</div>
+      <div style="padding:14px 20px 18px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="yt-channel-input"
+                 value="{{ company.youtube_channel_id or '' }}"
+                 placeholder="例：UCxxxxxxxxxxxxxxxxxxxxxx" maxlength="100"
+                 style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1; min-width:180px;">
+          <button type="button" class="btn btn-primary" onclick="saveYoutubeChannel()">保存</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- 企業情報編集 -->
 
 </main>
@@ -1294,6 +1311,19 @@ function toggleCompanyNotify(cb) {
   }).then(function(r) { return r.json(); }).then(function(d) {
     if (!d.success) cb.checked = !cb.checked;
   }).catch(function() { cb.checked = !cb.checked; });
+}
+function saveYoutubeChannel() {
+  var input = document.getElementById('yt-channel-input');
+  var val = (input.value || '').trim();
+  fetch('/api/company_youtube/{{ company.id }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    credentials: 'same-origin',
+    body: JSON.stringify({ youtube_channel_id: val })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) alert(val ? 'YouTube チャンネルIDを保存しました' : 'YouTube チャンネルIDを解除しました');
+    else alert('保存に失敗しました');
+  }).catch(function(e) { alert('エラー: ' + e); });
 }
 function toggleKwNotify(cb) {
   var keyword = cb.dataset.keyword;
