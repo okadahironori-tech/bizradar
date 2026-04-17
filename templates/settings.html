@@ -247,7 +247,7 @@
           <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">業種 <span style="color:#dc2626">*</span></label>
           <select name="industry" required style="width:100%; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; background:#fff;">
             <option value="">選択してください</option>
-            {% for v in ['製造業（自動車・輸送機器）','製造業（機械・設備）','製造業（電気・電子）','製造業（素材・化学）','製造業（その他）','建設・不動産','商社・卸売','金融・保険','情報・通信・IT','メディア・出版・広告','コンサルティング','官公庁・団体','その他'] %}
+            {% for v in ['製造業（自動車・輸送機器）','製造業（機械・設備）','製造業（電気・電子）','製造業（素材・化学）','製造業（食品・飲料）','製造業（その他）','建設・不動産','商社・卸売・小売','金融・保険','情報・通信・IT','メディア・出版・広告','コンサルティング','法律・会計・税務','医療・福祉・介護','教育・研究','運輸・物流','エネルギー・インフラ','飲食・宿泊・観光','官公庁・自治体・団体','その他'] %}
             <option value="{{ v }}" {% if profile_industry == v %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
