@@ -125,9 +125,11 @@
     {% for u in users %}
     <div class="user-card" {% if not u.is_active %}style="opacity:0.5;"{% endif %}>
       <div class="user-top">
-        <span class="user-email">{{ u.email }}</span>
         {% if u.last_name or u.first_name %}
-        <span class="user-name">{{ (u.last_name or '') }} {{ (u.first_name or '') }}{% if u.last_name_kana or u.first_name_kana %} <span style="color:#9ca3af;font-size:0.75rem;">({{ (u.last_name_kana or '') }} {{ (u.first_name_kana or '') }})</span>{% endif %}</span>
+        <span class="user-email">{{ (u.last_name or '') }} {{ (u.first_name or '') }}</span>
+        <span style="font-size:0.78rem;color:#6b7280;">{{ u.email }}</span>
+        {% else %}
+        <span class="user-email">{{ u.email }}</span>
         {% endif %}
         {% if u.phone %}<span style="font-size:0.75rem;color:#6b7280;">{{ u.phone }}</span>{% endif %}
         {% if u.plan == 'pro' %}
@@ -148,6 +150,9 @@
         </span>
         {% endif %}
       </div>
+      {% if u.last_name_kana or u.first_name_kana %}
+      <div style="font-size:0.75rem;color:#9ca3af;margin-bottom:4px;">{{ (u.last_name_kana or '') }} {{ (u.first_name_kana or '') }}</div>
+      {% endif %}
       <div class="user-mid">
         {{ u.company_name if u.company_name else '<span class="na">未入力</span>' | safe }}
         &nbsp;|&nbsp;
