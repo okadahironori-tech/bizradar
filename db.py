@@ -613,6 +613,17 @@ def _run_migrations():
                 "company_name_kana TEXT NOT NULL DEFAULT '';"
             )
 
+            # JPX 上場企業一覧
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS listed_companies (
+                    securities_code VARCHAR(10) PRIMARY KEY,
+                    company_name VARCHAR(255) NOT NULL,
+                    company_name_kana VARCHAR(255),
+                    market VARCHAR(50),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+
             # listed_companies: 公式サイトURL カラム追加
             cur.execute(
                 "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "
@@ -637,17 +648,6 @@ def _run_migrations():
                 "AND listed_companies.website_url = '' "
                 "AND d.suggested_url <> '';"
             )
-
-            # JPX 上場企業一覧
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS listed_companies (
-                    securities_code VARCHAR(10) PRIMARY KEY,
-                    company_name VARCHAR(255) NOT NULL,
-                    company_name_kana VARCHAR(255),
-                    market VARCHAR(50),
-                    updated_at TIMESTAMP DEFAULT NOW()
-                );
-            """)
 
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
