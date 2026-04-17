@@ -1677,6 +1677,26 @@ def api_badge_feedback():
     return jsonify({"success": True})
 
 
+@app.route("/api/companies/<int:company_id>/notify-setting", methods=["POST"])
+@login_required
+def api_company_notify_setting(company_id):
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode")
+    if mode not in ("off", "digest", "instant"):
+        return jsonify({"success": False, "message": "invalid mode"}), 400
+    mapping = {
+        "off":     (False, False),
+        "digest":  (True,  False),
+        "instant": (True,  True),
+    }
+    notify_enabled, notify_instant = mapping[mode]
+    ok = db.update_company_notify_setting(user_id, company_id, notify_enabled, notify_instant)
+    if not ok:
+        return jsonify({"success": False, "message": "company not found"})
+    return jsonify({"success": True, "mode": mode})
+
+
 @app.route("/api/company_notify_toggle", methods=["POST"])
 @login_required
 def api_company_notify_toggle():

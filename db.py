@@ -3007,6 +3007,19 @@ def update_company_youtube(user_id: int, company_id: int, channel_id: str):
             )
 
 
+def update_company_notify_setting(user_id: int, company_id: int,
+                                   notify_enabled: bool, notify_instant: bool) -> bool:
+    """企業の通知設定を更新する。所有外は False。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE companies SET notify_enabled = %s, notify_instant = %s "
+                "WHERE id = %s AND user_id = %s",
+                (notify_enabled, notify_instant, company_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
 def toggle_company_notify(user_id: int, company_id: int) -> bool | None:
     """companies.notify_enabled を反転し、新しい値を返す。所有外は None。"""
     with _conn() as conn:
