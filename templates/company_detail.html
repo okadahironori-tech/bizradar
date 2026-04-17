@@ -1349,29 +1349,46 @@ function _ytUpdateCount() {
   var form = document.getElementById('yt-add-form');
   if (form) form.style.display = n >= 5 ? 'none' : 'flex';
 }
+function _ytMsg(box, text, color) {
+  box.textContent = '';
+  var d = document.createElement('div');
+  d.style.cssText = 'padding:10px;font-size:0.85rem;color:' + color + ';';
+  d.textContent = text;
+  box.appendChild(d);
+}
 function searchYtChannel() {
   var input = document.getElementById('yt-search-input');
   var q = (input.value || '').trim();
   if (!q) return;
   var box = document.getElementById('yt-search-results');
   box.style.display = 'block';
-  box.innerHTML = '<div style="padding:10px;color:#6b7280;font-size:0.85rem;">検索中...</div>';
+  _ytMsg(box, '検索中...', '#6b7280');
   fetch('/api/youtube_search?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.error) { box.innerHTML = '<div style="padding:10px;color:#dc2626;font-size:0.85rem;">' + d.error + '</div>'; return; }
-      if (!d.results || !d.results.length) { box.innerHTML = '<div style="padding:10px;color:#6b7280;font-size:0.85rem;">該当なし</div>'; return; }
-      box.innerHTML = d.results.map(function(r) {
-        var sub = r.subscriberCount ? Number(r.subscriberCount).toLocaleString() + '人' : '';
-        return '<div onclick="selectYtResult(\'' + r.channelId + '\',\'' + r.title.replace(/'/g,"\\'") + '\')" '
-          + 'style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f2f5;font-size:0.88rem;display:flex;justify-content:space-between;align-items:center;" '
-          + 'onmouseenter="this.style.background=\'#f5f7ff\'" onmouseleave="this.style.background=\'\'">'
-          + '<span style="font-weight:600;color:#1a1a2e;">' + r.title + '</span>'
-          + (sub ? '<span style="color:#6b7280;font-size:0.78rem;flex-shrink:0;margin-left:12px;">' + sub + '</span>' : '')
-          + '</div>';
-      }).join('');
+      if (d.error) { _ytMsg(box, d.error, '#dc2626'); return; }
+      if (!d.results || !d.results.length) { _ytMsg(box, '該当なし', '#6b7280'); return; }
+      box.textContent = '';
+      d.results.forEach(function(r) {
+        var row = document.createElement('div');
+        row.style.cssText = 'padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f2f5;font-size:0.88rem;display:flex;justify-content:space-between;align-items:center;';
+        row.addEventListener('mouseenter', function() { this.style.background = '#f5f7ff'; });
+        row.addEventListener('mouseleave', function() { this.style.background = ''; });
+        row.addEventListener('click', function() { selectYtResult(r.channelId, r.title); });
+        var name = document.createElement('span');
+        name.style.cssText = 'font-weight:600;color:#1a1a2e;';
+        name.textContent = r.title;
+        row.appendChild(name);
+        if (r.subscriberCount) {
+          var sub = document.createElement('span');
+          sub.style.cssText = 'color:#6b7280;font-size:0.78rem;flex-shrink:0;margin-left:12px;';
+          sub.textContent = Number(r.subscriberCount).toLocaleString() + '人';
+          row.appendChild(sub);
+        }
+        box.appendChild(row);
+      });
     })
-    .catch(function(e) { box.innerHTML = '<div style="padding:10px;color:#dc2626;font-size:0.85rem;">エラー: ' + e + '</div>'; });
+    .catch(function(e) { _ytMsg(box, 'エラー: ' + e, '#dc2626'); });
 }
 function selectYtResult(channelId, title) {
   document.getElementById('yt-ch-id-input').value = channelId;
@@ -1395,9 +1412,23 @@ function addYtChannel() {
     div.className = 'yt-ch-item';
     div.dataset.id = d.id;
     div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9fafb;border-radius:8px;';
-    var labelHtml = d.label ? ' <span style="color:#6b7280;">（' + d.label + '）</span>' : '';
-    div.innerHTML = '<span style="flex:1;font-size:0.85rem;color:#1a1a2e;word-break:break-all;">' + d.channel_id + labelHtml + '</span>'
-      + '<button type="button" class="btn btn-ghost btn-sm" onclick="deleteYtChannel(this)" style="flex-shrink:0;">削除</button>';
+    var span = document.createElement('span');
+    span.style.cssText = 'flex:1;font-size:0.85rem;color:#1a1a2e;word-break:break-all;';
+    span.textContent = d.channel_id;
+    if (d.label) {
+      var lbl = document.createElement('span');
+      lbl.style.color = '#6b7280';
+      lbl.textContent = '（' + d.label + '）';
+      span.appendChild(lbl);
+    }
+    div.appendChild(span);
+    var delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn btn-ghost btn-sm';
+    delBtn.style.flexShrink = '0';
+    delBtn.textContent = '削除';
+    delBtn.setAttribute('onclick', 'deleteYtChannel(this)');
+    div.appendChild(delBtn);
     list.appendChild(div);
     document.getElementById('yt-ch-id-input').value = '';
     document.getElementById('yt-ch-label-input').value = '';
