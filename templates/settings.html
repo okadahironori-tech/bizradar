@@ -261,6 +261,31 @@
     </div>
   </section>
 
+  <!-- ── 除外する配信元 ── -->
+  <section>
+    <div class="section-title">除外する配信元</div>
+    <div class="card">
+      <div style="padding:16px 20px;">
+        <div style="font-size:0.82rem;color:#6b7280;margin-bottom:12px;line-height:1.6;">
+          登録した配信元のニュースはニュース一覧に表示されなくなります
+        </div>
+        <div id="excluded-source-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+          {% for es in excluded_sources %}
+          <button type="button" class="btn btn-ghost btn-sm" data-id="{{ es.id }}"
+                  onclick="deleteExcludedSource(this)"
+                  style="border-radius:20px;padding:4px 12px;font-size:0.8rem;background:#f3f4f6;border-color:#e5e7eb;color:#4b5563;"
+                  title="クリックで削除">{{ es.source_name }} ×</button>
+          {% endfor %}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="excluded-source-input" placeholder="例: PR TIMES" maxlength="100"
+                 style="padding:7px 12px;font-size:0.88rem;border:1.5px solid #d1d5db;border-radius:8px;flex:1;min-width:160px;">
+          <button type="button" class="btn btn-save" onclick="addExcludedSource()">追加する</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── プラン変更 ── -->
   <section>
     <div class="section-title">プラン変更</div>
@@ -625,6 +650,42 @@ function togglePwVis(btn) {
     input.type = 'password';
     btn.textContent = '表示';
   }
+}
+function addExcludedSource() {
+  var input = document.getElementById('excluded-source-input');
+  var name = (input.value || '').trim();
+  if (!name) return;
+  fetch('/settings/excluded-sources', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _settingsCsrf() },
+    credentials: 'same-origin',
+    body: JSON.stringify({ source_name: name })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.success) { alert(d.message || 'エラー'); return; }
+    var list = document.getElementById('excluded-source-list');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-ghost btn-sm';
+    btn.dataset.id = d.id;
+    btn.setAttribute('onclick', 'deleteExcludedSource(this)');
+    btn.style.cssText = 'border-radius:20px;padding:4px 12px;font-size:0.8rem;background:#f3f4f6;border-color:#e5e7eb;color:#4b5563;';
+    btn.title = 'クリックで削除';
+    btn.textContent = d.source_name + ' ×';
+    list.appendChild(btn);
+    input.value = '';
+  }).catch(function(e) { alert('送信エラー: ' + e); });
+}
+function deleteExcludedSource(btn) {
+  if (!confirm('この配信元の除外を解除しますか？')) return;
+  var id = btn.dataset.id;
+  fetch('/settings/excluded-sources/' + id, {
+    method: 'DELETE',
+    headers: { 'X-CSRFToken': _settingsCsrf() },
+    credentials: 'same-origin'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) btn.remove();
+    else alert(d.message || '削除に失敗しました');
+  }).catch(function(e) { alert('削除エラー: ' + e); });
 }
 function _settingsCsrf() {
   var el = document.querySelector('input[name="csrf_token"]');

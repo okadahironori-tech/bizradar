@@ -2476,6 +2476,7 @@ def settings():
                            profile_company_size=user.get("company_size") or "",
                            profile_job_type=user.get("job_type") or "",
                            profile_job_title=user.get("job_title") or "",
+                           excluded_sources=db.load_excluded_sources(user_id),
                            dashboard_settings=db.get_dashboard_settings(user_id))
 
 
@@ -2526,6 +2527,30 @@ def save_profile():
     db.update_user_profile(user_id, company_name, industry, company_size, job_type, job_title)
     flash("プロフィールを保存しました", "success")
     return redirect(url_for("settings"))
+
+
+@app.route("/settings/excluded-sources", methods=["POST"])
+@login_required
+def add_excluded_source():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    source_name = (data.get("source_name") or "").strip()
+    if not source_name:
+        return jsonify({"success": False, "message": "配信元名を入力してください"})
+    result = db.add_excluded_source(user_id, source_name)
+    if result is None:
+        return jsonify({"success": False, "message": "既に登録済みです"})
+    return jsonify({"success": True, "id": result, "source_name": source_name})
+
+
+@app.route("/settings/excluded-sources/<int:source_id>", methods=["DELETE"])
+@login_required
+def delete_excluded_source(source_id):
+    user_id = session["user_id"]
+    ok = db.delete_excluded_source(user_id, source_id)
+    if ok:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "message": "削除に失敗しました"})
 
 
 @app.route("/settings/plan", methods=["POST"])

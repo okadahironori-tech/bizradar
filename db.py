@@ -502,6 +502,17 @@ def _run_migrations():
                 "importance_feedback TEXT;"
             )
 
+            # excluded_sources: 除外配信元
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS excluded_sources (
+                    id          SERIAL PRIMARY KEY,
+                    user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    source_name TEXT NOT NULL,
+                    created_at  TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(user_id, source_name)
+                );
+            """)
+
             # companies: 企業単位の通知オン/オフ
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
@@ -1380,6 +1391,10 @@ def load_articles_data(user_id=None) -> dict:
                     "WHERE a.user_id = %s AND a.is_representative = TRUE "
                     "AND a.found_at >= %s "
                     "AND (a.published = '' OR REPLACE(a.published, '~', '') >= %s) "
+                    "AND NOT EXISTS ("
+                    "  SELECT 1 FROM excluded_sources es "
+                    "  WHERE es.user_id = a.user_id AND es.source_name = a.source"
+                    ") "
                     "ORDER BY "
                     "CASE WHEN a.importance='high' THEN 0 "
                     "     WHEN a.importance='medium' THEN 1 ELSE 2 END, "
@@ -3017,6 +3032,44 @@ def load_badge_feedback(limit: int = 50, offset: int = 0) -> list:
             return [dict(r) for r in cur.fetchall()]
 
 
+def load_excluded_sources(user_id: int) -> list:
+    """ユーザーの除外配信元一覧を返す"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, source_name FROM excluded_sources "
+                "WHERE user_id = %s ORDER BY id",
+                (user_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def add_excluded_source(user_id: int, source_name: str) -> int | None:
+    """除外配信元を追加する。成功時はID、重複時はNone。"""
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO excluded_sources (user_id, source_name) "
+                    "VALUES (%s, %s) RETURNING id",
+                    (user_id, source_name.strip()),
+                )
+                return cur.fetchone()[0]
+    except psycopg2.errors.UniqueViolation:
+        return None
+
+
+def delete_excluded_source(user_id: int, source_id: int) -> bool:
+    """除外配信元を削除する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM excluded_sources WHERE id = %s AND user_id = %s",
+                (source_id, user_id),
+            )
+            return cur.rowcount > 0
+
+
 def save_badge_feedback(article_id: int, user_id: int,
                         correct_company_id: int | None,
                         reason_type: str, reason_text: str = "",
@@ -3050,7 +3103,11 @@ def count_user_unread(user_id: int) -> int:
                 "WHERE a.user_id = %s AND a.is_read = FALSE "
                 "AND a.is_representative = TRUE "
                 "AND a.found_at >= %s "
-                "AND (a.published = '' OR REPLACE(a.published, '~', '') >= %s)",
+                "AND (a.published = '' OR REPLACE(a.published, '~', '') >= %s) "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM excluded_sources es "
+                "  WHERE es.user_id = a.user_id AND es.source_name = a.source"
+                ")",
                 (user_id, cutoff, pub_cutoff),
             )
             return cur.fetchone()[0]
