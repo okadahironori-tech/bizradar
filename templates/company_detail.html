@@ -522,12 +522,6 @@
       {% if company.memo %}<div class="memo">{{ company.memo }}</div>{% endif %}
     </div>
     <div class="company-header-actions" style="display:flex;align-items:center;gap:10px;">
-      <label class="kw-toggle" title="通知ON/OFF">
-        <input type="checkbox" data-company-id="{{ company.id }}"
-               {% if company.notify_enabled %}checked{% endif %}
-               onchange="toggleCompanyNotify(this)">
-        <span class="slider"></span>
-      </label>
       <button type="button" class="btn btn-edit btn-sm" onclick="openEditModal()">編集</button>
       <form method="POST" action="/companies/{{ company.id }}/delete"
             onsubmit="return confirm('「{{ company.name }}」を削除しますか？この操作は取り消せません。')">
@@ -877,6 +871,43 @@
                  style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1; min-width:180px;">
           <button type="submit" class="btn btn-primary">追加</button>
         </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- 通知設定 -->
+  <section>
+    <div class="card">
+      <div class="section-title">通知設定</div>
+      <div style="padding:14px 20px 18px;">
+        {% set notify_mode = 'off' if not company.notify_enabled else ('instant' if company.notify_instant else 'digest') %}
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+            <input type="radio" name="notify_mode" value="off" {% if notify_mode == 'off' %}checked{% endif %}
+                   onchange="saveNotifyMode('off')" style="margin-top:3px;">
+            <span>
+              <span style="font-size:0.88rem; font-weight:600;">通知なし</span>
+              <div style="font-size:0.75rem; color:#9ca3af;">この企業の記事はメール通知されません</div>
+            </span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+            <input type="radio" name="notify_mode" value="digest" {% if notify_mode == 'digest' %}checked{% endif %}
+                   onchange="saveNotifyMode('digest')" style="margin-top:3px;">
+            <span>
+              <span style="font-size:0.88rem; font-weight:600;">ダイジェストのみ</span>
+              <div style="font-size:0.75rem; color:#9ca3af;">設定した時刻にまとめて通知されます</div>
+            </span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+            <input type="radio" name="notify_mode" value="instant" {% if notify_mode == 'instant' %}checked{% endif %}
+                   onchange="saveNotifyMode('instant')" style="margin-top:3px;">
+            <span>
+              <span style="font-size:0.88rem; font-weight:600;">即時+ダイジェスト</span>
+              <div style="font-size:0.75rem; color:#9ca3af;">新着記事が見つかり次第すぐに通知され、さらにダイジェストにも含まれます</div>
+            </span>
+          </label>
+        </div>
+        <div id="notify-mode-msg" style="font-size:0.78rem; color:#059669; margin-top:8px; display:none;">保存しました</div>
       </div>
     </div>
   </section>
@@ -1343,16 +1374,17 @@ function applyUrlHint(hintId, suggested) {
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>
 <script>
-function toggleCompanyNotify(cb) {
-  var cid = parseInt(cb.dataset.companyId, 10);
-  fetch('/api/company_notify_toggle', {
+function saveNotifyMode(mode) {
+  var msg = document.getElementById('notify-mode-msg');
+  fetch('/api/companies/{{ company.id }}/notify-setting', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
     credentials: 'same-origin',
-    body: JSON.stringify({ company_id: cid })
+    body: JSON.stringify({ mode: mode })
   }).then(function(r) { return r.json(); }).then(function(d) {
-    if (!d.success) cb.checked = !cb.checked;
-  }).catch(function() { cb.checked = !cb.checked; });
+    if (d.success && msg) { msg.style.display = ''; setTimeout(function() { msg.style.display = 'none'; }, 2000); }
+    else if (!d.success) alert(d.message || 'エラー');
+  }).catch(function() { alert('通信エラー'); });
 }
 function _ytUpdateCount() {
   var n = document.querySelectorAll('.yt-ch-item').length;
