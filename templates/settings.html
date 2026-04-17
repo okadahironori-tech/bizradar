@@ -138,7 +138,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
           <div style="font-size:0.8rem; color:#6b7280; font-weight:600;">ダイジェスト送信時刻（複数選択可）</div>
-          <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:4px;">即時通知の設定は企業ごとに行えます</div>
+          <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:4px;">通知方法は企業ごとに設定できます（通知なし・ダイジェスト通知・即時通知）</div>
           <div id="digest-options" style="display:flex; flex-wrap:wrap; gap:10px 20px;">
             {% for lbl, val in [("5時", "digest_05"), ("6時", "digest_06"), ("7時", "digest_07"),
                                  ("8時", "digest_08"), ("9時", "digest_09"),
