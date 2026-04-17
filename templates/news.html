@@ -415,10 +415,10 @@
                 <span class="article-date {{ 'date-uncertain' if article.published.startswith('~') else '' }} {{ 'article-date-unverified' if not article.date_verified else '' }}">{{ article.published.lstrip('~') }}</span>
               </span>
               <div class="article-card-actions">
+                <button type="button" onclick="showBadgeFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>
                 <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
                 <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>既読にする</button>
                 <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
-                <button type="button" onclick="showBadgeFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>
               </div>
             </div>
             <div class="badge-feedback-form" style="display:none; margin-top:8px; padding:10px; background:#f9fafb; border-radius:8px; font-size:0.82rem;">
