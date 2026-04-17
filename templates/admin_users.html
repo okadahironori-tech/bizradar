@@ -127,6 +127,7 @@
       <div class="user-top">
         {% if u.last_name or u.first_name %}
         <span class="user-email">{{ (u.last_name or '') }} {{ (u.first_name or '') }}</span>
+        {% if u.last_name_kana or u.first_name_kana %}<span style="font-size:0.75rem;color:#9ca3af;">{{ (u.last_name_kana or '') }} {{ (u.first_name_kana or '') }}</span>{% endif %}
         <span style="font-size:0.78rem;color:#6b7280;">{{ u.email }}</span>
         {% else %}
         <span class="user-email">{{ u.email }}</span>
@@ -150,9 +151,6 @@
         </span>
         {% endif %}
       </div>
-      {% if u.last_name_kana or u.first_name_kana %}
-      <div style="font-size:0.75rem;color:#9ca3af;margin-bottom:4px;">{{ (u.last_name_kana or '') }} {{ (u.first_name_kana or '') }}</div>
-      {% endif %}
       <div class="user-mid">
         {{ u.company_name if u.company_name else '<span class="na">未入力</span>' | safe }}
         &nbsp;|&nbsp;
