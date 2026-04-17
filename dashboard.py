@@ -2471,6 +2471,8 @@ def settings():
                            current_slack_webhook_url=user.get("slack_webhook_url", "") or "",
                            current_line_user_id=user.get("line_user_id", "") or "",
                            line_official_id=os.environ.get("LINE_OFFICIAL_ID", "@490kqrnm"),
+                           profile_last_name=user.get("last_name") or "",
+                           profile_first_name=user.get("first_name") or "",
                            profile_company_name=user.get("company_name") or "",
                            profile_industry=user.get("industry") or "",
                            profile_company_size=user.get("company_size") or "",
@@ -2510,6 +2512,8 @@ def api_global_alert_keyword_delete(keyword_id):
 @login_required
 def save_profile():
     user_id = session["user_id"]
+    last_name = request.form.get("last_name", "").strip()[:50]
+    first_name = request.form.get("first_name", "").strip()[:50]
     company_name = request.form.get("company_name", "").strip()
     industry = request.form.get("industry", "").strip()
     company_size = request.form.get("company_size", "").strip()
@@ -2524,6 +2528,13 @@ def save_profile():
     if not company_size:
         flash("従業員規模を選択してください", "error")
         return redirect(url_for("settings"))
+    # 氏名を保存
+    with db._conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET last_name=%s, first_name=%s WHERE id=%s",
+                (last_name or None, first_name or None, user_id),
+            )
     db.update_user_profile(user_id, company_name, industry, company_size, job_type, job_title)
     flash("プロフィールを保存しました", "success")
     return redirect(url_for("settings"))
