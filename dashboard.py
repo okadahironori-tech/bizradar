@@ -2849,6 +2849,49 @@ def admin_feedback():
                            user_email=session.get("email", ""))
 
 
+@app.route("/admin/trigger-instant-check", methods=["POST"])
+@admin_required
+def admin_trigger_instant_check():
+    import monitor as _monitor
+    user_id = session["user_id"]
+    print(f"[ADMIN] instant-check triggered by user_id={user_id}")
+    try:
+        _monitor.check_all_keywords()
+        print("[ADMIN] instant-check completed")
+        return jsonify({"success": True, "message": "即時通知チェックを実行しました"})
+    except Exception as e:
+        print(f"[ADMIN] instant-check error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/admin/trigger-digest", methods=["POST"])
+@admin_required
+def admin_trigger_digest():
+    import monitor as _monitor
+    admin_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    target_uid = data.get("user_id") or admin_id
+    try:
+        target_uid = int(target_uid)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "invalid user_id"}), 400
+    target_user = db.get_user_by_id(target_uid)
+    if not target_user:
+        return jsonify({"success": False, "message": "ユーザーが見つかりません"}), 404
+    print(f"[ADMIN] digest triggered by user_id={admin_id} for target={target_uid}")
+    try:
+        _monitor.send_digest_for_user(target_uid)
+        print(f"[ADMIN] digest completed for user_id={target_uid}")
+        return jsonify({
+            "success": True,
+            "message": "ダイジェストを送信しました",
+            "user_email": target_user.get("email", ""),
+        })
+    except Exception as e:
+        print(f"[ADMIN] digest error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route("/admin/users")
 @admin_required
 def admin_users():

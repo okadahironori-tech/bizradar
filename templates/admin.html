@@ -202,6 +202,35 @@
     <a href="/admin/users" style="color:#3949ab; text-decoration:none; font-size:0.88rem; font-weight:600;">ユーザー一覧 →</a>
     <p style="font-size:0.78rem; color:#9ca3af; margin-top:4px;">全ユーザーのプロフィール情報を確認します</p>
   </div>
+
+  <div class="section-title" style="margin-top:32px;">デバッグツール</div>
+  <div class="card" style="padding:16px 20px;">
+    <div id="debug-result" style="display:none; padding:10px 14px; border-radius:0; margin-bottom:12px; font-size:0.85rem;"></div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:0.88rem; font-weight:600; margin-bottom:6px;">即時通知チェックを実行</div>
+      <p style="font-size:0.78rem; color:#9ca3af; margin-bottom:8px;">全ユーザーのキーワード収集と即時通知判定を実行します</p>
+      <button type="button" id="btn-instant-check" onclick="triggerInstantCheck()"
+              style="background:#3949ab; color:#fff; border:none; border-radius:0; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+        実行する
+      </button>
+    </div>
+    <hr style="border:none; border-top:1px solid #e5e7eb; margin:16px 0;">
+    <div>
+      <div style="font-size:0.88rem; font-weight:600; margin-bottom:6px;">ダイジェスト送信</div>
+      <p style="font-size:0.78rem; color:#9ca3af; margin-bottom:8px;">指定ユーザーのダイジェストを即座に送信します</p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="digest-user-select" style="padding:6px 10px; border:1px solid #d1d5db; border-radius:0; font-size:0.85rem;">
+          {% for u in users %}
+          <option value="{{ u.id }}">{{ u.email }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" id="btn-digest" onclick="triggerDigest()"
+                style="background:#3949ab; color:#fff; border:none; border-radius:0; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+          送信する
+        </button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">
@@ -219,6 +248,50 @@
   document.addEventListener('click', function () { menu.classList.remove('open'); });
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 })();
+</script>
+<script>
+function _debugCsrf() {
+  var m = document.querySelector('meta[name="csrf-token"]');
+  if (m) return m.getAttribute('content');
+  var el = document.querySelector('input[name="csrf_token"]');
+  return el ? el.value : '';
+}
+function _showResult(msg, ok) {
+  var el = document.getElementById('debug-result');
+  el.textContent = msg;
+  el.style.display = '';
+  el.style.background = ok ? '#ecfdf5' : '#fef2f2';
+  el.style.color = ok ? '#065f46' : '#991b1b';
+  el.style.border = '1px solid ' + (ok ? '#a7f3d0' : '#fca5a5');
+}
+function triggerInstantCheck() {
+  var btn = document.getElementById('btn-instant-check');
+  btn.disabled = true; btn.textContent = '実行中...';
+  fetch('/admin/trigger-instant-check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _debugCsrf() },
+    credentials: 'same-origin'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    _showResult(d.message || (d.success ? '完了' : 'エラー'), d.success);
+  }).catch(function(e) { _showResult('通信エラー: ' + e, false); })
+  .finally(function() { btn.disabled = false; btn.textContent = '実行する'; });
+}
+function triggerDigest() {
+  var btn = document.getElementById('btn-digest');
+  var uid = document.getElementById('digest-user-select').value;
+  btn.disabled = true; btn.textContent = '送信中...';
+  fetch('/admin/trigger-digest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _debugCsrf() },
+    credentials: 'same-origin',
+    body: JSON.stringify({ user_id: parseInt(uid) })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var msg = d.message || '';
+    if (d.user_email) msg += ' (' + d.user_email + ')';
+    _showResult(msg, d.success);
+  }).catch(function(e) { _showResult('通信エラー: ' + e, false); })
+  .finally(function() { btn.disabled = false; btn.textContent = '送信する'; });
+}
 </script>
 
 <!-- ── ページトップへ戻るボタン ── -->
