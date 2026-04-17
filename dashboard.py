@@ -2534,6 +2534,9 @@ def save_profile():
     company_size = request.form.get("company_size", "").strip()
     job_type = request.form.get("job_type", "").strip()
     job_title = request.form.get("job_title", "").strip()
+    if not last_name or not first_name or not last_name_kana or not first_name_kana or not phone:
+        flash("お名前・ふりがな・電話番号は必須項目です", "error")
+        return redirect(url_for("settings"))
     if not company_name:
         flash("会社名を入力してください", "error")
         return redirect(url_for("settings"))

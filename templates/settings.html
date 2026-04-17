@@ -216,26 +216,26 @@
       <form class="settings-panel" method="POST" action="/settings/profile" style="flex-direction:column; align-items:flex-start; gap:12px; width:100%;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="width:100%; max-width:400px;">
-          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">お名前</label>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">お名前 <span style="color:#dc2626">*</span></label>
           <div style="display:flex; gap:8px;">
-            <input type="text" name="last_name" value="{{ profile_last_name }}" placeholder="山田" maxlength="50"
+            <input type="text" name="last_name" value="{{ profile_last_name }}" placeholder="山田" maxlength="50" required
                    style="flex:1; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem;">
-            <input type="text" name="first_name" value="{{ profile_first_name }}" placeholder="太郎" maxlength="50"
+            <input type="text" name="first_name" value="{{ profile_first_name }}" placeholder="太郎" maxlength="50" required
                    style="flex:1; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem;">
           </div>
         </div>
         <div style="width:100%; max-width:400px;">
-          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">ふりがな</label>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">ふりがな <span style="color:#dc2626">*</span></label>
           <div style="display:flex; gap:8px;">
-            <input type="text" name="last_name_kana" value="{{ profile_last_name_kana }}" placeholder="やまだ" maxlength="50"
+            <input type="text" name="last_name_kana" value="{{ profile_last_name_kana }}" placeholder="やまだ" maxlength="50" required
                    style="flex:1; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem;">
-            <input type="text" name="first_name_kana" value="{{ profile_first_name_kana }}" placeholder="たろう" maxlength="50"
+            <input type="text" name="first_name_kana" value="{{ profile_first_name_kana }}" placeholder="たろう" maxlength="50" required
                    style="flex:1; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem;">
           </div>
         </div>
         <div style="width:100%; max-width:400px;">
-          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">電話番号</label>
-          <input type="tel" name="phone" value="{{ profile_phone }}" placeholder="090-0000-0000" maxlength="20"
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">電話番号 <span style="color:#dc2626">*</span></label>
+          <input type="tel" name="phone" value="{{ profile_phone }}" placeholder="090-0000-0000" maxlength="20" required
                  style="width:100%; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem;">
         </div>
         <div style="width:100%; max-width:400px;">
