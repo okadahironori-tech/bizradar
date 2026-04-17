@@ -1748,45 +1748,56 @@ def compute_diff_summary(old_content: str, new_content: str, _debug_url: str = "
     return added + removed
 
 
-def send_email(url: str, site_name: str = ""):
-    """変更を検知したらメールで通知する"""
-    now   = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
-    label = site_name if site_name else url
-    subject = f"【サイト更新通知】{label} が更新されました"
-    salutation = db.get_salutation_for_email(EMAIL_SETTINGS["recipient_email"])
-    body = f"""{salutation}
+def send_site_change_email(user_email: str, changed_sites: list):
+    """変更を検知したサイトをまとめてユーザーに通知する。
+    changed_sites: [{"url": "...", "name": "..."}, ...]
+    """
+    import html as _html
+    if not changed_sites or not user_email:
+        return
+    now = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
+    salutation = db.get_salutation_for_email(user_email)
+    rows_html = ""
+    for s in changed_sites:
+        label = _html.escape(s.get("name") or s["url"])
+        url_esc = _html.escape(s["url"])
+        rows_html += (
+            f'<div style="padding:10px 0;border-bottom:1px solid #f0f2f5;">'
+            f'<div style="font-weight:600;color:#1a1a2e;">{label}</div>'
+            f'<div style="margin-top:4px;">'
+            f'<a href="{url_esc}" style="color:#3949ab;text-decoration:none;">{url_esc}</a></div>'
+            f'</div>'
+        )
+    html_body = f"""<!DOCTYPE html>
+<html lang="ja"><body style="font-family:sans-serif;color:#111;max-width:600px;margin:0 auto;padding:16px">
+<p>{salutation}</p>
+<h2 style="font-size:1.1em;margin-bottom:4px;">モニタリングサイトの更新を検知しました</h2>
+<p style="color:#6b7280;font-size:0.85em;margin-top:0;">検出日時: {now}</p>
+{rows_html}
+<hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px">
+<p style="color:#9ca3af;font-size:0.78em;">このメールはBizRadarにより自動送信されました。</p>
+</body></html>"""
 
-{label} に変更が検出されました。
-
-対象URL: {url}
-検出日時: {now}
-
-以下のリンクからサイトをご確認ください:
-{url}
-
----
-このメールはBizRadarモニタリングサービスにより自動送信されました。
-"""
     msg = MIMEMultipart()
     msg["From"]    = formataddr(("BizRadar", EMAIL_SETTINGS["sender_email"]))
-    msg["To"]      = EMAIL_SETTINGS["recipient_email"]
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain", "utf-8"))
-
+    msg["To"]      = user_email
+    msg["Subject"] = "【BizRadar】モニタリングサイトの更新を検知しました"
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
     try:
         with smtplib.SMTP(EMAIL_SETTINGS["smtp_server"], EMAIL_SETTINGS["smtp_port"]) as server:
             server.starttls()
             server.login(EMAIL_SETTINGS["sender_email"], EMAIL_SETTINGS["sender_password"])
             server.send_message(msg)
-        print(f"[通知] メールを送信しました → {EMAIL_SETTINGS['recipient_email']}")
+        print(f"[通知] サイト変更メールを送信しました → {user_email} ({len(changed_sites)}件)")
     except smtplib.SMTPException as e:
-        print(f"[エラー] メール送信に失敗しました: {e}")
+        print(f"[エラー] サイト変更メール送信に失敗しました: {e}")
 
 
-def check_single_site(url: str, site_name: str = ""):
-    """単一URLをチェックしてDBを更新する"""
+def check_single_site(url: str, site_name: str = "") -> bool:
+    """単一URLをチェックしてDBを更新する。変更があれば True を返す。"""
     now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
     print(f"  確認中: {url}")
+    changed = False
 
     previous_hashes = db.load_hashes()
     log             = db.load_monitor_log()
@@ -1806,7 +1817,6 @@ def check_single_site(url: str, site_name: str = ""):
             print(f"  → 変更を検出しました！: {url}")
             old_content  = _normalize_lines(content_store.get(url, ""))
             diff_summary = compute_diff_summary(old_content, content, _debug_url=url) if old_content else []
-            send_email(url, site_name)
             log["last_checks"][url] = {"timestamp": now_str, "status": "changed"}
             log["change_history"].insert(0, {
                 "timestamp": now_str,
@@ -1814,6 +1824,7 @@ def check_single_site(url: str, site_name: str = ""):
                 "name":      site_name,
                 "diff":      diff_summary,
             })
+            changed = True
         else:
             print(f"  → 変更なし")
             log["last_checks"][url] = {"timestamp": now_str, "status": "ok"}
@@ -1824,6 +1835,7 @@ def check_single_site(url: str, site_name: str = ""):
     db.save_hashes(previous_hashes)
     db.save_monitor_log(log)
     db.save_content_store(content_store)
+    return changed
 
 
 def check_and_notify_site_errors():
@@ -1856,11 +1868,38 @@ def check_and_notify_site_errors():
 
 
 def check_all_sites():
-    """全URLをチェックして変更があれば通知する"""
+    """全URLをチェックして変更があれば通知する（ユーザー別にまとめ送信）"""
     print(f"\n[チェック開始] {datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')}")
     sites = db.load_sites_for_monitor()
+
+    # user_id ごとに変更サイトを集約
+    user_changes: dict = {}  # {user_id: [{"url":..., "name":...}, ...]}
     for site in sites:
-        check_single_site(site["url"], site.get("name", ""))
+        if not site.get("enabled", True):
+            continue
+        if not site.get("company_notify_enabled", True):
+            continue
+        changed = check_single_site(site["url"], site.get("name", ""))
+        if changed:
+            uid = site.get("user_id")
+            if uid:
+                user_changes.setdefault(uid, []).append({
+                    "url": site["url"],
+                    "name": site.get("name", ""),
+                })
+
+    # ユーザーごとにまとめてメール送信
+    for uid, changed_sites in user_changes.items():
+        try:
+            user = db.get_user_by_id(uid)
+            if not user:
+                continue
+            email = user.get("email", "")
+            if email:
+                send_site_change_email(email, changed_sites)
+        except Exception as e:
+            print(f"[エラー] サイト変更通知失敗 user_id={uid}: {e}")
+
     print(f"[チェック完了]")
     check_and_notify_site_errors()
 

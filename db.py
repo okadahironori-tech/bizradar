@@ -1044,7 +1044,14 @@ def load_sites_for_monitor() -> list:
     """
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT url, name FROM sites WHERE user_id IS NOT NULL ORDER BY id")
+            cur.execute(
+                "SELECT s.url, s.name, s.user_id, s.company_id, "
+                "COALESCE(s.enabled, TRUE) AS enabled, "
+                "COALESCE(c.notify_enabled, TRUE) AS company_notify_enabled "
+                "FROM sites s "
+                "LEFT JOIN companies c ON c.id = s.company_id "
+                "WHERE s.user_id IS NOT NULL ORDER BY s.id"
+            )
             return [dict(row) for row in cur.fetchall()]
 
 
