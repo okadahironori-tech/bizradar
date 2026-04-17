@@ -2096,7 +2096,10 @@ def get_users_for_digest_hour(hour: int) -> list:
 
 
 def load_unnotified_articles(user_id: int) -> list:
-    """未通知（notified_at IS NULL）の記事を返す（keyword, is_notify_enabled 付き）"""
+    """未通知（notified_at IS NULL）の記事を返す。
+    企業通知OFF（companies.notify_enabled=FALSE）の記事は除外する。
+    company_id=NULL のキーワードは従来通り含める。
+    """
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -2106,7 +2109,10 @@ def load_unnotified_articles(user_id: int) -> list:
                 "FROM articles a "
                 "LEFT JOIN keywords k "
                 "  ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "LEFT JOIN companies c "
+                "  ON c.id = k.company_id "
                 "WHERE a.user_id = %s AND a.notified_at IS NULL "
+                "AND (k.company_id IS NULL OR COALESCE(c.notify_enabled, TRUE) = TRUE) "
                 "ORDER BY a.published DESC, a.id DESC",
                 (user_id,),
             )
