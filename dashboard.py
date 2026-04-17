@@ -2468,6 +2468,11 @@ def settings():
                            current_slack_webhook_url=user.get("slack_webhook_url", "") or "",
                            current_line_user_id=user.get("line_user_id", "") or "",
                            line_official_id=os.environ.get("LINE_OFFICIAL_ID", "@490kqrnm"),
+                           profile_company_name=user.get("company_name") or "",
+                           profile_industry=user.get("industry") or "",
+                           profile_company_size=user.get("company_size") or "",
+                           profile_job_type=user.get("job_type") or "",
+                           profile_job_title=user.get("job_title") or "",
                            dashboard_settings=db.get_dashboard_settings(user_id))
 
 
@@ -2495,6 +2500,29 @@ def api_global_alert_keyword_delete(keyword_id):
     if ok:
         return jsonify({"success": True})
     return jsonify({"success": False, "message": "削除に失敗しました"})
+
+
+@app.route("/settings/profile", methods=["POST"])
+@login_required
+def save_profile():
+    user_id = session["user_id"]
+    company_name = request.form.get("company_name", "").strip()
+    industry = request.form.get("industry", "").strip()
+    company_size = request.form.get("company_size", "").strip()
+    job_type = request.form.get("job_type", "").strip()
+    job_title = request.form.get("job_title", "").strip()
+    if not company_name:
+        flash("会社名を入力してください", "error")
+        return redirect(url_for("settings"))
+    if not industry:
+        flash("業種を選択してください", "error")
+        return redirect(url_for("settings"))
+    if not company_size:
+        flash("従業員規模を選択してください", "error")
+        return redirect(url_for("settings"))
+    db.update_user_profile(user_id, company_name, industry, company_size, job_type, job_title)
+    flash("プロフィールを保存しました", "success")
+    return redirect(url_for("settings"))
 
 
 @app.route("/settings/plan", methods=["POST"])

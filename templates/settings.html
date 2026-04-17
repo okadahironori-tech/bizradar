@@ -209,6 +209,58 @@
     </div>
   </section>
 
+  <!-- ── 会社・職業情報 ── -->
+  <section>
+    <div class="section-title">会社・職業情報</div>
+    <div class="card">
+      <form class="settings-panel" method="POST" action="/settings/profile" style="flex-direction:column; align-items:flex-start; gap:12px; width:100%;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="width:100%; max-width:400px;">
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">会社名 <span style="color:#dc2626">*</span></label>
+          <input type="text" name="company_name" value="{{ profile_company_name }}" placeholder="例：トヨタ自動車株式会社" required maxlength="200"
+                 style="width:100%; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem;">
+        </div>
+        <div style="width:100%; max-width:400px;">
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">業種 <span style="color:#dc2626">*</span></label>
+          <select name="industry" required style="width:100%; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['製造業（自動車・輸送機器）','製造業（機械・設備）','製造業（電気・電子）','製造業（素材・化学）','製造業（その他）','建設・不動産','商社・卸売','金融・保険','情報・通信・IT','メディア・出版・広告','コンサルティング','官公庁・団体','その他'] %}
+            <option value="{{ v }}" {% if profile_industry == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:100%; max-width:400px;">
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">従業員規模 <span style="color:#dc2626">*</span></label>
+          <select name="company_size" required style="width:100%; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['1〜10人','11〜50人','51〜300人','301人以上'] %}
+            <option value="{{ v }}" {% if profile_company_size == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:100%; max-width:400px;">
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">職種</label>
+          <select name="job_type" style="width:100%; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['経営・経営企画','営業・販売','調達・購買','製造・生産管理','研究・開発・設計','財務・経理','人事・総務','広報・マーケティング','情報システム・IT','コンサルタント','その他'] %}
+            <option value="{{ v }}" {% if profile_job_type == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:100%; max-width:400px;">
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#4a4a6a; margin-bottom:4px;">役職</label>
+          <select name="job_title" style="width:100%; padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['代表取締役・社長','取締役・役員','部長','課長','係長・主任','一般社員・担当','経営者・個人事業主','その他'] %}
+            <option value="{{ v }}" {% if profile_job_title == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">保存する</button></div>
+      </form>
+    </div>
+  </section>
+
   <!-- ── プラン変更 ── -->
   <section>
     <div class="section-title">プラン変更</div>

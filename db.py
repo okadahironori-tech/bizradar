@@ -509,6 +509,13 @@ def _run_migrations():
                 "notify_days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6';"
             )
 
+            # users: プロフィール項目
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS industry TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_type TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_size TEXT;")
+
             # users: 氏名（メール本文の宛名表示に使用、任意入力）
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
@@ -755,6 +762,19 @@ def update_user_line_id(user_id: int, line_user_id: str):
             )
 
 
+def update_user_profile(user_id: int, company_name: str, industry: str,
+                        company_size: str, job_type: str = "", job_title: str = ""):
+    """プロフィール項目を更新する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET company_name=%s, industry=%s, company_size=%s, "
+                "job_type=%s, job_title=%s WHERE id=%s",
+                (company_name or None, industry or None, company_size or None,
+                 job_type or None, job_title or None, user_id),
+            )
+
+
 def update_slack_webhook_url(user_id: int, webhook_url: str):
     """users.slack_webhook_url を更新する。空文字は解除扱い。"""
     with _conn() as conn:
@@ -782,7 +802,7 @@ def get_user_by_email(email: str):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id FROM users WHERE email = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size FROM users WHERE email = %s",
                 (email.lower(),)
             )
             row = cur.fetchone()
@@ -793,7 +813,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()
