@@ -721,7 +721,7 @@
           <td><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url }}</a></td>
           <td style="white-space:nowrap;">
             <button type="button" class="btn btn-edit btn-sm"
-                    onclick="openSiteEditModal('{{ s.url | e }}', '{{ (s.name or '') | e }}')">編集</button>
+                    onclick="openSiteEditModal('{{ s.url | e }}', '{{ (s.name or '') | e }}', '{{ s.max_pages or 1 }}')">編集</button>
             <form method="POST" action="/companies/{{ company.id }}/link_site" style="display:inline;"
                   onsubmit="return confirm('このサイトを削除しますか？')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -749,8 +749,12 @@
         <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
         <input type="url" name="url" id="site-url-input-detail" placeholder="https://example.com/news" maxlength="500" required
                oninput="checkUrlHint(this, 'url-hint-detail')">
+        <select name="max_pages" style="padding:6px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;">
+          <option value="1">1ページ</option><option value="2">2ページ</option><option value="3">3ページ</option><option value="5">5ページ</option><option value="10">10ページ</option>
+        </select>
         <button type="submit" class="btn btn-primary">登録する</button>
       </form>
+      <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px;">2ページ以上設定するとページネーションも取得します</div>
       <div id="url-hint-detail"></div>
 
     </div>
@@ -941,6 +945,13 @@
         URLを変更すると、このサイトの更新履歴がリセットされます。
       </div>
     </div>
+    <div class="site-edit-field">
+      <label>取得ページ数</label>
+      <select id="site-edit-max-pages" style="width:100%;padding:7px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.88rem;">
+        <option value="1">1ページ</option><option value="2">2ページ</option><option value="3">3ページ</option><option value="5">5ページ</option><option value="10">10ページ</option>
+      </select>
+      <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px;">2ページ以上設定するとページネーションも取得します</div>
+    </div>
     <div class="site-edit-error" id="site-edit-error"></div>
     <div class="site-edit-actions">
       <button type="button" class="btn btn-ghost" onclick="closeSiteEditModal()">キャンセル</button>
@@ -1082,10 +1093,11 @@ async function markUnread(btn) {
 
 var _siteEditOriginalUrl = '';
 
-function openSiteEditModal(url, name) {
+function openSiteEditModal(url, name, maxPages) {
   _siteEditOriginalUrl = url;
   document.getElementById('site-edit-url').value  = url;
   document.getElementById('site-edit-name').value = name;
+  document.getElementById('site-edit-max-pages').value = maxPages || '1';
   document.getElementById('site-edit-url-warn').classList.remove('url-changed');
   document.getElementById('site-edit-error').style.display    = 'none';
   document.getElementById('site-edit-save-btn').disabled = false;
@@ -1118,7 +1130,7 @@ async function saveSiteEdit() {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken()},
       credentials: 'same-origin',
-      body: JSON.stringify({old_url: _siteEditOriginalUrl, new_url: newUrl, name: name})
+      body: JSON.stringify({old_url: _siteEditOriginalUrl, new_url: newUrl, name: name, max_pages: parseInt(document.getElementById('site-edit-max-pages').value) || 1})
     });
     var data = await res.json();
     if (data.ok) {

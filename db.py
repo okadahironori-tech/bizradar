@@ -463,6 +463,12 @@ def _run_migrations():
             cur.execute("UPDATE users SET plan = 'basic' WHERE plan = 'free';")
             cur.execute("ALTER TABLE users ALTER COLUMN plan SET DEFAULT 'basic';")
 
+            # sites: 複数ページ取得数
+            cur.execute(
+                "ALTER TABLE sites ADD COLUMN IF NOT EXISTS "
+                "max_pages INTEGER DEFAULT 1;"
+            )
+
             # companies: YouTubeチャンネルID（旧・単一。新テーブルに移行済み）
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
@@ -1047,7 +1053,8 @@ def load_sites_for_monitor() -> list:
             cur.execute(
                 "SELECT s.url, s.name, s.user_id, s.company_id, "
                 "COALESCE(s.enabled, TRUE) AS enabled, "
-                "COALESCE(c.notify_enabled, TRUE) AS company_notify_enabled "
+                "COALESCE(c.notify_enabled, TRUE) AS company_notify_enabled, "
+                "COALESCE(s.max_pages, 1) AS max_pages "
                 "FROM sites s "
                 "LEFT JOIN companies c ON c.id = s.company_id "
                 "WHERE s.user_id IS NOT NULL ORDER BY s.id"
@@ -1082,13 +1089,16 @@ def update_site_name(user_id: int, url: str, name: str) -> bool:
             return cur.rowcount > 0
 
 
-def update_site_url_and_name(user_id: int, old_url: str, new_url: str, name: str) -> bool:
+def update_site_url_and_name(user_id: int, old_url: str, new_url: str, name: str,
+                             max_pages: int = 1) -> bool:
     """サイトのURLと名前を更新する。URL変更時は更新履歴・保存コンテンツをリセットする。"""
+    if max_pages not in (1, 2, 3, 5, 10):
+        max_pages = 1
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE sites SET url = %s, name = %s WHERE user_id = %s AND url = %s",
-                (new_url, name, user_id, old_url)
+                "UPDATE sites SET url = %s, name = %s, max_pages = %s WHERE user_id = %s AND url = %s",
+                (new_url, name, max_pages, user_id, old_url)
             )
             if cur.rowcount == 0:
                 return False
@@ -2907,7 +2917,7 @@ def load_company_sites(user_id: int, company_id: int) -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, url, name FROM sites "
+                "SELECT id, url, name, COALESCE(max_pages, 1) AS max_pages FROM sites "
                 "WHERE user_id=%s AND company_id=%s ORDER BY id",
                 (user_id, company_id),
             )
@@ -3222,14 +3232,17 @@ def set_keyword_company(user_id: int, keyword: str, company_id) -> bool:
             return cur.rowcount > 0
 
 
-def create_site_and_link(user_id: int, url: str, name: str, company_id: int) -> bool:
+def create_site_and_link(user_id: int, url: str, name: str, company_id: int,
+                         max_pages: int = 1) -> bool:
     """新規サイトを作成して company_id を同時に紐づける。URL重複時は紐づけのみ更新。"""
+    if max_pages not in (1, 2, 3, 5, 10):
+        max_pages = 1
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO sites (url, name, user_id, company_id) VALUES (%s, %s, %s, %s) "
-                "ON CONFLICT (user_id, url) DO UPDATE SET name = EXCLUDED.name, company_id = EXCLUDED.company_id",
-                (url, name, user_id, company_id),
+                "INSERT INTO sites (url, name, user_id, company_id, max_pages) VALUES (%s, %s, %s, %s, %s) "
+                "ON CONFLICT (user_id, url) DO UPDATE SET name = EXCLUDED.name, company_id = EXCLUDED.company_id, max_pages = EXCLUDED.max_pages",
+                (url, name, user_id, company_id, max_pages),
             )
             return True
 

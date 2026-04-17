@@ -1550,6 +1550,38 @@ def get_page_content(url: str):
     return None, error
 
 
+_PAGE_PATTERNS = [
+    "{base}/page/{n}/",
+    "{base}/page/{n}",
+    "{base}?page={n}",
+    "{base}?p={n}",
+    "{base}?paged={n}",
+]
+
+
+def _fetch_additional_pages(base_url: str, max_pages: int, base_content: str) -> str:
+    """2ページ目以降のコンテンツを取得して結合する。"""
+    extra = ""
+    base_stripped = base_url.rstrip("/")
+    for n in range(2, max_pages + 1):
+        found = False
+        for pattern in _PAGE_PATTERNS:
+            page_url = pattern.format(base=base_stripped, n=n)
+            try:
+                content, err = get_page_content(page_url)
+                if content and content != base_content and len(content) > 50:
+                    extra += "\n" + content
+                    print(f"  [ページ取得] {page_url} → OK")
+                    found = True
+                    break
+            except Exception:
+                continue
+        if not found:
+            print(f"  [ページ取得] {n}ページ目: 有効なURLが見つかりません")
+            break
+    return extra
+
+
 def compute_hash(content: str) -> str:
     return hashlib.md5(content.encode("utf-8")).hexdigest()
 
@@ -1752,7 +1784,7 @@ def send_site_change_email(user_email: str, changed_sites: list):
         print(f"[エラー] サイト変更メール送信に失敗しました: {e}")
 
 
-def check_single_site(url: str, site_name: str = "") -> bool:
+def check_single_site(url: str, site_name: str = "", max_pages: int = 1) -> bool:
     """単一URLをチェックしてDBを更新する。変更があれば True を返す。"""
     now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
     print(f"  確認中: {url}")
@@ -1763,6 +1795,10 @@ def check_single_site(url: str, site_name: str = "") -> bool:
     content_store   = db.load_content_store()
 
     content, error = get_page_content(url)
+    if content and max_pages > 1:
+        extra = _fetch_additional_pages(url, max_pages, content)
+        if extra:
+            content = content + extra
 
     if content is None:
         log["last_checks"][url] = {"timestamp": now_str, "status": "error", "error": error or "不明なエラー"}
@@ -1838,7 +1874,7 @@ def check_all_sites():
             continue
         if not site.get("company_notify_enabled", True):
             continue
-        changed = check_single_site(site["url"], site.get("name", ""))
+        changed = check_single_site(site["url"], site.get("name", ""), max_pages=site.get("max_pages", 1))
         if changed:
             uid = site.get("user_id")
             if uid:

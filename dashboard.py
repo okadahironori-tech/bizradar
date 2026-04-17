@@ -1203,7 +1203,11 @@ def api_update_site():
     if not any(s["url"] == old_url for s in db.load_sites(user_id)):
         return {"ok": False, "error": "該当サイトが見つかりません"}, 404
 
-    ok = db.update_site_url_and_name(user_id, old_url, new_url, name)
+    try:
+        max_pages = int(data.get("max_pages", 1))
+    except (TypeError, ValueError):
+        max_pages = 1
+    ok = db.update_site_url_and_name(user_id, old_url, new_url, name, max_pages=max_pages)
     if not ok:
         return {"ok": False, "error": "更新に失敗しました"}, 500
     return {"ok": True}
@@ -3518,10 +3522,14 @@ def new_site_for_company(company_id):
     user_id = session["user_id"]
     url  = request.form.get("url", "").strip()
     name = request.form.get("name", "").strip()
+    try:
+        max_pages = int(request.form.get("max_pages", "1"))
+    except (TypeError, ValueError):
+        max_pages = 1
     if not url:
         flash("URLを入力してください", "error")
         return redirect(url_for("company_detail", company_id=company_id))
-    db.create_site_and_link(user_id, url, name, company_id)
+    db.create_site_and_link(user_id, url, name, company_id, max_pages=max_pages)
     flash("サイトを登録しました", "success")
     return redirect(url_for("company_detail", company_id=company_id))
 
