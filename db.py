@@ -1390,8 +1390,8 @@ def count_unread_articles(user_id: int) -> int:
 def load_articles_data(user_id=None) -> dict:
     from datetime import datetime, timedelta, timezone
     jst = timezone(timedelta(hours=9))
-    cutoff = (datetime.now(jst) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-    pub_cutoff = (datetime.now(jst) - timedelta(days=30)).strftime("%Y-%m-%d")
+    cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    pub_cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d")
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
@@ -3103,8 +3103,8 @@ def count_user_unread(user_id: int) -> int:
     """ユーザーの未読記事数を返す（load_articles_data と同一条件）"""
     from datetime import datetime, timedelta, timezone
     jst = timezone(timedelta(hours=9))
-    cutoff = (datetime.now(jst) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-    pub_cutoff = (datetime.now(jst) - timedelta(days=30)).strftime("%Y-%m-%d")
+    cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    pub_cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d")
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
