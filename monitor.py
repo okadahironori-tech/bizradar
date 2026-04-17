@@ -604,7 +604,6 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
         if _is_old_unverified(published, date_verified):
             print(f"[fetch] skip old unverified: {url}")
             continue
-        score = _score_article_importance(title, user_plan)
         articles.append({
             "keyword":       keyword,
             "title":         title,
@@ -612,9 +611,9 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
             "source":        source,
             "published":     published,
             "date_verified": date_verified,
-            "importance":    score["importance"],
+            "importance":    "low",
             "summary":       "",
-            "_primary_company": score["primary_company"],
+            "_primary_company": None,
         })
     return articles
 
@@ -688,7 +687,6 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
             if _is_old_unverified(published, date_verified):
                 print(f"[fetch] skip old unverified: {url}")
                 continue
-            score = _score_article_importance(title, user_plan)
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
@@ -696,9 +694,9 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
                 "source":        source,
                 "published":     published,
                 "date_verified": date_verified,
-                "importance":    score["importance"],
+                "importance":    "low",
                 "summary":       "",
-                "_primary_company": score["primary_company"],
+                "_primary_company": None,
             })
     db.update_source_health("bing_news", True)
     return articles
@@ -762,7 +760,6 @@ def fetch_prtimes_articles(keyword: str, user_plan: str = "basic") -> list:
         published = _try_parse_uncertain_published(published)
         if title and url:
             published, date_verified = _verify_and_repair_published(published, url)
-            score = _score_article_importance(title, user_plan)
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
@@ -770,8 +767,8 @@ def fetch_prtimes_articles(keyword: str, user_plan: str = "basic") -> list:
                 "source":        "PR TIMES",
                 "published":     published,
                 "date_verified": date_verified,
-                "importance":    score["importance"],
-                "_primary_company": score["primary_company"],
+                "importance":    "low",
+                "_primary_company": None,
             })
         if len(articles) >= 20:
             break
@@ -1248,8 +1245,10 @@ def check_single_keyword(keyword: str, user_id=None):
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
         for _a in new_articles:
-            pc = _a.pop("_primary_company", None)
-            _a["primary_company_id"] = _resolve_primary_company_id(pc, user_id)
+            score = _score_article_importance(_a.get("title", ""), user_plan)
+            _a["importance"] = score["importance"]
+            _a["primary_company_id"] = _resolve_primary_company_id(
+                score["primary_company"] or _a.pop("_primary_company", None), user_id)
         db.insert_articles(new_articles, user_id)
         try:
             _group_duplicate_articles(user_id)
@@ -1359,8 +1358,10 @@ def check_all_keywords():
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
                 for _a in new_articles:
-                    pc = _a.pop("_primary_company", None)
-                    _a["primary_company_id"] = _resolve_primary_company_id(pc, user_id)
+                    score = _score_article_importance(_a.get("title", ""), user_plan)
+                    _a["importance"] = score["importance"]
+                    _a["primary_company_id"] = _resolve_primary_company_id(
+                        score["primary_company"] or _a.pop("_primary_company", None), user_id)
                 try:
                     db.insert_articles(new_articles, user_id)
                 except Exception as e:
