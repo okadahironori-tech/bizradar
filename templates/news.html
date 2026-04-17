@@ -194,13 +194,16 @@
       .row-actions { gap: 4px; flex-wrap: nowrap; }
     }
     #kw-filter-bar {
-      max-height: 0;
       overflow: hidden;
       transition: max-height 0.3s ease;
-      padding: 0;
+      max-height: 42px;
+      padding: 10px 14px;
     }
     #kw-filter-bar.expanded {
       max-height: 600px;
+    }
+    @media (max-width: 600px) {
+      #kw-filter-bar { max-height: 0; padding: 0; }
     }
     .kw-filter-toggle {
       display: block;
@@ -364,7 +367,7 @@
           <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
           <button class="kw-filter-btn read-toggle" id="read-only-btn" onclick="toggleReadFilter()">既読のみ</button>
         </div>
-        <button class="kw-filter-toggle" id="kw-filter-toggle" onclick="toggleFilterBar()">条件を絞り込む ▼</button>
+        <button class="kw-filter-toggle" id="kw-filter-toggle" onclick="toggleFilterBar()">さらに絞り込む ▼</button>
 
         <div class="sort-controls">
           <button id="btn-art-desc" class="btn-sort active" onclick="setArticleOrder('desc')">新着順</button>
@@ -732,7 +735,7 @@ function toggleFilterBar() {
   var btn = document.getElementById('kw-filter-toggle');
   if (bar.classList.contains('expanded')) {
     bar.classList.remove('expanded');
-    btn.textContent = '条件を絞り込む ▼';
+    btn.textContent = 'さらに絞り込む ▼';
   } else {
     bar.classList.add('expanded');
     btn.textContent = '閉じる ▲';
