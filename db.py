@@ -1433,8 +1433,6 @@ def load_articles_data(user_id=None) -> dict:
                     (user_id, cutoff, pub_cutoff)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
-                cur.execute("SELECT url FROM articles WHERE user_id = %s", (user_id,))
-                seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
                 cur.execute(
                     "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, "
@@ -1452,9 +1450,7 @@ def load_articles_data(user_id=None) -> dict:
                     (cutoff, pub_cutoff)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
-                cur.execute("SELECT url FROM articles")
-                seen_urls = {row["url"]: True for row in cur.fetchall()}
-    return {"articles": articles, "seen_urls": seen_urls}
+    return {"articles": articles}
 
 
 def insert_articles(articles: list, user_id: int):
