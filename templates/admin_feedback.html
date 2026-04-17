@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — フィードバック一覧</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e; color: #fff; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.04em; }
+    header a { color: #8892b0; text-decoration: none; font-size: 0.82rem; }
+    header a:hover { color: #fff; }
+    main { max-width: 900px; margin: 20px auto; padding: 0 16px; }
+    .section-title { font-size: 0.92rem; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+    .fb-card {
+      background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      padding: 16px 20px; margin-bottom: 12px;
+    }
+    .fb-meta { font-size: 0.75rem; color: #9ca3af; margin-bottom: 8px; line-height: 1.6; }
+    .fb-title { font-size: 0.88rem; font-weight: 600; color: #1a1a2e; margin-bottom: 8px; }
+    .fb-title a { color: #3949ab; text-decoration: none; }
+    .fb-title a:hover { text-decoration: underline; }
+    .fb-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .fb-badge {
+      font-size: 0.72rem; font-weight: 600; border-radius: 4px;
+      padding: 2px 8px; display: inline-block;
+    }
+    .fb-badge-orange { background: #fff7ed; color: #b45309; border: 1px solid #fed7aa; }
+    .fb-badge-gray { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+    .fb-badge-lightgray { background: #fafafa; color: #9ca3af; border: 1px solid #e5e7eb; }
+    .fb-badge-red { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .fb-badge-blue { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .fb-detail { font-size: 0.78rem; color: #4a4a6a; margin-top: 6px; line-height: 1.6; }
+    .pagination { display: flex; justify-content: center; gap: 12px; margin-top: 20px; }
+    .pagination a { color: #3949ab; text-decoration: none; font-size: 0.88rem; font-weight: 600; }
+    .pagination a:hover { text-decoration: underline; }
+    .empty { text-align: center; color: #9ca3af; padding: 40px 0; font-size: 0.88rem; }
+  </style>
+  <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+<header>
+  <h1>BizRadar</h1>
+  <div style="display:flex; gap:16px; align-items:center;">
+    <a href="/admin">管理者パネル</a>
+    <a href="/">ホーム</a>
+  </div>
+</header>
+<main>
+  <div class="section-title">フィードバック一覧</div>
+
+  {% if feedbacks %}
+    {% for fb in feedbacks %}
+    <div class="fb-card">
+      <div class="fb-meta">
+        {{ fb.created_at.strftime('%Y-%m-%d %H:%M') if fb.created_at and fb.created_at.strftime is defined else fb.created_at }}
+        &nbsp;|&nbsp; {{ fb.user_email }}
+        {% if fb.user_company %} &nbsp;|&nbsp; {{ fb.user_company }}{% endif %}
+        {% if fb.user_industry %} &nbsp;|&nbsp; {{ fb.user_industry }}{% endif %}
+      </div>
+      <div class="fb-title">
+        <a href="{{ fb.article_url }}" target="_blank" rel="noopener">{{ fb.article_title }}</a>
+      </div>
+      <div class="fb-badges">
+        <span class="fb-badge fb-badge-gray">KW: {{ fb.keyword }}</span>
+        {% if fb.primary_company_name %}
+        <span class="fb-badge fb-badge-blue">AI判定: {{ fb.primary_company_name }}</span>
+        {% endif %}
+        {% if fb.reason_type == 'wrong_company' %}
+        <span class="fb-badge fb-badge-orange">企業違い{% if fb.correct_company_name %} → {{ fb.correct_company_name }}{% endif %}</span>
+        {% elif fb.reason_type == 'not_company_news' %}
+        <span class="fb-badge fb-badge-gray">関係ない記事</span>
+        {% elif fb.reason_type == 'other' %}
+        <span class="fb-badge fb-badge-lightgray">その他</span>
+        {% endif %}
+        {% if fb.importance_feedback == 'high' %}
+        <span class="fb-badge fb-badge-red">重要にすべき (元: {{ fb.article_importance }})</span>
+        {% elif fb.importance_feedback == 'medium' %}
+        <span class="fb-badge fb-badge-blue">注目にすべき (元: {{ fb.article_importance }})</span>
+        {% elif fb.importance_feedback == 'low' %}
+        <span class="fb-badge fb-badge-lightgray">低いにすべき (元: {{ fb.article_importance }})</span>
+        {% endif %}
+      </div>
+      {% if fb.reason_text %}
+      <div class="fb-detail">{{ fb.reason_text }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="pagination">
+      {% if page > 1 %}
+      <a href="/admin/feedback?page={{ page - 1 }}">← 前のページ</a>
+      {% endif %}
+      {% if feedbacks | length == 50 %}
+      <a href="/admin/feedback?page={{ page + 1 }}">次のページ →</a>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="empty">フィードバックはまだありません</div>
+  {% endif %}
+</main>
+</body>
+</html>

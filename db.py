@@ -2982,6 +2982,29 @@ def is_company_notify_enabled(user_id: int, company_id: int) -> bool:
             return row[0] if row else True
 
 
+def load_badge_feedback(limit: int = 50, offset: int = 0) -> list:
+    """管理者用: フィードバック一覧を取得する（JOIN済み）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT bf.id, bf.created_at, bf.reason_type, bf.reason_text, "
+                "bf.importance_feedback, "
+                "u.email AS user_email, u.company_name AS user_company, u.industry AS user_industry, "
+                "a.title AS article_title, a.url AS article_url, a.keyword, a.importance AS article_importance, "
+                "a.primary_company_id, pc.name AS primary_company_name, "
+                "cc.name AS correct_company_name "
+                "FROM badge_feedback bf "
+                "JOIN users u ON u.id = bf.user_id "
+                "JOIN articles a ON a.id = bf.article_id "
+                "LEFT JOIN companies pc ON pc.id = a.primary_company_id "
+                "LEFT JOIN companies cc ON cc.id = bf.correct_company_id "
+                "ORDER BY bf.created_at DESC "
+                "LIMIT %s OFFSET %s",
+                (limit, offset),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
 def save_badge_feedback(article_id: int, user_id: int,
                         correct_company_id: int | None,
                         reason_type: str, reason_text: str = "",

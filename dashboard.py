@@ -2772,6 +2772,19 @@ def admin():
                            user_email=session.get("email", ""))
 
 
+@app.route("/admin/feedback")
+@admin_required
+def admin_feedback():
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = 50
+    offset = (page - 1) * limit
+    feedbacks = db.load_badge_feedback(limit=limit, offset=offset)
+    return render_template("admin_feedback.html",
+                           feedbacks=feedbacks,
+                           page=page,
+                           user_email=session.get("email", ""))
+
+
 @app.route("/admin/domain-overrides")
 @admin_required
 def admin_domain_overrides():
