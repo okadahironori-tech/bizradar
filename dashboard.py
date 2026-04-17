@@ -956,7 +956,8 @@ def index():
     # ---- サマリー集計 ----
     unread_count       = db.count_user_unread(user_id)
     # alert_count は JS の _dashArticles（= articles）と一致させる
-    alert_count        = sum(1 for a in articles if a.get("importance") == "high" and not a.get("is_read"))
+    alert_count        = sum(1 for a in articles
+                             if (a.get("is_alert") or a.get("importance") == "high") and not a.get("is_read"))
     error_site_count   = sum(1 for s in sites if s["status"] == "error")
     today_company_list = db.load_active_companies_today(user_id)
 

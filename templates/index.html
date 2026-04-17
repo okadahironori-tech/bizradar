@@ -842,16 +842,16 @@ function _calcDelta(filterFn) {
 }
 
 function renderDashSections() {
-  var isHigh = function(a) { return a.importance === 'high'; };
+  var isAlertOrHigh = function(a) { return a.is_alert || a.importance === 'high'; };
 
-  // ── 重要アラート: importance='high' かつ未読 ──
+  // ── 重要アラート: is_alert OR importance='high' かつ未読 ──
   var alertSection   = document.getElementById('dash-alert-section');
   var alertContainer = document.getElementById('dash-alert-container');
   var alertCountEl   = document.getElementById('dash-alert-count');
   if (alertContainer) {
-    var unreadAlerts = _dashArticles.filter(function(a) { return isHigh(a) && !_readState.get(a.id); });
+    var unreadAlerts = _dashArticles.filter(function(a) { return isAlertOrHigh(a) && !_readState.get(a.id); });
     var serverAlert = parseInt(alertCountEl ? alertCountEl.dataset.serverCount || '0' : '0', 10);
-    var displayAlert = Math.max(0, serverAlert + _calcDelta(isHigh));
+    var displayAlert = Math.max(0, serverAlert + _calcDelta(isAlertOrHigh));
     if (alertSection) alertSection.style.display = '';
     if (alertCountEl) alertCountEl.textContent = displayAlert + ' 件';
     alertContainer.innerHTML = unreadAlerts.length
@@ -865,7 +865,7 @@ function renderDashSections() {
   var newsContainer = document.getElementById('dash-news-container');
   var newsCountEl   = document.getElementById('dash-news-count');
   if (newsContainer) {
-    var unreadNews = _dashArticles.filter(function(a) { return !isHigh(a) && !_readState.get(a.id); });
+    var unreadNews = _dashArticles.filter(function(a) { return !isAlertOrHigh(a) && !_readState.get(a.id); });
     unreadNews = [].concat(unreadNews).sort(function(a, b) {
       var da = new Date(a.published || 0), db2 = new Date(b.published || 0);
       return _newsOrder === 'asc' ? da - db2 : db2 - da;
