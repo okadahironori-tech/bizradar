@@ -137,13 +137,8 @@
       <form class="settings-panel" method="POST" action="/set_notify_timing" style="flex-direction:column; align-items:flex-start; gap:16px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
-          <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
-            <input type="checkbox" id="timing-immediate" name="notify_timing" value="immediate"
-              {% if "immediate" in notify_timing_list %}checked{% endif %}>
-            <span>即時通知（記事が届いたらすぐに送信）</span>
-          </label>
-          <hr style="border:none; border-top:1px solid #f0f2f5; width:100%; margin:4px 0;">
           <div style="font-size:0.8rem; color:#6b7280; font-weight:600;">ダイジェスト送信時刻（複数選択可）</div>
+          <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:4px;">即時通知の設定は企業ごとに行えます</div>
           <div id="digest-options" style="display:flex; flex-wrap:wrap; gap:10px 20px;">
             {% for lbl, val in [("5時", "digest_05"), ("6時", "digest_06"), ("7時", "digest_07"),
                                  ("8時", "digest_08"), ("9時", "digest_09"),
@@ -634,28 +629,6 @@
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 })();
 
-// 通知タイミング排他制御
-(function () {
-  var immediate = document.getElementById('timing-immediate');
-  var digests = Array.from(document.querySelectorAll('.timing-digest'));
-  if (!immediate) return;
-
-  // 即時通知をONにしたらダイジェスト時刻をすべてオフ
-  immediate.addEventListener('change', function () {
-    if (this.checked) {
-      digests.forEach(function (el) { el.checked = false; });
-    }
-  });
-
-  // ダイジェスト時刻をONにしたら即時通知をオフ
-  digests.forEach(function (el) {
-    el.addEventListener('change', function () {
-      if (this.checked) {
-        immediate.checked = false;
-      }
-    });
-  });
-})();
 </script>
 
 <!-- ── ページトップへ戻るボタン ── -->

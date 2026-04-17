@@ -2327,12 +2327,10 @@ def api_suggest_url():
 def set_notify_timing():
     user_id = session["user_id"]
     selected = request.form.getlist("notify_timing")
+    selected = [s for s in selected if s != "immediate"]
     if not selected:
-        selected = ["immediate"]
-    if "immediate" in selected:
-        timing = "immediate"
-    else:
-        timing = ",".join(selected)
+        selected = ["digest_07"]
+    timing = ",".join(selected)
     if db.set_user_notify_timing(user_id, timing):
         # 曜日設定も同じフォームで保存
         days = request.form.getlist("notify_days")
