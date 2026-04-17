@@ -1636,6 +1636,31 @@ def api_delete_youtube_channel(channel_db_id):
     return jsonify({"success": False, "message": "削除に失敗しました"})
 
 
+@app.route("/api/badge-feedback", methods=["POST"])
+@login_required
+def api_badge_feedback():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    article_id = data.get("article_id")
+    if not article_id:
+        return jsonify({"success": False, "message": "article_id required"})
+    correct_company_id = data.get("correct_company_id")
+    reason_type = data.get("reason_type", "other")
+    if reason_type not in ("wrong_company", "not_company_news", "other"):
+        reason_type = "other"
+    reason_text = (data.get("reason_text") or "")[:500]
+    try:
+        db.save_badge_feedback(
+            int(article_id), user_id,
+            int(correct_company_id) if correct_company_id else None,
+            reason_type, reason_text,
+        )
+    except Exception as e:
+        logger.error("[badge-feedback] save failed: %s", e)
+        return jsonify({"success": False, "message": "save failed"})
+    return jsonify({"success": True})
+
+
 @app.route("/api/company_notify_toggle", methods=["POST"])
 @login_required
 def api_company_notify_toggle():
@@ -2401,6 +2426,7 @@ def news():
         user_email=session.get("email", ""),
         is_admin=session.get("is_admin", False),
         alert_count=alert_count,
+        user_companies=db.load_companies(user_id),
     )
 
 

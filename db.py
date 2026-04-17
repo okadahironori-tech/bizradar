@@ -479,6 +479,24 @@ def _run_migrations():
                     UNIQUE (company_id, channel_id)
                 );
             """)
+            # articles: AI判定の主役企業
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "primary_company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;"
+            )
+            # badge_feedback: バッジNGフィードバック
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS badge_feedback (
+                    id                SERIAL PRIMARY KEY,
+                    article_id        INTEGER REFERENCES articles(id) ON DELETE CASCADE,
+                    user_id           INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    correct_company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+                    reason_type       TEXT,
+                    reason_text       TEXT,
+                    created_at        TIMESTAMP DEFAULT NOW()
+                );
+            """)
+
             # companies: 企業単位の通知オン/オフ
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
@@ -1317,9 +1335,11 @@ def load_articles_data(user_id=None) -> dict:
             if user_id is not None:
                 cur.execute(
                     "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, "
-                    "a.is_read, a.date_verified, a.duplicate_count, a.importance, a.summary "
+                    "a.is_read, a.date_verified, a.duplicate_count, a.importance, a.summary, "
+                    "a.primary_company_id, pc.name AS primary_company_name "
                     "FROM articles a "
                     "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                    "LEFT JOIN companies pc ON pc.id = a.primary_company_id "
                     "WHERE a.user_id = %s AND a.is_representative = TRUE "
                     "AND a.found_at >= %s "
                     "AND (a.published = '' OR REPLACE(a.published, '~', '') >= %s) "
@@ -1334,15 +1354,18 @@ def load_articles_data(user_id=None) -> dict:
                 seen_urls = {row["url"]: True for row in cur.fetchall()}
             else:
                 cur.execute(
-                    "SELECT id, keyword, title, url, source, published, found_at, "
-                    "is_read, date_verified, duplicate_count, importance, summary "
-                    "FROM articles WHERE is_representative = TRUE "
-                    "AND found_at >= %s "
-                    "AND (published = '' OR REPLACE(published, '~', '') >= %s) "
+                    "SELECT a.id, a.keyword, a.title, a.url, a.source, a.published, a.found_at, "
+                    "a.is_read, a.date_verified, a.duplicate_count, a.importance, a.summary, "
+                    "a.primary_company_id, pc.name AS primary_company_name "
+                    "FROM articles a "
+                    "LEFT JOIN companies pc ON pc.id = a.primary_company_id "
+                    "WHERE a.is_representative = TRUE "
+                    "AND a.found_at >= %s "
+                    "AND (a.published = '' OR REPLACE(a.published, '~', '') >= %s) "
                     "ORDER BY "
-                    "CASE WHEN importance='high' THEN 0 "
-                    "     WHEN importance='medium' THEN 1 ELSE 2 END, "
-                    "found_at DESC LIMIT 3000",
+                    "CASE WHEN a.importance='high' THEN 0 "
+                    "     WHEN a.importance='medium' THEN 1 ELSE 2 END, "
+                    "a.found_at DESC LIMIT 3000",
                     (cutoff, pub_cutoff)
                 )
                 articles = [dict(row) for row in cur.fetchall()]
@@ -1363,14 +1386,15 @@ def insert_articles(articles: list, user_id: int):
                     importance = "low"
                 cur.execute(
                     "INSERT INTO articles "
-                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified, importance, summary) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s, %s) ON CONFLICT DO NOTHING",
+                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified, importance, summary, primary_company_id) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
                     (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
                      article.get("source", ""), article.get("published", ""),
                      article.get("found_at", ""), user_id,
                      bool(article.get("date_verified", False)),
                      importance,
-                     article.get("summary", ""))
+                     article.get("summary", ""),
+                     article.get("primary_company_id"))
                 )
 
 
@@ -2931,6 +2955,22 @@ def is_company_notify_enabled(user_id: int, company_id: int) -> bool:
             )
             row = cur.fetchone()
             return row[0] if row else True
+
+
+def save_badge_feedback(article_id: int, user_id: int,
+                        correct_company_id: int | None,
+                        reason_type: str, reason_text: str = "") -> bool:
+    """バッジNGフィードバックを保存する"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO badge_feedback "
+                "(article_id, user_id, correct_company_id, reason_type, reason_text) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (article_id, user_id, correct_company_id, reason_type,
+                 (reason_text or "")[:500]),
+            )
+            return cur.rowcount > 0
 
 
 def count_user_unread(user_id: int) -> int:

@@ -395,7 +395,7 @@
                 {% elif article.importance == 'medium' %}<span class="article-importance-medium-badge">注目</span>
                 {% endif %}
                 {% if article.source == 'YouTube' %}<span class="article-youtube-badge">YouTube</span>{% endif %}
-                <span class="article-kw">{{ article.keyword }}</span>
+                <span class="article-kw">{{ article.primary_company_name if article.primary_company_name else article.keyword }}</span>
                 {% if article.alert_matches %}
                   {% for mkw in article.alert_matches %}
                   <span class="article-alert-kw">キーワード: {{ mkw }}</span>
@@ -418,6 +418,24 @@
                 <span class="article-read-mark"{% if not article.is_read %} style="display:none"{% endif %}>✓</span>
                 <button class="btn-check-done" onclick="markRead(this)"{% if article.is_read %} style="display:none"{% endif %}>既読にする</button>
                 <button class="btn-unread" onclick="markUnread(this)"{% if not article.is_read %} style="display:none"{% endif %}>未読に戻す</button>
+                <button type="button" onclick="showBadgeFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">バッジ違う</button>
+              </div>
+            </div>
+            <div class="badge-feedback-form" style="display:none; margin-top:8px; padding:10px; background:#f9fafb; border-radius:8px; font-size:0.82rem;">
+              <div style="margin-bottom:6px; font-weight:600;">主役の企業は？</div>
+              <select class="bf-company" style="width:100%; padding:5px; border:1px solid #d1d5db; border-radius:6px; margin-bottom:8px; font-size:0.82rem;">
+                <option value="">どの登録企業でもない</option>
+                {% for c in user_companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+              </select>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
+                <label style="cursor:pointer;"><input type="radio" name="bf-reason-{{ article.id }}" value="wrong_company" checked> 別の企業が主役</label>
+                <label style="cursor:pointer;"><input type="radio" name="bf-reason-{{ article.id }}" value="not_company_news"> 関係ない記事</label>
+                <label style="cursor:pointer;"><input type="radio" name="bf-reason-{{ article.id }}" value="other"> その他</label>
+              </div>
+              <input type="text" class="bf-text" placeholder="一言メモ（任意）" maxlength="200" style="width:100%; padding:5px; border:1px solid #d1d5db; border-radius:6px; margin-bottom:8px; font-size:0.82rem;">
+              <div style="display:flex; gap:6px;">
+                <button type="button" onclick="submitBadgeFeedback(this)" style="font-size:0.78rem; background:#1a1a2e; color:#fff; border:none; border-radius:6px; padding:4px 14px; cursor:pointer;">送信</button>
+                <button type="button" onclick="this.closest('.badge-feedback-form').style.display='none'" style="font-size:0.78rem; background:none; border:1px solid #d1d5db; border-radius:6px; padding:4px 14px; cursor:pointer; color:#666;">キャンセル</button>
               </div>
             </div>
             {% if article.duplicate_count and article.duplicate_count > 0 %}
@@ -752,6 +770,32 @@ function _checkFilterToggleVisibility() {
 }
 document.addEventListener('DOMContentLoaded', _checkFilterToggleVisibility);
 window.addEventListener('resize', _checkFilterToggleVisibility);
+</script>
+<script>
+function showBadgeFeedback(btn) {
+  var form = btn.closest('.article-item').querySelector('.badge-feedback-form');
+  if (form) form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+function submitBadgeFeedback(btn) {
+  var form = btn.closest('.badge-feedback-form');
+  var item = form.closest('.article-item');
+  var articleId = item.dataset.articleId;
+  var companyId = form.querySelector('.bf-company').value || null;
+  var reason = form.querySelector('input[type="radio"]:checked');
+  var reasonType = reason ? reason.value : 'other';
+  var reasonText = form.querySelector('.bf-text').value || '';
+  fetch('/api/badge-feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    credentials: 'same-origin',
+    body: JSON.stringify({ article_id: parseInt(articleId), correct_company_id: companyId ? parseInt(companyId) : null, reason_type: reasonType, reason_text: reasonText })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    form.innerHTML = '<div style="color:#059669;padding:8px 0;">ありがとうございます</div>';
+    setTimeout(function() { form.style.display = 'none'; form.innerHTML = ''; }, 1000);
+  }).catch(function() {
+    form.innerHTML = '<div style="color:#dc2626;padding:8px 0;">送信に失敗しました</div>';
+  });
+}
 </script>
 </body>
 </html>

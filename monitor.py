@@ -379,22 +379,23 @@ def _send_slack_for_keyword(user_id: int, keyword: str, articles: list):
     _send_slack_notification(webhook_url, "\n".join(lines))
 
 
-def _score_article_importance(title: str, plan: str) -> str:
-    """記事タイトルの重要度を 'high' / 'medium' / 'low' で返す。
-    business または pro プラン以外は AI を呼ばず 'low' を返す。
-    Claude Haiku API 失敗時も 'low' にフォールバックする。
+def _score_article_importance(title: str, plan: str) -> dict:
+    """記事タイトルの重要度と主役企業名を返す。
+    戻り値: {"importance": "high"/"medium"/"low", "primary_company": "企業名" or None}
+    business/pro プラン以外は AI 未呼び出し。
     """
+    result = {"importance": "low", "primary_company": None}
     if plan not in ("business", "pro"):
-        return "low"
+        return result
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         print(f"[importance] low: {title[:30]} (no API key)")
-        return "low"
+        return result
     try:
         import anthropic
     except ImportError:
         print(f"[importance] low: {title[:30]} (anthropic not installed)")
-        return "low"
+        return result
     prompt = (
         "次のニュースタイトルを重要度で分類してください。\n\n"
         "high（重要）: 決算・業績発表、人事（就任・退任・解任）、M&A・経営統合・買収、倒産・民事再生、リコール・重大事故、工場閉鎖・大規模リストラ\n"
@@ -402,29 +403,57 @@ def _score_article_importance(title: str, plan: str) -> str:
         "low（通常）: セミナー・展示会・発表大会への参加・出展、プレスリリース・お知らせ、サイト更新、定例報告、イベント開催告知、表彰・受賞、インタビュー・コラム・解説記事\n\n"
         "注意：PR TIMESやプレスリリース配信サービス由来と思われる記事はlowを優先してください。\n"
         "注意：タイトルに「〜大会」「〜フェスタ」「〜セミナー」「〜展」が含まれる場合はlowにしてください。\n\n"
-        f"タイトル: {title}\n"
-        "high/medium/low のいずれか1単語だけ回答してください。"
+        f"タイトル: {title}\n\n"
+        "以下のJSON形式で回答してください。他の文字は不要です。\n"
+        '{"importance": "high または medium または low", "primary_company": "主役企業名（日本語）。特定企業の話でなければnull"}'
     )
     try:
+        import json as _json
         client = anthropic.Anthropic(api_key=api_key)
         msg = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=10,
+            max_tokens=80,
             messages=[{"role": "user", "content": prompt}],
         )
         text = ""
         for block in msg.content:
             if getattr(block, "type", None) == "text":
                 text += block.text or ""
-        text = text.strip().lower()
-        for level in ("high", "medium", "low"):
-            if level in text:
-                print(f"[importance] {level}: {title[:30]}")
-                return level
+        text = text.strip()
+        try:
+            parsed = _json.loads(text)
+            imp = parsed.get("importance", "low")
+            if imp in ("high", "medium", "low"):
+                result["importance"] = imp
+            pc = parsed.get("primary_company")
+            if pc and pc != "null" and isinstance(pc, str):
+                result["primary_company"] = pc.strip()
+        except _json.JSONDecodeError:
+            text_lower = text.lower()
+            for level in ("high", "medium", "low"):
+                if level in text_lower:
+                    result["importance"] = level
+                    break
+        print(f"[importance] {result['importance']}: {title[:30]} company={result['primary_company']!r}")
     except Exception as e:
         print(f"[importance] API error title={title[:30]!r}: {e}")
-    print(f"[importance] low: {title[:30]}")
-    return "low"
+    return result
+
+
+def _resolve_primary_company_id(company_name: str | None, user_id: int) -> int | None:
+    """AI が返した企業名をユーザーの登録企業と照合し company_id を返す。"""
+    if not company_name:
+        return None
+    try:
+        companies = db.load_companies(user_id)
+    except Exception:
+        return None
+    cn = company_name.strip()
+    for c in companies:
+        name = c.get("name", "")
+        if cn in name or name in cn:
+            return c["id"]
+    return None
 
 
 def _summarize_article(title: str, url: str, plan: str) -> str:
@@ -617,8 +646,7 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
         if _is_old_unverified(published, date_verified):
             print(f"[fetch] skip old unverified: {url}")
             continue
-        importance = _score_article_importance(title, user_plan)
-        summary = ""
+        score = _score_article_importance(title, user_plan)
         articles.append({
             "keyword":       keyword,
             "title":         title,
@@ -626,8 +654,9 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
             "source":        source,
             "published":     published,
             "date_verified": date_verified,
-            "importance":    importance,
-            "summary":       summary,
+            "importance":    score["importance"],
+            "summary":       "",
+            "_primary_company": score["primary_company"],
         })
     return articles
 
@@ -701,8 +730,7 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
             if _is_old_unverified(published, date_verified):
                 print(f"[fetch] skip old unverified: {url}")
                 continue
-            importance = _score_article_importance(title, user_plan)
-            summary = ""
+            score = _score_article_importance(title, user_plan)
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
@@ -710,8 +738,9 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
                 "source":        source,
                 "published":     published,
                 "date_verified": date_verified,
-                "importance":    importance,
-                "summary":       summary,
+                "importance":    score["importance"],
+                "summary":       "",
+                "_primary_company": score["primary_company"],
             })
     db.update_source_health("bing_news", True)
     return articles
@@ -775,7 +804,7 @@ def fetch_prtimes_articles(keyword: str, user_plan: str = "basic") -> list:
         published = _try_parse_uncertain_published(published)
         if title and url:
             published, date_verified = _verify_and_repair_published(published, url)
-            importance = _score_article_importance(title, user_plan)
+            score = _score_article_importance(title, user_plan)
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
@@ -783,7 +812,8 @@ def fetch_prtimes_articles(keyword: str, user_plan: str = "basic") -> list:
                 "source":        "PR TIMES",
                 "published":     published,
                 "date_verified": date_verified,
-                "importance":    importance,
+                "importance":    score["importance"],
+                "_primary_company": score["primary_company"],
             })
         if len(articles) >= 20:
             break
@@ -1260,6 +1290,9 @@ def check_single_keyword(keyword: str, user_id=None):
 
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
+        for _a in new_articles:
+            pc = _a.pop("_primary_company", None)
+            _a["primary_company_id"] = _resolve_primary_company_id(pc, user_id)
         db.insert_articles(new_articles, user_id)
         try:
             _group_duplicate_articles(user_id)
@@ -1369,6 +1402,9 @@ def check_all_keywords():
 
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
+                for _a in new_articles:
+                    pc = _a.pop("_primary_company", None)
+                    _a["primary_company_id"] = _resolve_primary_company_id(pc, user_id)
                 try:
                     db.insert_articles(new_articles, user_id)
                 except Exception as e:
