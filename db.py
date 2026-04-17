@@ -1386,23 +1386,6 @@ def count_unread_articles(user_id: int) -> int:
             return cur.fetchone()[0]
 
 
-def count_unread_alert_articles(user_id: int, alert_kws: set) -> int:
-    """ユーザーの未読かつ重要アラートキーワードを含む記事数をDBから直接カウントする。
-    注意: 重複排除（_deduplicate_articles）は反映されない。"""
-    if not alert_kws:
-        return 0
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            # LOWER(title) LIKE '%kw%' をORで連結
-            clauses = " OR ".join(["LOWER(title) LIKE %s" for _ in alert_kws])
-            params = [user_id] + [f"%{kw}%" for kw in alert_kws]
-            cur.execute(
-                f"SELECT COUNT(*) FROM articles "
-                f"WHERE user_id = %s AND is_read = FALSE AND ({clauses})",
-                params,
-            )
-            return cur.fetchone()[0]
-
 
 def load_articles_data(user_id=None) -> dict:
     from datetime import datetime, timedelta, timezone

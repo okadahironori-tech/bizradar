@@ -335,48 +335,6 @@ def _send_line_notification(line_user_id: str, message: str) -> tuple:
         return False, str(e)
 
 
-def _send_line_for_keyword(user_id: int, keyword: str, articles: list):
-    """ユーザーの LINE にキーワード単位の新着通知を送る。
-    未連携（line_user_id 空）/ 失敗時は silent（メール・Slack 通知を阻害しない）。
-    """
-    if not articles:
-        return
-    try:
-        user = db.get_user_by_id(user_id) or {}
-    except Exception as e:
-        print(f"[line] user取得失敗 user_id={user_id}: {e}")
-        return
-    line_user_id = (user.get("line_user_id") or "").strip()
-    if not line_user_id:
-        return
-    lines = [f"【BizRadar】{keyword}の新着ニュース {len(articles)}件"]
-    for a in articles[:3]:
-        title = a.get("title", "") or ""
-        url = a.get("url", "") or ""
-        lines.append(f"{title} {url}")
-    _send_line_notification(line_user_id, "\n".join(lines))
-
-
-def _send_slack_for_keyword(user_id: int, keyword: str, articles: list):
-    """ユーザーの Slack Webhook にキーワード単位の新着通知を送る。
-    未設定 / 失敗時は silent（通知メール処理を阻害しない）。
-    """
-    if not articles:
-        return
-    try:
-        user = db.get_user_by_id(user_id) or {}
-    except Exception as e:
-        print(f"[slack] user取得失敗 user_id={user_id}: {e}")
-        return
-    webhook_url = (user.get("slack_webhook_url") or "").strip()
-    if not webhook_url:
-        return
-    lines = [f"【BizRadar】{keyword}の新着ニュース {len(articles)}件"]
-    for a in articles[:3]:
-        title = a.get("title", "") or ""
-        url = a.get("url", "") or ""
-        lines.append(f"{title} {url}")
-    _send_slack_notification(webhook_url, "\n".join(lines))
 
 
 def _score_article_importance(title: str, plan: str) -> dict:
@@ -1471,7 +1429,7 @@ def check_all_keywords():
     try:
         deleted = db.delete_old_articles(days=90)
         if deleted > 0:
-            print(f"[保持期間] 30日以上前の記事を {deleted} 件削除しました")
+            print(f"[保持期間] 90日以上前の記事を {deleted} 件削除しました")
     except Exception as e:
         import traceback
         print(f"[エラー] 古い記事の削除に失敗: {e}")
