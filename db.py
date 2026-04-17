@@ -2934,7 +2934,7 @@ def is_company_notify_enabled(user_id: int, company_id: int) -> bool:
 
 
 def count_user_unread(user_id: int) -> int:
-    """ユーザーの未読記事数を返す（found_at・published ともに30日以内）"""
+    """ユーザーの未読記事数を返す（load_articles_data と同一条件）"""
     from datetime import datetime, timedelta, timezone
     jst = timezone(timedelta(hours=9))
     cutoff = (datetime.now(jst) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
@@ -2942,10 +2942,12 @@ def count_user_unread(user_id: int) -> int:
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT COUNT(*) FROM articles "
-                "WHERE user_id = %s AND is_read = FALSE "
-                "AND found_at >= %s "
-                "AND (published = '' OR REPLACE(published, '~', '') >= %s)",
+                "SELECT COUNT(DISTINCT a.id) FROM articles a "
+                "INNER JOIN keywords k ON k.user_id = a.user_id AND k.keyword = a.keyword "
+                "WHERE a.user_id = %s AND a.is_read = FALSE "
+                "AND a.is_representative = TRUE "
+                "AND a.found_at >= %s "
+                "AND (a.published = '' OR REPLACE(a.published, '~', '') >= %s)",
                 (user_id, cutoff, pub_cutoff),
             )
             return cur.fetchone()[0]
