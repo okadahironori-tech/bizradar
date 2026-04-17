@@ -275,12 +275,14 @@
             <div class="stat-label">最終記事</div>
           </div>
         </div>
-        <label class="co-toggle" title="通知ON/OFF" onclick="event.preventDefault();event.stopPropagation();">
-          <input type="checkbox" data-company-id="{{ c.id }}"
-                 {% if c.notify_enabled %}checked{% endif %}
-                 onchange="toggleCompanyNotify(this)">
-          <span class="slider"></span>
-        </label>
+        <select data-company-id="{{ c.id }}" onchange="changeNotifySetting(this)"
+                onclick="event.preventDefault();event.stopPropagation();"
+                style="font-size:0.72rem;padding:3px 6px;border:1px solid #d1d5db;border-radius:0;color:#4a4a6a;background:#fff;cursor:pointer;flex-shrink:0;">
+          {% set mode = 'off' if not c.notify_enabled else ('instant' if c.notify_instant else 'digest') %}
+          <option value="off" {% if mode == 'off' %}selected{% endif %}>通知なし</option>
+          <option value="digest" {% if mode == 'digest' %}selected{% endif %}>ダイジェスト</option>
+          <option value="instant" {% if mode == 'instant' %}selected{% endif %}>即時+ダイジェスト</option>
+        </select>
       </a>
       {% endfor %}
     </div>
@@ -470,17 +472,19 @@ function checkTdnetCompany(code, resultId) {
 }
 </script>
 <script>
-function toggleCompanyNotify(cb) {
-  var cid = parseInt(cb.dataset.companyId, 10);
+function changeNotifySetting(sel) {
+  var cid = parseInt(sel.dataset.companyId, 10);
+  var prev = sel.dataset.prev || sel.value;
+  sel.dataset.prev = sel.value;
   var csrf = (document.querySelector('meta[name="csrf-token"]') || {content:''}).getAttribute('content') || '';
-  fetch('/api/company_notify_toggle', {
+  fetch('/api/companies/' + cid + '/notify-setting', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
     credentials: 'same-origin',
-    body: JSON.stringify({ company_id: cid })
+    body: JSON.stringify({ mode: sel.value })
   }).then(function(r) { return r.json(); }).then(function(d) {
-    if (!d.success) cb.checked = !cb.checked;
-  }).catch(function() { cb.checked = !cb.checked; });
+    if (!d.success) { sel.value = prev; alert(d.message || 'エラー'); }
+  }).catch(function() { sel.value = prev; });
 }
 </script>
 </body>
