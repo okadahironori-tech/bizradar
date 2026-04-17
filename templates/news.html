@@ -361,16 +361,12 @@
 
         <div style="font-size:0.78rem; color:#9ca3af; padding: 8px 16px 0;">未読・既読を含むすべての記事を確認できます。「未読のみ」で絞り込むこともできます。</div>
         <div class="kw-filter-bar" id="kw-filter-bar">
-          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; overflow-x:auto;">
-            <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
-            {% for kw in keyword_entries %}
-            <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
-            {% endfor %}
-          </div>
-          <div style="display:flex; gap:6px; justify-content:flex-end; border-top:1px solid #eee; padding-top:8px; margin-top:8px;">
-            <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
-            <button class="kw-filter-btn read-toggle" id="read-only-btn" onclick="toggleReadFilter()">既読のみ</button>
-          </div>
+          <button class="kw-filter-btn active" data-kw="all" onclick="filterArticlesByKw('all')">すべて</button>
+          <button class="kw-filter-btn unread-toggle" id="unread-only-btn" onclick="toggleUnreadFilter()">未読のみ</button>
+          <button class="kw-filter-btn read-toggle" id="read-only-btn" onclick="toggleReadFilter()">既読のみ</button>
+          {% for kw in keyword_entries %}
+          <button class="kw-filter-btn" data-kw="{{ kw.keyword }}" onclick="filterArticlesByKw('{{ kw.keyword }}')">{{ kw.keyword }}</button>
+          {% endfor %}
         </div>
         <button class="kw-filter-toggle" id="kw-filter-toggle" onclick="toggleFilterBar()">さらに絞り込む ▼</button>
 
