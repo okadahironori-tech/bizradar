@@ -1425,6 +1425,129 @@ def check_all_keywords():
     print(f"[ニュースチェック完了]")
     check_and_notify_source_errors()
 
+
+def check_keywords_for_user(user_id: int) -> dict:
+    """指定ユーザーのキーワードのみ収集・通知処理する（管理者デバッグ用）。
+    check_all_keywords() と同一ロジックだが単一ユーザーに限定。
+    """
+    result = {"keywords": 0, "new_articles": 0, "notifications": 0}
+    kw_with_users = db.load_all_keywords_with_users()
+    keywords = [
+        (kw, ne, kid, cid) for uid, kw, ne, kid, cid in kw_with_users
+        if uid == user_id
+    ]
+    if not keywords:
+        return result
+
+    print(f"[ユーザーチェック開始] user_id={user_id} keywords={len(keywords)}")
+    seen_urls   = db.load_article_seen_urls(user_id)
+    seen_titles = db.load_article_seen_titles(user_id)
+    exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
+    user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
+
+    for keyword, _ne, keyword_id, company_id in keywords:
+        if not keyword:
+            continue
+        result["keywords"] += 1
+        print(f"  キーワード: {keyword} (user_id={user_id})")
+        db.add_running_task("keyword_check", keyword)
+        company_exclude_words = (
+            {e["exclude_word"].lower() for e in db.get_company_exclude_words(company_id)}
+            if company_id else set()
+        )
+        try:
+            google_articles = fetch_news_articles(keyword, user_plan)
+            db.update_source_health("google_news", True)
+        except Exception as e:
+            print(f"  [エラー] Google News 取得失敗（続行）: {e}")
+            db.update_source_health("google_news", False, str(e))
+            google_articles = []
+        try:
+            yahoo_articles = fetch_bing_news_articles(keyword, user_plan)
+        except Exception:
+            yahoo_articles = []
+        try:
+            prtimes_articles = fetch_prtimes_articles(keyword, user_plan)
+        except Exception:
+            prtimes_articles = []
+
+        articles = google_articles + yahoo_articles + prtimes_articles
+        now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
+        new_articles = []
+        for article in articles:
+            url = article["url"]
+            title = article.get("title", "")
+            title_key = f"{keyword}::{title}"
+            tl = title.lower()
+            if exclude_kws and any(ex in tl for ex in exclude_kws):
+                continue
+            if company_exclude_words and any(ex in tl for ex in company_exclude_words):
+                continue
+            if url and url not in seen_urls and title_key not in seen_titles:
+                article["found_at"] = now_str
+                new_articles.append(article)
+                seen_urls.add(url)
+                seen_titles.add(title_key)
+
+        if new_articles:
+            print(f"  -> {len(new_articles)} 件の新着記事")
+            result["new_articles"] += len(new_articles)
+            for _a in new_articles:
+                score = _score_article_importance(_a.get("title", ""), user_plan)
+                _a["importance"] = score["importance"]
+                _a["primary_company_id"] = _resolve_primary_company_id(
+                    score["primary_company"] or _a.pop("_primary_company", None), user_id)
+            try:
+                db.insert_articles(new_articles, user_id)
+            except Exception as e:
+                print(f"  [エラー] DB保存失敗: {e}")
+                db.remove_running_task("keyword_check", keyword)
+                continue
+            if company_id and not db.is_company_notify_enabled(user_id, company_id):
+                pass
+            elif not db.is_keyword_notify_enabled(user_id, keyword):
+                pass
+            elif not _is_notify_day(user_id):
+                pass
+            elif company_id and db.is_company_instant(user_id, company_id):
+                try:
+                    send_news_email(keyword, new_articles, user_id=user_id)
+                    db.mark_articles_notified_by_urls(user_id, [a["url"] for a in new_articles])
+                    result["notifications"] += 1
+                except Exception as e:
+                    print(f"  [エラー] メール送信失敗: {e}")
+        db.remove_running_task("keyword_check", keyword)
+
+    try:
+        _group_duplicate_articles(user_id)
+    except Exception:
+        pass
+    try:
+        yt_rows = db.load_all_youtube_channels_for_user(user_id)
+        _yt_kw_cache: dict = {}
+        for row in yt_rows:
+            cid = row["company_id"]
+            ch_id = row["channel_id"]
+            if cid not in _yt_kw_cache:
+                kw_list = db.load_company_keywords(user_id, cid)
+                _yt_kw_cache[cid] = kw_list[0]["keyword"] if kw_list else None
+            kw = _yt_kw_cache[cid]
+            if not kw:
+                continue
+            yt_articles = fetch_youtube_videos(ch_id, kw)
+            new_yt = [a for a in yt_articles if a["url"] not in seen_urls]
+            for a in new_yt:
+                seen_urls.add(a["url"])
+            if new_yt:
+                result["new_articles"] += len(new_yt)
+                db.insert_articles(new_yt, user_id)
+    except Exception as e:
+        print(f"  [YouTube] 収集エラー: {e}")
+
+    print(f"[ユーザーチェック完了] user_id={user_id} {result}")
+    return result
+
+
     # 保持期間を超えた古い記事を削除（found_at が30日より前）
     try:
         deleted = db.delete_old_articles(days=90)

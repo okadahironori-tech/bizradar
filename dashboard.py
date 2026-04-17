@@ -2849,25 +2849,16 @@ def admin_feedback():
                            user_email=session.get("email", ""))
 
 
+_instant_check_lock = threading.Lock()
+_instant_check_running = False
+_digest_send_lock = threading.Lock()
+_digest_send_running = False
+
+
 @app.route("/admin/trigger-instant-check", methods=["POST"])
 @admin_required
 def admin_trigger_instant_check():
-    import monitor as _monitor
-    user_id = session["user_id"]
-    print(f"[ADMIN] instant-check triggered by user_id={user_id}")
-    try:
-        _monitor.check_all_keywords()
-        print("[ADMIN] instant-check completed")
-        return jsonify({"success": True, "message": "即時通知チェックを実行しました"})
-    except Exception as e:
-        print(f"[ADMIN] instant-check error: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/admin/trigger-digest", methods=["POST"])
-@admin_required
-def admin_trigger_digest():
-    import monitor as _monitor
+    global _instant_check_running
     admin_id = session["user_id"]
     data = request.get_json(silent=True) or {}
     target_uid = data.get("user_id") or admin_id
@@ -2878,8 +2869,61 @@ def admin_trigger_digest():
     target_user = db.get_user_by_id(target_uid)
     if not target_user:
         return jsonify({"success": False, "message": "ユーザーが見つかりません"}), 404
-    print(f"[ADMIN] digest triggered by user_id={admin_id} for target={target_uid}")
+
+    with _instant_check_lock:
+        if _instant_check_running:
+            print(f"[ADMIN] instant-check blocked: already running (requested by admin_user_id={admin_id})")
+            return jsonify({"success": False, "message": "別の即時通知チェックが実行中です。しばらくお待ちください。"}), 409
+        _instant_check_running = True
+
+    print(f"[ADMIN] instant-check triggered by admin_user_id={admin_id} target_user_id={target_uid}")
+
+    def _run():
+        global _instant_check_running
+        try:
+            import monitor as _monitor
+            result = _monitor.check_keywords_for_user(target_uid)
+            print(f"[ADMIN] instant-check completed: target_user_id={target_uid}, "
+                  f"keywords={result['keywords']}, new_articles={result['new_articles']}, "
+                  f"notifications={result['notifications']}")
+        except Exception as e:
+            print(f"[ADMIN] instant-check error: {e}")
+        finally:
+            with _instant_check_lock:
+                _instant_check_running = False
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return jsonify({
+        "success": True,
+        "message": "即時通知チェックをバックグラウンドで開始しました。ログを確認してください。",
+        "user_id": target_uid,
+    })
+
+
+@app.route("/admin/trigger-digest", methods=["POST"])
+@admin_required
+def admin_trigger_digest():
+    global _digest_send_running
+    admin_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    target_uid = data.get("user_id") or admin_id
     try:
+        target_uid = int(target_uid)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "invalid user_id"}), 400
+    target_user = db.get_user_by_id(target_uid)
+    if not target_user:
+        return jsonify({"success": False, "message": "ユーザーが見つかりません"}), 404
+
+    with _digest_send_lock:
+        if _digest_send_running:
+            return jsonify({"success": False, "message": "別のダイジェスト送信が実行中です。しばらくお待ちください。"}), 409
+        _digest_send_running = True
+
+    print(f"[ADMIN] digest triggered by admin_user_id={admin_id} for target={target_uid}")
+    try:
+        import monitor as _monitor
         _monitor.send_digest_for_user(target_uid)
         print(f"[ADMIN] digest completed for user_id={target_uid}")
         return jsonify({
@@ -2890,6 +2934,9 @@ def admin_trigger_digest():
     except Exception as e:
         print(f"[ADMIN] digest error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        with _digest_send_lock:
+            _digest_send_running = False
 
 
 @app.route("/admin/users")
