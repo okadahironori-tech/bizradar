@@ -3007,6 +3007,20 @@ def update_company_youtube(user_id: int, company_id: int, channel_id: str):
             )
 
 
+def is_company_instant(user_id: int, company_id: int) -> bool:
+    """企業の即時通知が有効か（company_id=Noneまたは未登録はFalse）"""
+    if not company_id:
+        return False
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT notify_instant FROM companies WHERE id = %s AND user_id = %s",
+                (company_id, user_id),
+            )
+            row = cur.fetchone()
+            return bool(row[0]) if row else False
+
+
 def update_company_notify_setting(user_id: int, company_id: int,
                                    notify_enabled: bool, notify_instant: bool) -> bool:
     """企業の通知設定を更新する。所有外は False。"""
