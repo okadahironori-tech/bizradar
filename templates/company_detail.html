@@ -894,7 +894,7 @@
             <input type="radio" name="notify_mode" value="digest" {% if notify_mode == 'digest' %}checked{% endif %}
                    onchange="saveNotifyMode('digest')" style="margin-top:3px;">
             <span>
-              <span style="font-size:0.88rem; font-weight:600;">ダイジェストのみ</span>
+              <span style="font-size:0.88rem; font-weight:600;">ダイジェスト通知</span>
               <div style="font-size:0.75rem; color:#9ca3af;">設定した時刻にまとめて通知されます</div>
             </span>
           </label>
@@ -902,8 +902,8 @@
             <input type="radio" name="notify_mode" value="instant" {% if notify_mode == 'instant' %}checked{% endif %}
                    onchange="saveNotifyMode('instant')" style="margin-top:3px;">
             <span>
-              <span style="font-size:0.88rem; font-weight:600;">即時+ダイジェスト</span>
-              <div style="font-size:0.75rem; color:#9ca3af;">新着記事が見つかり次第すぐに通知され、さらにダイジェストにも含まれます</div>
+              <span style="font-size:0.88rem; font-weight:600;">即時通知</span>
+              <div style="font-size:0.75rem; color:#9ca3af;">新着記事が見つかり次第すぐに通知されます</div>
             </span>
           </label>
         </div>

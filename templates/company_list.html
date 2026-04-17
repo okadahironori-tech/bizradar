@@ -280,8 +280,8 @@
                 style="font-size:0.72rem;padding:3px 6px;border:1px solid #d1d5db;border-radius:0;color:#4a4a6a;background:#fff;cursor:pointer;flex-shrink:0;">
           {% set mode = 'off' if not c.notify_enabled else ('instant' if c.notify_instant else 'digest') %}
           <option value="off" {% if mode == 'off' %}selected{% endif %}>通知なし</option>
-          <option value="digest" {% if mode == 'digest' %}selected{% endif %}>ダイジェスト</option>
-          <option value="instant" {% if mode == 'instant' %}selected{% endif %}>即時+ダイジェスト</option>
+          <option value="digest" {% if mode == 'digest' %}selected{% endif %}>ダイジェスト通知</option>
+          <option value="instant" {% if mode == 'instant' %}selected{% endif %}>即時通知</option>
         </select>
       </a>
       {% endfor %}
