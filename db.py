@@ -906,6 +906,18 @@ def get_user_prev_active(user_id: int):
             return row[0] if row else None
 
 
+def get_all_users_detail() -> list:
+    """管理者用: プロフィール情報付きユーザー一覧（作成日降順）"""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, email, last_name, first_name, plan, "
+                "company_name, industry, company_size, job_type, job_title, created_at "
+                "FROM users ORDER BY created_at DESC"
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
 def update_user_password(user_id: int, new_password: str):
     """パスワードを更新する（bcrypt で保存）"""
     pw_hash = _hash_pw_bcrypt(new_password)

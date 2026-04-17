@@ -2785,6 +2785,15 @@ def admin_feedback():
                            user_email=session.get("email", ""))
 
 
+@app.route("/admin/users")
+@admin_required
+def admin_users():
+    users = db.get_all_users_detail()
+    return render_template("admin_users.html",
+                           users=users,
+                           user_email=session.get("email", ""))
+
+
 @app.route("/admin/domain-overrides")
 @admin_required
 def admin_domain_overrides():
