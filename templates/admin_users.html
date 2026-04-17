@@ -66,6 +66,20 @@
     .user-bottom { font-size: 0.75rem; color: #9ca3af; }
     .na { color: #d1d5db; }
     .empty { text-align: center; color: #9ca3af; padding: 40px 0; font-size: 0.88rem; }
+    .active-toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+    .active-toggle input { opacity: 0; width: 0; height: 0; }
+    .active-toggle .slider {
+      position: absolute; inset: 0; background: #ccc; border-radius: 22px;
+      transition: background 0.2s; cursor: pointer;
+    }
+    .active-toggle .slider::before {
+      content: ''; position: absolute; left: 2px; top: 2px;
+      width: 18px; height: 18px; background: #fff; border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .active-toggle input:checked + .slider { background: #059669; }
+    .active-toggle input:checked + .slider::before { transform: translateX(18px); }
+    .active-label { font-size: 0.72rem; color: #6b7280; }
 
     @media (max-width: 480px) {
       header { padding: 12px 14px; }
@@ -109,7 +123,7 @@
 
   {% if users %}
     {% for u in users %}
-    <div class="user-card">
+    <div class="user-card" {% if not u.is_active %}style="opacity:0.5;"{% endif %}>
       <div class="user-top">
         <span class="user-email">{{ u.email }}</span>
         {% if u.last_name or u.first_name %}
@@ -121,6 +135,16 @@
         <span class="plan-badge plan-business">ビジネス</span>
         {% else %}
         <span class="plan-badge plan-basic">ベーシック</span>
+        {% endif %}
+        {% if u.email != user_email %}
+        <span style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+          <span class="active-label" data-uid="{{ u.id }}">{{ '利用中' if u.is_active else '停止中' }}</span>
+          <label class="active-toggle">
+            <input type="checkbox" data-uid="{{ u.id }}" {% if u.is_active %}checked{% endif %}
+                   onchange="toggleUserActive(this)">
+            <span class="slider"></span>
+          </label>
+        </span>
         {% endif %}
       </div>
       <div class="user-mid">
@@ -153,6 +177,23 @@
   document.addEventListener('click', function () { menu.classList.remove('open'); });
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 })();
+</script>
+<script>
+function toggleUserActive(cb) {
+  var uid = cb.dataset.uid;
+  var csrf = (document.querySelector('input[name="csrf_token"]') || {value:''}).value || '';
+  fetch('/admin/users/' + uid + '/toggle-active', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+    credentials: 'same-origin'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.success) { cb.checked = !cb.checked; alert(d.message || 'エラー'); return; }
+    var card = cb.closest('.user-card');
+    card.style.opacity = d.is_active ? '' : '0.5';
+    var label = card.querySelector('.active-label[data-uid="' + uid + '"]');
+    if (label) label.textContent = d.is_active ? '利用中' : '停止中';
+  }).catch(function() { cb.checked = !cb.checked; });
+}
 </script>
 </body>
 </html>

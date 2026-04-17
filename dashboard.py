@@ -779,8 +779,14 @@ def track_user_activity():
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get("user_id"):
+        uid = session.get("user_id")
+        if not uid:
             return redirect(url_for("login", next=request.path))
+        user = db.get_user_by_id(uid)
+        if user and not user.get("is_active", True):
+            session.clear()
+            flash("このアカウントは現在利用停止中です。管理者にお問い合わせください。", "danger")
+            return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
 
@@ -822,6 +828,9 @@ def login():
         password = request.form.get("password", "")
         user = db.get_user_by_email(email)
         if user and db.verify_user_password(user, password):
+            if not user.get("is_active", True):
+                flash("このアカウントは現在利用停止中です。管理者にお問い合わせください。", "danger")
+                return render_template("login.html", next=next_url)
             # 認証成功 → 失敗カウントをクリア
             session.pop("login_fail_count", None)
             session.pop("login_fail_first_at", None)
@@ -2829,6 +2838,18 @@ def admin_users():
     return render_template("admin_users.html",
                            users=users,
                            user_email=session.get("email", ""))
+
+
+@app.route("/admin/users/<int:target_user_id>/toggle-active", methods=["POST"])
+@admin_required
+def toggle_user_active(target_user_id):
+    admin_id = session["user_id"]
+    if target_user_id == admin_id:
+        return jsonify({"success": False, "message": "自分自身は変更できません"}), 403
+    result = db.toggle_user_active(target_user_id)
+    if result is None:
+        return jsonify({"success": False, "message": "ユーザーが見つかりません"})
+    return jsonify({"success": True, "is_active": result})
 
 
 @app.route("/admin/domain-overrides")

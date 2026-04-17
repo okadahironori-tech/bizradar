@@ -525,6 +525,12 @@ def _run_migrations():
                 "notify_days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6';"
             )
 
+            # users: 利用停止フラグ
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "is_active BOOLEAN DEFAULT TRUE;"
+            )
+
             # users: プロフィール項目
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;")
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS industry TEXT;")
@@ -818,7 +824,7 @@ def get_user_by_email(email: str):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size FROM users WHERE email = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active FROM users WHERE email = %s",
                 (email.lower(),)
             )
             row = cur.fetchone()
@@ -829,7 +835,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()
@@ -922,11 +928,24 @@ def get_all_users_detail() -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, last_name, first_name, plan, "
+                "SELECT id, email, last_name, first_name, plan, is_active, "
                 "company_name, industry, company_size, job_type, job_title, created_at "
                 "FROM users ORDER BY created_at DESC"
             )
             return [dict(r) for r in cur.fetchall()]
+
+
+def toggle_user_active(user_id: int) -> bool | None:
+    """is_active を反転し、新しい値を返す。該当ユーザー無しなら None。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET is_active = NOT COALESCE(is_active, TRUE) "
+                "WHERE id = %s RETURNING is_active",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
 
 
 def update_user_password(user_id: int, new_password: str):
