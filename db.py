@@ -1975,19 +1975,19 @@ def get_running_task_statuses() -> dict:
 
 
 def get_user_notify_timing(user_id: int) -> str:
-    """ユーザーの通知タイミング設定を返す (immediate / digest_08 / digest_18)"""
+    """ユーザーのダイジェスト送信タイミング設定を返す (digest_07 等)"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT COALESCE(notify_timing, 'immediate') FROM users WHERE id = %s",
+                "SELECT COALESCE(notify_timing, 'digest_07') FROM users WHERE id = %s",
                 (user_id,),
             )
             row = cur.fetchone()
-            return row[0] if row else "immediate"
+            return row[0] if row else "digest_07"
 
 
 _VALID_TIMINGS = {
-    "immediate", "digest_05", "digest_06", "digest_07", "digest_08",
+    "digest_05", "digest_06", "digest_07", "digest_08",
     "digest_09", "digest_16", "digest_17", "digest_18",
 }
 
@@ -2020,17 +2020,14 @@ def set_user_notify_days(user_id: int, days: str) -> bool:
 
 
 def set_user_notify_timing(user_id: int, timing: str) -> bool:
-    """ユーザーの通知タイミング設定を更新する。
+    """ユーザーのダイジェスト送信タイミングを更新する。
     timing はカンマ区切り文字列（例: "digest_05,digest_18"）。
-    "immediate" が含まれる場合は単独のみ有効。
     """
     values = [v.strip() for v in timing.split(",") if v.strip()]
     if not values:
         return False
     if any(v not in _VALID_TIMINGS for v in values):
         return False
-    if "immediate" in values:
-        timing = "immediate"
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
