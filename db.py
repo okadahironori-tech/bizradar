@@ -524,6 +524,11 @@ def _run_migrations():
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
                 "notify_enabled BOOLEAN NOT NULL DEFAULT TRUE;"
             )
+            # companies: 即時通知フラグ
+            cur.execute(
+                "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
+                "notify_instant BOOLEAN NOT NULL DEFAULT FALSE;"
+            )
 
             # users: 通知曜日（カンマ区切り 0=日 1=月 ... 6=土）
             cur.execute(
@@ -2707,7 +2712,7 @@ def load_companies(user_id: int) -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order, securities_code, notify_enabled, youtube_channel_id "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, sort_order, securities_code, notify_enabled, notify_instant, youtube_channel_id "
                 "FROM companies WHERE user_id = %s ORDER BY sort_order ASC, id ASC",
                 (user_id,),
             )
@@ -2720,7 +2725,7 @@ def get_company(user_id: int, company_id: int) -> dict | None:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, securities_code, notify_enabled, youtube_channel_id "
+                "SELECT id, name, name_kana, website_url, memo, created_at, updated_at, securities_code, notify_enabled, notify_instant, youtube_channel_id "
                 "FROM companies WHERE id = %s AND user_id = %s",
                 (company_id, user_id),
             )
