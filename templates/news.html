@@ -791,7 +791,7 @@ function submitBadgeFeedback(btn) {
     body: JSON.stringify({ article_id: parseInt(articleId), correct_company_id: companyId ? parseInt(companyId) : null, reason_type: reasonType, reason_text: reasonText })
   }).then(function(r) { return r.json(); }).then(function(d) {
     form.innerHTML = '<div style="color:#059669;padding:8px 0;">ありがとうございます</div>';
-    setTimeout(function() { form.style.display = 'none'; form.innerHTML = ''; }, 1000);
+    setTimeout(function() { form.style.display = 'none'; form.innerHTML = ''; }, 2500);
   }).catch(function() {
     form.innerHTML = '<div style="color:#dc2626;padding:8px 0;">送信に失敗しました</div>';
   });
