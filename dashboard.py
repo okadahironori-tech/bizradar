@@ -1566,7 +1566,7 @@ def _resolve_youtube_channel_id(raw: str) -> str | None:
         if m:
             return m.group(1)
     except Exception as e:
-        logger.warning("[youtube-resolve] failed handle=%s err=%s", handle, e)
+        logger.warning("[youtube-resolve] failed path=%s err=%s", path, e)
     return None
 
 
