@@ -742,6 +742,15 @@ function toggleFilterBar() {
     btn.textContent = '閉じる ▲';
   }
 }
+function _checkFilterToggleVisibility() {
+  var bar = document.getElementById('kw-filter-bar');
+  var btn = document.getElementById('kw-filter-toggle');
+  if (!bar || !btn) return;
+  if (bar.classList.contains('expanded')) return;
+  btn.style.display = bar.scrollWidth > bar.clientWidth ? '' : 'none';
+}
+document.addEventListener('DOMContentLoaded', _checkFilterToggleVisibility);
+window.addEventListener('resize', _checkFilterToggleVisibility);
 </script>
 </body>
 </html>
