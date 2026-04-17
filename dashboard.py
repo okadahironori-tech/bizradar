@@ -2482,6 +2482,9 @@ def settings():
                            line_official_id=os.environ.get("LINE_OFFICIAL_ID", "@490kqrnm"),
                            profile_last_name=user.get("last_name") or "",
                            profile_first_name=user.get("first_name") or "",
+                           profile_last_name_kana=user.get("last_name_kana") or "",
+                           profile_first_name_kana=user.get("first_name_kana") or "",
+                           profile_phone=user.get("phone") or "",
                            profile_company_name=user.get("company_name") or "",
                            profile_industry=user.get("industry") or "",
                            profile_company_size=user.get("company_size") or "",
@@ -2523,6 +2526,9 @@ def save_profile():
     user_id = session["user_id"]
     last_name = request.form.get("last_name", "").strip()[:50]
     first_name = request.form.get("first_name", "").strip()[:50]
+    last_name_kana = request.form.get("last_name_kana", "").strip()[:50]
+    first_name_kana = request.form.get("first_name_kana", "").strip()[:50]
+    phone = request.form.get("phone", "").strip()[:20]
     company_name = request.form.get("company_name", "").strip()
     industry = request.form.get("industry", "").strip()
     company_size = request.form.get("company_size", "").strip()
@@ -2537,12 +2543,15 @@ def save_profile():
     if not company_size:
         flash("従業員規模を選択してください", "error")
         return redirect(url_for("settings"))
-    # 氏名を保存
+    # 氏名・ふりがな・電話番号を保存
     with db._conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE users SET last_name=%s, first_name=%s WHERE id=%s",
-                (last_name or None, first_name or None, user_id),
+                "UPDATE users SET last_name=%s, first_name=%s, "
+                "last_name_kana=%s, first_name_kana=%s, phone=%s WHERE id=%s",
+                (last_name or None, first_name or None,
+                 last_name_kana or None, first_name_kana or None,
+                 phone or None, user_id),
             )
     db.update_user_profile(user_id, company_name, industry, company_size, job_type, job_title)
     flash("プロフィールを保存しました", "success")

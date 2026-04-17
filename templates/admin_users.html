@@ -127,8 +127,9 @@
       <div class="user-top">
         <span class="user-email">{{ u.email }}</span>
         {% if u.last_name or u.first_name %}
-        <span class="user-name">{{ (u.last_name or '') }} {{ (u.first_name or '') }}</span>
+        <span class="user-name">{{ (u.last_name or '') }} {{ (u.first_name or '') }}{% if u.last_name_kana or u.first_name_kana %} <span style="color:#9ca3af;font-size:0.75rem;">({{ (u.last_name_kana or '') }} {{ (u.first_name_kana or '') }})</span>{% endif %}</span>
         {% endif %}
+        {% if u.phone %}<span style="font-size:0.75rem;color:#6b7280;">{{ u.phone }}</span>{% endif %}
         {% if u.plan == 'pro' %}
         <span class="plan-badge plan-pro">Pro</span>
         {% elif u.plan == 'business' %}

@@ -525,6 +525,11 @@ def _run_migrations():
                 "notify_days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6';"
             )
 
+            # users: ふりがな・電話番号
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name_kana TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name_kana TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;")
+
             # users: 利用停止フラグ
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
@@ -824,7 +829,7 @@ def get_user_by_email(email: str):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active FROM users WHERE email = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name_kana, first_name_kana, phone FROM users WHERE email = %s",
                 (email.lower(),)
             )
             row = cur.fetchone()
@@ -835,7 +840,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name_kana, first_name_kana, phone FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()
@@ -928,8 +933,8 @@ def get_all_users_detail() -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, last_name, first_name, plan, is_active, "
-                "company_name, industry, company_size, job_type, job_title, created_at "
+                "SELECT id, email, last_name, first_name, last_name_kana, first_name_kana, phone, "
+                "plan, is_active, company_name, industry, company_size, job_type, job_title, created_at "
                 "FROM users ORDER BY created_at DESC"
             )
             return [dict(r) for r in cur.fetchall()]
