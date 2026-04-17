@@ -390,9 +390,10 @@
             <!-- 上段：キーワードバッジ（左）＋日時（右） -->
             <div class="article-card-top">
               <div class="article-card-top-left">
-                {% if article.is_alert %}<span class="article-alert-badge">重要</span>{% endif %}
-                {% if article.importance == 'high' %}<span class="article-importance-high-badge">重要</span>{% endif %}
-                {% if article.importance == 'medium' %}<span class="article-importance-medium-badge">注目</span>{% endif %}
+                {% if article.is_alert %}<span class="article-alert-badge">重要</span>
+                {% elif article.importance == 'high' %}<span class="article-importance-high-badge">重要</span>
+                {% elif article.importance == 'medium' %}<span class="article-importance-medium-badge">注目</span>
+                {% endif %}
                 {% if article.source == 'YouTube' %}<span class="article-youtube-badge">YouTube</span>{% endif %}
                 <span class="article-kw">{{ article.keyword }}</span>
                 {% if article.alert_matches %}
