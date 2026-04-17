@@ -1269,10 +1269,9 @@ def check_single_keyword(keyword: str, user_id=None):
         google_articles = fetch_news_articles(keyword, user_plan)
         db.update_source_health("google_news", True)
     except Exception as e:
-        print(f"  [エラー] Google News 取得失敗: {e}")
+        print(f"  [エラー] Google News 取得失敗（Bing/PR TIMESで続行）: {e}")
         db.update_source_health("google_news", False, str(e))
-        db.fail_running_task("keyword_check", keyword, str(e))
-        return
+        google_articles = []
     yahoo_articles = fetch_bing_news_articles(keyword, user_plan)
     prtimes_articles = fetch_prtimes_articles(keyword, user_plan)
     articles = google_articles + yahoo_articles + prtimes_articles
@@ -1357,11 +1356,10 @@ def check_all_keywords():
                 db.update_source_health("google_news", True)
             except Exception as e:
                 import traceback
-                print(f"  [エラー] Google News 取得失敗 user_id={user_id} keyword={keyword!r}: {e}")
+                print(f"  [エラー] Google News 取得失敗（Bing/PR TIMESで続行） user_id={user_id} keyword={keyword!r}: {e}")
                 print(f"  [トレース] {traceback.format_exc()}")
                 db.update_source_health("google_news", False, str(e))
-                db.fail_running_task("keyword_check", keyword, str(e))
-                continue
+                google_articles = []
 
             try:
                 yahoo_articles = fetch_bing_news_articles(keyword, user_plan)
