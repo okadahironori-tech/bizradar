@@ -1116,7 +1116,8 @@ async function saveSiteEdit() {
   try {
     var res = await fetch('/api/update_site', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken()},
+      credentials: 'same-origin',
       body: JSON.stringify({old_url: _siteEditOriginalUrl, new_url: newUrl, name: name})
     });
     var data = await res.json();
