@@ -359,9 +359,18 @@
       <form class="settings-panel" method="POST" action="/change_password">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="pw-change-fields" style="flex-direction:column;">
-          <input type="password" name="current_password" placeholder="現在のパスワード" required style="width:100%;">
-          <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required style="width:100%;">
-          <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required style="width:100%;">
+          <div style="position:relative;">
+            <input type="password" name="current_password" placeholder="現在のパスワード" required style="width:100%; padding-right:50px;">
+            <button type="button" onclick="togglePwVis(this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#3949ab; cursor:pointer; font-size:0.8rem;">表示</button>
+          </div>
+          <div style="position:relative;">
+            <input type="password" name="new_password" placeholder="新しいパスワード（6文字以上）" required style="width:100%; padding-right:50px;">
+            <button type="button" onclick="togglePwVis(this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#3949ab; cursor:pointer; font-size:0.8rem;">表示</button>
+          </div>
+          <div style="position:relative;">
+            <input type="password" name="confirm_password" placeholder="新しいパスワード（確認）" required style="width:100%; padding-right:50px;">
+            <button type="button" onclick="togglePwVis(this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#3949ab; cursor:pointer; font-size:0.8rem;">表示</button>
+          </div>
         </div>
         <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">変更する</button></div>
       </form>
@@ -555,6 +564,16 @@
 (function(){var b=document.getElementById("back-to-top");window.addEventListener("scroll",function(){b.style.display=window.scrollY>300?"flex":"none";},{passive:true});b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
 </script>
 <script>
+function togglePwVis(btn) {
+  var input = btn.parentElement.querySelector('input');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '非表示';
+  } else {
+    input.type = 'password';
+    btn.textContent = '表示';
+  }
+}
 function _settingsCsrf() {
   var el = document.querySelector('input[name="csrf_token"]');
   return el ? el.value : '';
