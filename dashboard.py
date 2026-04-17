@@ -1649,11 +1649,13 @@ def api_badge_feedback():
     if reason_type not in ("wrong_company", "not_company_news", "other"):
         reason_type = "other"
     reason_text = (data.get("reason_text") or "")[:500]
+    importance_feedback = data.get("importance_feedback") or None
     try:
         db.save_badge_feedback(
             int(article_id), user_id,
             int(correct_company_id) if correct_company_id else None,
             reason_type, reason_text,
+            importance_feedback=importance_feedback,
         )
     except Exception as e:
         logger.error("[badge-feedback] save failed: %s", e)

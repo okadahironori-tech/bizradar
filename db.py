@@ -497,6 +497,11 @@ def _run_migrations():
                 );
             """)
 
+            cur.execute(
+                "ALTER TABLE badge_feedback ADD COLUMN IF NOT EXISTS "
+                "importance_feedback TEXT;"
+            )
+
             # companies: 企業単位の通知オン/オフ
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
@@ -2979,16 +2984,19 @@ def is_company_notify_enabled(user_id: int, company_id: int) -> bool:
 
 def save_badge_feedback(article_id: int, user_id: int,
                         correct_company_id: int | None,
-                        reason_type: str, reason_text: str = "") -> bool:
-    """バッジNGフィードバックを保存する"""
+                        reason_type: str, reason_text: str = "",
+                        importance_feedback: str | None = None) -> bool:
+    """バッジ・重要度フィードバックを保存する"""
+    if importance_feedback and importance_feedback not in ("high", "medium", "low"):
+        importance_feedback = None
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO badge_feedback "
-                "(article_id, user_id, correct_company_id, reason_type, reason_text) "
-                "VALUES (%s, %s, %s, %s, %s)",
+                "(article_id, user_id, correct_company_id, reason_type, reason_text, importance_feedback) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
                 (article_id, user_id, correct_company_id, reason_type,
-                 (reason_text or "")[:500]),
+                 (reason_text or "")[:500], importance_feedback),
             )
             return cur.rowcount > 0
 
