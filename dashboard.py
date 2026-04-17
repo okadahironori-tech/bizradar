@@ -1038,6 +1038,7 @@ def index():
         tdnet_today_count=tdnet_today_count,
         tdnet_prev_count=tdnet_prev_count,
         dashboard_settings=dashboard_settings,
+        user_companies=db.load_companies(user_id),
     )
 
 
