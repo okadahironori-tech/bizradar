@@ -947,7 +947,10 @@ def index():
     kw_with_company = db.load_keywords_with_company(user_id)
     kw_company_map  = {k["keyword"]: k["company_id"] for k in kw_with_company if k.get("company_id")}
 
-    articles_data = db.load_articles_data(user_id)
+    _user_sf = (db.get_user_by_id(user_id) or {}).get("sports_filter", "low")
+    _hide_sports = (_user_sf == "hide")
+
+    articles_data = db.load_articles_data(user_id, hide_sports=_hide_sports)
     all_articles  = articles_data.get("articles", [])
     # 重複排除（同一キーワード内でタイトル類似度が高い記事はYahoo優先で1件に集約）
     all_articles  = _deduplicate_articles(all_articles)
@@ -966,7 +969,7 @@ def index():
         a["published"] = a.get("published", "")
 
     # ---- サマリー集計 ----
-    unread_count       = db.count_user_unread(user_id)
+    unread_count       = db.count_user_unread(user_id, hide_sports=_hide_sports)
     # alert_count は JS の _dashArticles（= articles）と一致させる
     alert_count        = sum(1 for a in articles
                              if (a.get("is_alert") or a.get("importance") == "high") and not a.get("is_read"))
@@ -1796,7 +1799,8 @@ def api_keyword_article_count():
 def api_articles():
     user_id = session["user_id"]
     unread_only = request.args.get("unread_only", "false").lower() == "true"
-    data = db.load_articles_data(user_id)
+    _user_sf = (db.get_user_by_id(user_id) or {}).get("sports_filter", "low")
+    data = db.load_articles_data(user_id, hide_sports=(_user_sf == "hide"))
     articles = data.get("articles", [])
     if unread_only:
         articles = [a for a in articles if not a.get("is_read")]
@@ -2428,8 +2432,10 @@ def set_interval():
 @login_required
 def news():
     user_id = session["user_id"]
+    _user_sf = (db.get_user_by_id(user_id) or {}).get("sports_filter", "low")
+    _hide_sports = (_user_sf == "hide")
     kw_entries = db.load_keywords(user_id)
-    articles_data = db.load_articles_data(user_id)
+    articles_data = db.load_articles_data(user_id, hide_sports=_hide_sports)
     raw_articles = articles_data.get("articles", [])
     # 各記事にアラートフラグ付与（per-company 判定） → 重複排除 → 未読アラート件数算出
     _flag_articles_alert(user_id, raw_articles)
@@ -2504,7 +2510,7 @@ def settings():
                            profile_job_title=user.get("job_title") or "",
                            excluded_sources=db.load_excluded_sources(user_id),
                            dashboard_settings=db.get_dashboard_settings(user_id),
-                           sports_filter=user.get("sports_filter", True))
+                           sports_filter=user.get("sports_filter", "low"))
 
 
 @app.route("/api/global_alert_keyword", methods=["POST"])
@@ -2578,7 +2584,9 @@ def save_profile():
 @login_required
 def save_filters():
     user_id = session["user_id"]
-    sports_filter = request.form.get("sports_filter") is not None
+    sports_filter = request.form.get("sports_filter", "low")
+    if sports_filter not in ("off", "low", "hide"):
+        sports_filter = "low"
     with db._conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -3496,7 +3504,9 @@ def company_detail(company_id):
         company_exclude_words = db.get_company_exclude_words(company_id)
         company_alert_words   = db.get_company_alert_keywords(company_id)
         youtube_channels      = db.load_company_youtube_channels(company_id)
-        articles        = db.load_company_articles(user_id, company_id, limit=30)
+        _user_sf = (db.get_user_by_id(user_id) or {}).get("sports_filter", "low")
+        articles        = db.load_company_articles(user_id, company_id, limit=30,
+                                                    hide_sports=(_user_sf == "hide"))
         history         = db.load_company_change_history(user_id, company_id, limit=10)
 
         # 記事に重要フラグ付与（この企業に紐づく記事なので user-wide + この企業のアラート）

@@ -581,14 +581,41 @@ def _run_migrations():
                 "dashboard_settings JSONB DEFAULT NULL;"
             )
 
-            # users: スポーツ記事フィルター
+            # users: スポーツ記事フィルター (BOOLEAN→VARCHAR(10) 移行対応)
             cur.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
-                "sports_filter BOOLEAN DEFAULT TRUE;"
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_name='users' AND column_name='sports_filter'"
             )
+            sf_row = cur.fetchone()
+            if sf_row is None:
+                cur.execute(
+                    "ALTER TABLE users ADD COLUMN sports_filter "
+                    "VARCHAR(10) NOT NULL DEFAULT 'low';"
+                )
+            elif sf_row[0] == 'boolean':
+                cur.execute(
+                    "ALTER TABLE users ADD COLUMN sports_filter_new "
+                    "VARCHAR(10) NOT NULL DEFAULT 'low';"
+                )
+                cur.execute(
+                    "UPDATE users SET sports_filter_new = CASE "
+                    "WHEN sports_filter = TRUE THEN 'low' "
+                    "WHEN sports_filter = FALSE THEN 'off' "
+                    "ELSE 'low' END;"
+                )
+                cur.execute("ALTER TABLE users DROP COLUMN sports_filter;")
+                cur.execute(
+                    "ALTER TABLE users RENAME COLUMN sports_filter_new "
+                    "TO sports_filter;"
+                )
             cur.execute(
-                "UPDATE users SET sports_filter = TRUE "
+                "UPDATE users SET sports_filter = 'low' "
                 "WHERE sports_filter IS NULL;"
+            )
+            # articles: スポーツ記事フラグ
+            cur.execute(
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "is_sports BOOLEAN DEFAULT FALSE;"
             )
 
             # companies: 並び順カラム追加
@@ -1417,11 +1444,12 @@ def count_unread_articles(user_id: int) -> int:
 
 
 
-def load_articles_data(user_id=None) -> dict:
+def load_articles_data(user_id=None, hide_sports: bool = False) -> dict:
     from datetime import datetime, timedelta, timezone
     jst = timezone(timedelta(hours=9))
     cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     pub_cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d")
+    sports_clause = "AND COALESCE(a.is_sports, FALSE) = FALSE " if hide_sports else ""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if user_id is not None:
@@ -1439,6 +1467,7 @@ def load_articles_data(user_id=None) -> dict:
                     "  SELECT 1 FROM excluded_sources es "
                     "  WHERE es.user_id = a.user_id AND es.source_name = a.source"
                     ") "
+                    + sports_clause +
                     "ORDER BY "
                     "CASE WHEN a.importance='high' THEN 0 "
                     "     WHEN a.importance='medium' THEN 1 ELSE 2 END, "
@@ -1478,15 +1507,16 @@ def insert_articles(articles: list, user_id: int):
                     importance = "low"
                 cur.execute(
                     "INSERT INTO articles "
-                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified, importance, summary, primary_company_id) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                    "(keyword, title, url, source, published, found_at, user_id, is_read, date_verified, importance, summary, primary_company_id, is_sports) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
                     (article.get("keyword", ""), article.get("title", ""), article.get("url", ""),
                      article.get("source", ""), article.get("published", ""),
                      article.get("found_at", ""), user_id,
                      bool(article.get("date_verified", False)),
                      importance,
                      article.get("summary", ""),
-                     article.get("primary_company_id"))
+                     article.get("primary_company_id"),
+                     bool(article.get("is_sports", False)))
                 )
 
 
@@ -2107,11 +2137,12 @@ def get_users_for_digest_hour(hour: int) -> list:
             return [row[0] for row in cur.fetchall()]
 
 
-def load_unnotified_articles(user_id: int) -> list:
+def load_unnotified_articles(user_id: int, hide_sports: bool = False) -> list:
     """未通知（notified_at IS NULL）の記事を返す。
     企業通知OFF（companies.notify_enabled=FALSE）の記事は除外する。
     company_id=NULL のキーワードは従来通り含める。
     """
+    sports_clause = "AND COALESCE(a.is_sports, FALSE) = FALSE " if hide_sports else ""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -2125,6 +2156,7 @@ def load_unnotified_articles(user_id: int) -> list:
                 "  ON c.id = k.company_id "
                 "WHERE a.user_id = %s AND a.notified_at IS NULL "
                 "AND (k.company_id IS NULL OR COALESCE(c.notify_enabled, TRUE) = TRUE) "
+                + sports_clause +
                 "ORDER BY a.published DESC, a.id DESC",
                 (user_id,),
             )
@@ -3257,12 +3289,13 @@ def save_badge_feedback(article_id: int, user_id: int,
             return cur.rowcount > 0
 
 
-def count_user_unread(user_id: int) -> int:
+def count_user_unread(user_id: int, hide_sports: bool = False) -> int:
     """ユーザーの未読記事数を返す（load_articles_data と同一条件）"""
     from datetime import datetime, timedelta, timezone
     jst = timezone(timedelta(hours=9))
     cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     pub_cutoff = (datetime.now(jst) - timedelta(days=7)).strftime("%Y-%m-%d")
+    sports_clause = "AND COALESCE(a.is_sports, FALSE) = FALSE " if hide_sports else ""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -3275,19 +3308,22 @@ def count_user_unread(user_id: int) -> int:
                 "AND NOT EXISTS ("
                 "  SELECT 1 FROM excluded_sources es "
                 "  WHERE es.user_id = a.user_id AND es.source_name = a.source"
-                ")",
+                ") "
+                + sports_clause,
                 (user_id, cutoff, pub_cutoff),
             )
             return cur.fetchone()[0]
 
 
-def count_user_high_importance_unread(user_id: int) -> int:
+def count_user_high_importance_unread(user_id: int, hide_sports: bool = False) -> int:
     """ユーザーの importance='high' かつ未読の記事数を返す"""
+    sports_clause = "AND COALESCE(is_sports, FALSE) = FALSE " if hide_sports else ""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT COUNT(*) FROM articles "
-                "WHERE user_id = %s AND is_read = FALSE AND importance = 'high'",
+                "WHERE user_id = %s AND is_read = FALSE AND importance = 'high' "
+                + sports_clause,
                 (user_id,),
             )
             return cur.fetchone()[0]
@@ -3316,9 +3352,11 @@ def load_company_keywords(user_id: int, company_id: int) -> list:
             return [dict(row) for row in cur.fetchall()]
 
 
-def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> list:
+def load_company_articles(user_id: int, company_id: int, limit: int = 20,
+                          hide_sports: bool = False) -> list:
     """企業に紐づくキーワードの最新記事。
     company_exclude_keywords に登録された除外ワードを含む記事は表示時にも弾く。"""
+    sports_clause = "AND COALESCE(a.is_sports, FALSE) = FALSE " if hide_sports else ""
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -3333,6 +3371,7 @@ def load_company_articles(user_id: int, company_id: int, limit: int = 20) -> lis
                 # psycopg2: SQL リテラル中の '%' は '%%' にエスケープ必須
                 "    AND LOWER(a.title) LIKE '%%' || LOWER(cek.exclude_word) || '%%'"
                 ") "
+                + sports_clause +
                 "ORDER BY a.is_read ASC, a.published DESC, a.id DESC LIMIT %s",
                 (user_id, company_id, limit),
             )
