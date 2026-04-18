@@ -309,6 +309,31 @@
             </label>
           </div>
         </div>
+        <hr style="border:none; border-top:1px solid #f0f2f5; width:100%; margin:4px 0;">
+        <div>
+          <div style="font-size:0.88rem; font-weight:600; color:#1a1a2e; margin-bottom:4px;">エンタメ・芸能記事フィルター</div>
+          <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:10px;">芸能人・エンタメイベントなどの記事の扱いを選択できます</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
+              <input type="radio" name="entertainment_filter" value="off" {% if entertainment_filter == 'off' %}checked{% endif %}
+                     style="accent-color:#3949ab;">
+              <span>フィルターなし</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
+              <input type="radio" name="entertainment_filter" value="low" {% if entertainment_filter != 'off' and entertainment_filter != 'hide' %}checked{% endif %}
+                     style="accent-color:#3949ab;">
+              <span>重要度を下げる</span>
+            </label>
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:0.88rem; cursor:pointer;">
+              <input type="radio" name="entertainment_filter" value="hide" {% if entertainment_filter == 'hide' %}checked{% endif %}
+                     style="accent-color:#3949ab; margin-top:3px;">
+              <div>
+                <span>非表示にする</span><span style="font-size:0.7rem; color:#3949ab; font-weight:600; margin-left:4px;">β</span>
+                <div style="font-size:0.72rem; color:#9ca3af; margin-top:2px; line-height:1.5;">β版機能です。AIの判定精度により、エンタメ以外の記事が非表示になる場合があります。ご了承のうえご利用ください。</div>
+              </div>
+            </label>
+          </div>
+        </div>
         <div class="settings-btn-wrap"><button type="submit" class="btn btn-save">保存する</button></div>
       </form>
     </div>

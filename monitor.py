@@ -340,14 +340,15 @@ def _send_line_notification(line_user_id: str, message: str) -> tuple:
 def _score_article_importance(title: str, plan: str,
                               candidate_companies: list | None = None,
                               feedback_examples: dict | None = None,
-                              sports_filter: str = "off") -> dict:
+                              sports_filter: str = "off",
+                              entertainment_filter: str = "off") -> dict:
     """記事タイトルの重要度と主役企業名を返す。
     candidate_companies: ユーザーの登録企業名リスト（優先照合用）。
     feedback_examples: few-shot 学習例 dict。
     戻り値: {"importance": "high"/"medium"/"low", "primary_company": "企業名" or None}
     business/pro プラン以外は AI 未呼び出し。
     """
-    result = {"importance": "low", "primary_company": None, "is_sports": False}
+    result = {"importance": "low", "primary_company": None, "is_sports": False, "is_entertainment": False}
     if plan not in ("business", "pro"):
         return result
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
@@ -430,15 +431,24 @@ def _score_article_importance(title: str, plan: str,
             "スポーツ関連記事はビジネス上の重要度を低く評価してください(importance: low)。\n"
             if sports_filter in ("low", "hide") else ""
         )
+        + (
+            "また、この記事がエンタメ・芸能関連(芸能人・音楽・映画・イベント等)かどうかを"
+            "判定し、is_entertainment フィールドに true または false で返してください。"
+            "ただし、企業のスポンサー契約・メディア展開など経営判断を伴う内容は"
+            "エンタメ関連とみなさないでください。"
+            "エンタメ・芸能関連記事はビジネス上の重要度を低く評価してください(importance: low)。\n"
+            if entertainment_filter in ("low", "hide") else ""
+        )
         + examples_section
     )
     _is_sports_field = ', "is_sports": true/false' if sports_filter in ("low", "hide") else ""
+    _is_ent_field = ', "is_entertainment": true/false' if entertainment_filter in ("low", "hide") else ""
     article_block = (
         f"タイトル: {title}\n"
         f"{company_section}\n"
         "以下のJSON形式で回答してください。他の文字は不要です。\n"
         '{"importance": "high または medium または low", "primary_company": "主役企業名（日本語）。該当なしならnull"'
-        + _is_sports_field + '}'
+        + _is_sports_field + _is_ent_field + '}'
     )
     try:
         import json as _json
@@ -470,6 +480,8 @@ def _score_article_importance(title: str, plan: str,
                 result["primary_company"] = pc.strip()
             if parsed.get("is_sports") is True:
                 result["is_sports"] = True
+            if parsed.get("is_entertainment") is True:
+                result["is_entertainment"] = True
         except _json.JSONDecodeError:
             text_lower = text.lower()
             for level in ("high", "medium", "low"):
@@ -1146,8 +1158,11 @@ def send_digest_for_user(user_id: int):
     if not _is_notify_day(user_id):
         print(f"[ダイジェスト] user_id={user_id} 今日は通知対象外の曜日です")
         return
-    _user_sf = (db.get_user_by_id(user_id) or {}).get("sports_filter", "low")
-    unnotified = db.load_unnotified_articles(user_id, hide_sports=(_user_sf == "hide"))
+    _digest_user = db.get_user_by_id(user_id) or {}
+    unnotified = db.load_unnotified_articles(
+        user_id,
+        hide_sports=(_digest_user.get("sports_filter", "low") == "hide"),
+        hide_entertainment=(_digest_user.get("entertainment_filter", "low") == "hide"))
     if not unnotified:
         print(f"[ダイジェスト] user_id={user_id} 未通知記事なし")
         return
@@ -1339,6 +1354,7 @@ def check_single_keyword(keyword: str, user_id=None):
     _user_row = db.get_user_by_id(user_id) or {}
     user_plan = _user_row.get("plan", "basic")
     _sports_filter = _user_row.get("sports_filter", "low") or "low"
+    _ent_filter = _user_row.get("entertainment_filter", "low") or "low"
     try:
         google_articles = fetch_news_articles(keyword, user_plan)
         db.update_source_health("google_news", True)
@@ -1369,9 +1385,10 @@ def check_single_keyword(keyword: str, user_id=None):
         for _a in new_articles:
             candidates = _build_candidate_companies(
                 _a.get("title", ""), keyword, _kw_cid, user_id, _all_cos)
-            score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter)
+            score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
             _a["importance"] = score["importance"]
             _a["is_sports"] = score.get("is_sports", False)
+            _a["is_entertainment"] = score.get("is_entertainment", False)
             _a["primary_company_id"] = _resolve_primary_company_id(
                 score["primary_company"] or _a.pop("_primary_company", None), user_id)
         db.insert_articles(new_articles, user_id)
@@ -1424,6 +1441,7 @@ def check_all_keywords():
         _user_row2 = db.get_user_by_id(user_id) or {}
         user_plan = _user_row2.get("plan", "basic")
         _sports_filter = _user_row2.get("sports_filter", "low") or "low"
+        _ent_filter = _user_row2.get("entertainment_filter", "low") or "low"
         _all_cos = db.load_companies(user_id)
         _fb_examples = db.load_feedback_examples_for_user(user_id)
 
@@ -1490,9 +1508,10 @@ def check_all_keywords():
                 for _a in new_articles:
                     candidates = _build_candidate_companies(
                         _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter)
+                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
                     _a["importance"] = score["importance"]
                     _a["is_sports"] = score.get("is_sports", False)
+                    _a["is_entertainment"] = score.get("is_entertainment", False)
                     _a["primary_company_id"] = _resolve_primary_company_id(
                         score["primary_company"] or _a.pop("_primary_company", None), user_id)
                 try:
@@ -1578,6 +1597,7 @@ def check_keywords_for_user(user_id: int) -> dict:
     _user_row3 = db.get_user_by_id(user_id) or {}
     user_plan = _user_row3.get("plan", "basic")
     _sports_filter = _user_row3.get("sports_filter", "low") or "low"
+    _ent_filter = _user_row3.get("entertainment_filter", "low") or "low"
     _all_cos = db.load_companies(user_id)
     _fb_examples = db.load_feedback_examples_for_user(user_id)
 
@@ -1631,9 +1651,10 @@ def check_keywords_for_user(user_id: int) -> dict:
             for _a in new_articles:
                 candidates = _build_candidate_companies(
                     _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter)
+                score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
                 _a["importance"] = score["importance"]
                 _a["is_sports"] = score.get("is_sports", False)
+                _a["is_entertainment"] = score.get("is_entertainment", False)
                 _a["primary_company_id"] = _resolve_primary_company_id(
                     score["primary_company"] or _a.pop("_primary_company", None), user_id)
             try:
