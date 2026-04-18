@@ -10,4 +10,7 @@ body {
   input, textarea, select {
     font-size: 16px;
   }
+  .article-card-bottom {
+    justify-content: flex-end;
+  }
 }
