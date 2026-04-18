@@ -3523,6 +3523,7 @@ def company_detail(company_id):
                                company_exclude_words=company_exclude_words,
                                company_alert_words=company_alert_words,
                                youtube_channels=youtube_channels,
+                               user_companies=db.load_companies(user_id),
                                articles=articles,
                                alert_articles=alert_articles,
                                normal_articles=normal_articles,
