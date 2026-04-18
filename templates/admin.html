@@ -208,34 +208,20 @@
     <div id="debug-result" style="display:none; padding:10px 14px; border-radius:0; margin-bottom:12px; font-size:0.85rem;"></div>
     <div style="margin-bottom:16px;">
       <div style="font-size:0.88rem; font-weight:600; margin-bottom:6px;">即時通知チェックを実行</div>
-      <p style="font-size:0.78rem; color:#9ca3af; margin-bottom:8px;">指定ユーザーのキーワード収集と即時通知判定をバックグラウンドで実行します</p>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <select id="instant-user-select" style="padding:6px 10px; border:1px solid #d1d5db; border-radius:0; font-size:0.85rem;">
-          {% for u in users %}
-          <option value="{{ u.id }}" {% if u.email == user_email %}selected{% endif %}>{{ u.email }}</option>
-          {% endfor %}
-        </select>
-        <button type="button" id="btn-instant-check" onclick="triggerInstantCheck()"
-                style="background:#3949ab; color:#fff; border:none; border-radius:0; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
-          実行する
-        </button>
-      </div>
+      <p style="font-size:0.78rem; color:#9ca3af; margin-bottom:8px;">管理者自身のキーワード収集と即時通知判定をバックグラウンドで実行します</p>
+      <button type="button" id="btn-instant-check" onclick="triggerInstantCheck()"
+              style="background:#3949ab; color:#fff; border:none; border-radius:0; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+        実行する
+      </button>
     </div>
     <hr style="border:none; border-top:1px solid #e5e7eb; margin:16px 0;">
     <div>
       <div style="font-size:0.88rem; font-weight:600; margin-bottom:6px;">ダイジェスト送信</div>
-      <p style="font-size:0.78rem; color:#9ca3af; margin-bottom:8px;">指定ユーザーのダイジェストを即座に送信します</p>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <select id="digest-user-select" style="padding:6px 10px; border:1px solid #d1d5db; border-radius:0; font-size:0.85rem;">
-          {% for u in users %}
-          <option value="{{ u.id }}">{{ u.email }}</option>
-          {% endfor %}
-        </select>
-        <button type="button" id="btn-digest" onclick="triggerDigest()"
-                style="background:#3949ab; color:#fff; border:none; border-radius:0; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
-          送信する
-        </button>
-      </div>
+      <p style="font-size:0.78rem; color:#9ca3af; margin-bottom:8px;">管理者自身のダイジェストを即座に送信します</p>
+      <button type="button" id="btn-digest" onclick="triggerDigest()"
+              style="background:#3949ab; color:#fff; border:none; border-radius:0; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+        送信する
+      </button>
     </div>
   </div>
 </main>
@@ -273,13 +259,11 @@ function _showResult(msg, ok, bg, color, border) {
 }
 function triggerInstantCheck() {
   var btn = document.getElementById('btn-instant-check');
-  var uid = document.getElementById('instant-user-select').value;
   btn.disabled = true; btn.textContent = '実行中...';
   fetch('/admin/trigger-instant-check', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _debugCsrf() },
-    credentials: 'same-origin',
-    body: JSON.stringify({ user_id: parseInt(uid) })
+    credentials: 'same-origin'
   }).then(function(r) {
     return r.json().then(function(d) { d._status = r.status; return d; });
   }).then(function(d) {
@@ -290,13 +274,11 @@ function triggerInstantCheck() {
 }
 function triggerDigest() {
   var btn = document.getElementById('btn-digest');
-  var uid = document.getElementById('digest-user-select').value;
   btn.disabled = true; btn.textContent = '送信中...';
   fetch('/admin/trigger-digest', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _debugCsrf() },
-    credentials: 'same-origin',
-    body: JSON.stringify({ user_id: parseInt(uid) })
+    credentials: 'same-origin'
   }).then(function(r) {
     return r.json().then(function(d) { d._status = r.status; return d; });
   }).then(function(d) {

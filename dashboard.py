@@ -2859,31 +2859,22 @@ _digest_send_running = False
 @admin_required
 def admin_trigger_instant_check():
     global _instant_check_running
-    admin_id = session["user_id"]
-    data = request.get_json(silent=True) or {}
-    target_uid = data.get("user_id") or admin_id
-    try:
-        target_uid = int(target_uid)
-    except (TypeError, ValueError):
-        return jsonify({"success": False, "message": "invalid user_id"}), 400
-    target_user = db.get_user_by_id(target_uid)
-    if not target_user:
-        return jsonify({"success": False, "message": "ユーザーが見つかりません"}), 404
+    uid = session["user_id"]
 
     with _instant_check_lock:
         if _instant_check_running:
-            print(f"[ADMIN] instant-check blocked: already running (requested by admin_user_id={admin_id})")
+            print(f"[ADMIN] instant-check blocked: already running (admin_user_id={uid})")
             return jsonify({"success": False, "message": "別の即時通知チェックが実行中です。しばらくお待ちください。"}), 409
         _instant_check_running = True
 
-    print(f"[ADMIN] instant-check triggered by admin_user_id={admin_id} target_user_id={target_uid}")
+    print(f"[ADMIN] instant-check triggered by admin_user_id={uid}")
 
     def _run():
         global _instant_check_running
         try:
             import monitor as _monitor
-            result = _monitor.check_keywords_for_user(target_uid)
-            print(f"[ADMIN] instant-check completed: target_user_id={target_uid}, "
+            result = _monitor.check_keywords_for_user(uid)
+            print(f"[ADMIN] instant-check completed: "
                   f"keywords={result['keywords']}, new_articles={result['new_articles']}, "
                   f"notifications={result['notifications']}")
         except Exception as e:
@@ -2897,7 +2888,6 @@ def admin_trigger_instant_check():
     return jsonify({
         "success": True,
         "message": "即時通知チェックをバックグラウンドで開始しました。ログを確認してください。",
-        "user_id": target_uid,
     })
 
 
@@ -2905,15 +2895,9 @@ def admin_trigger_instant_check():
 @admin_required
 def admin_trigger_digest():
     global _digest_send_running
-    admin_id = session["user_id"]
-    data = request.get_json(silent=True) or {}
-    target_uid = data.get("user_id") or admin_id
-    try:
-        target_uid = int(target_uid)
-    except (TypeError, ValueError):
-        return jsonify({"success": False, "message": "invalid user_id"}), 400
-    target_user = db.get_user_by_id(target_uid)
-    if not target_user:
+    uid = session["user_id"]
+    user = db.get_user_by_id(uid)
+    if not user:
         return jsonify({"success": False, "message": "ユーザーが見つかりません"}), 404
 
     with _digest_send_lock:
@@ -2921,15 +2905,15 @@ def admin_trigger_digest():
             return jsonify({"success": False, "message": "別のダイジェスト送信が実行中です。しばらくお待ちください。"}), 409
         _digest_send_running = True
 
-    print(f"[ADMIN] digest triggered by admin_user_id={admin_id} for target={target_uid}")
+    print(f"[ADMIN] digest triggered by admin_user_id={uid}")
     try:
         import monitor as _monitor
-        _monitor.send_digest_for_user(target_uid)
-        print(f"[ADMIN] digest completed for user_id={target_uid}")
+        _monitor.send_digest_for_user(uid)
+        print(f"[ADMIN] digest completed for admin_user_id={uid}")
         return jsonify({
             "success": True,
             "message": "ダイジェストを送信しました",
-            "user_email": target_user.get("email", ""),
+            "user_email": user.get("email", ""),
         })
     except Exception as e:
         print(f"[ADMIN] digest error: {e}")
