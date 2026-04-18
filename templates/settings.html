@@ -279,6 +279,31 @@
     </div>
   </section>
 
+  <!-- ── フィルター設定 ── -->
+  <section>
+    <div class="section-title">フィルター設定</div>
+    <div class="card">
+      <form class="settings-panel" method="POST" action="/settings/filters" style="flex-direction:column; align-items:flex-start; gap:16px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+          <div>
+            <div style="font-size:0.88rem; font-weight:600; color:#1a1a2e;">スポーツ記事フィルター</div>
+            <div style="font-size:0.75rem; color:#9ca3af; margin-top:2px;">試合結果・選手情報などのスポーツ関連記事の重要度を下げます</div>
+          </div>
+          <label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;margin-left:16px;">
+            <input type="checkbox" name="sports_filter" value="1" {% if sports_filter %}checked{% endif %}
+                   style="opacity:0;width:0;height:0;"
+                   onchange="this.form.submit();">
+            <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:{% if sports_filter %}#3949ab{% else %}#ccc{% endif %};border-radius:26px;transition:background 0.2s;"
+                  onclick="var cb=this.previousElementSibling;cb.checked=!cb.checked;this.style.background=cb.checked?'#3949ab':'#ccc';this.querySelector('span').style.transform=cb.checked?'translateX(22px)':'translateX(0)';cb.form.submit();">
+              <span style="position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform 0.2s;transform:{% if sports_filter %}translateX(22px){% else %}translateX(0){% endif %};"></span>
+            </span>
+          </label>
+        </div>
+      </form>
+    </div>
+  </section>
+
   <!-- ── 除外する配信元 ── -->
   <section>
     <div class="section-title">除外する配信元</div>

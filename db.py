@@ -581,6 +581,16 @@ def _run_migrations():
                 "dashboard_settings JSONB DEFAULT NULL;"
             )
 
+            # users: スポーツ記事フィルター
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "sports_filter BOOLEAN DEFAULT TRUE;"
+            )
+            cur.execute(
+                "UPDATE users SET sports_filter = TRUE "
+                "WHERE sports_filter IS NULL;"
+            )
+
             # companies: 並び順カラム追加
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "

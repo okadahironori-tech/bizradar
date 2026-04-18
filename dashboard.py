@@ -2503,7 +2503,8 @@ def settings():
                            profile_job_type=user.get("job_type") or "",
                            profile_job_title=user.get("job_title") or "",
                            excluded_sources=db.load_excluded_sources(user_id),
-                           dashboard_settings=db.get_dashboard_settings(user_id))
+                           dashboard_settings=db.get_dashboard_settings(user_id),
+                           sports_filter=user.get("sports_filter", True))
 
 
 @app.route("/api/global_alert_keyword", methods=["POST"])
@@ -2570,6 +2571,20 @@ def save_profile():
             )
     db.update_user_profile(user_id, company_name, industry, company_size, job_type, job_title)
     flash("プロフィールを保存しました", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/filters", methods=["POST"])
+@login_required
+def save_filters():
+    user_id = session["user_id"]
+    sports_filter = request.form.get("sports_filter") is not None
+    with db._conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET sports_filter = %s WHERE id = %s",
+                (sports_filter, user_id),
+            )
     return redirect(url_for("settings"))
 
 
