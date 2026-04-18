@@ -830,7 +830,10 @@ function _articleItemHtml(article) {
       ${meta}
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
-      <button type="button" onclick="showDashFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>
+      ${article.has_feedback
+        ? '<button type="button" disabled style="font-size:0.72rem;color:#aaa;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:not-allowed;">フィードバック済み</button>'
+        : '<button type="button" onclick="showDashFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>'
+      }
       <button class="btn-check-done" onclick="markRead(this)">既読にする</button>
     </div>
     <div class="dash-feedback-form" style="display:none;margin-top:8px;padding:10px;background:#f9fafb;border-radius:8px;font-size:0.82rem;">

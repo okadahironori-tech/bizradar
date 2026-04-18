@@ -951,6 +951,9 @@ def index():
     all_articles  = articles_data.get("articles", [])
     # 重複排除（同一キーワード内でタイトル類似度が高い記事はYahoo優先で1件に集約）
     all_articles  = _deduplicate_articles(all_articles)
+    _fb_ids = db.load_feedback_article_ids(user_id)
+    for a in all_articles:
+        a["has_feedback"] = bool(a.get("id") in _fb_ids)
     articles      = all_articles[:300]
     keyword_counts = {}
     for a in all_articles:
@@ -2436,6 +2439,9 @@ def news():
     alert_count = sum(1 for a in deduped_articles
                       if (a.get("is_alert") or a.get("importance") == "high") and not a.get("is_read"))
     all_articles = deduped_articles
+    _fb_ids = db.load_feedback_article_ids(user_id)
+    for a in all_articles:
+        a["has_feedback"] = bool(a.get("id") in _fb_ids)
 
     return render_template(
         "news.html",
@@ -3493,6 +3499,9 @@ def company_detail(company_id):
 
         # 重複記事除去
         articles = _deduplicate_articles(articles)
+        _fb_ids = db.load_feedback_article_ids(user_id)
+        for a in articles:
+            a["has_feedback"] = bool(a.get("id") in _fb_ids)
 
         # 重要記事と通常記事に分離（両グループとも公開日時の新しい順）
         def _is_alert_or_high(a):

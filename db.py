@@ -3130,6 +3130,17 @@ def delete_excluded_source(user_id: int, source_id: int) -> bool:
             return cur.rowcount > 0
 
 
+def load_feedback_article_ids(user_id: int) -> set:
+    """ユーザーがフィードバック済みの article_id の集合を返す。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT article_id FROM badge_feedback WHERE user_id = %s",
+                (user_id,),
+            )
+            return {row[0] for row in cur.fetchall()}
+
+
 def load_feedback_examples_for_user(user_id: int, user_limit: int = 10,
                                     global_limit: int = 5) -> dict:
     """AI判定の few-shot 学習例をフィードバックから取得する。"""
