@@ -223,6 +223,74 @@ def _fetch_article_published_date(url: str) -> str:
     return ""
 
 
+def extract_article_published_date(html: str):
+    """記事HTMLから公開日を取得し date 型で返す。取得できない場合は None。"""
+    from bs4 import BeautifulSoup as _BS
+    import json as _json
+    try:
+        soup = _BS(html, 'html.parser')
+        raw = None
+        for attr, name in [
+            ('property', 'article:published_time'),
+            ('name', 'pubdate'),
+            ('name', 'date'),
+        ]:
+            tag = soup.find('meta', attrs={attr: name})
+            if tag and tag.get('content'):
+                raw = tag['content']
+                break
+        if not raw:
+            time_tag = soup.find('time', attrs={'datetime': True})
+            if time_tag:
+                raw = time_tag['datetime']
+        if not raw:
+            return None
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            return dt.date()
+        except Exception:
+            pass
+        try:
+            import email.utils as _eu
+            tup = _eu.parsedate_tz(raw)
+            if tup:
+                ts = _eu.mktime_tz(tup)
+                return datetime.fromtimestamp(ts, tz=timezone.utc).date()
+        except Exception:
+            pass
+        try:
+            return datetime.strptime(raw[:10], "%Y-%m-%d").date()
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return None
+
+
+def _parse_published_to_date(published_str: str):
+    """published 文字列を date 型に変換。失敗時は None。"""
+    if not published_str:
+        return None
+    try:
+        s = published_str.lstrip("~").strip()
+        return datetime.strptime(s[:10], "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _should_skip_date_mismatch(source_published: str, repaired_published: str, title: str) -> bool:
+    """ソース日付と修復後日付が180日以上ズレていればスキップ対象。"""
+    try:
+        src_date = _parse_published_to_date(source_published)
+        rep_date = _parse_published_to_date(repaired_published)
+        if src_date and rep_date and abs((src_date - rep_date).days) >= 180:
+            print(f"[DATE_MISMATCH] スキップ: {title} | ソース日付: {source_published} | 実際の日付: {repaired_published}")
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _verify_and_repair_published(published_str: str, url: str) -> tuple:
     """RSS の published 文字列を検証し、必要なら元記事から取得して差し替える。
     - 戻り値: (確定済み JST 文字列, date_verified)
@@ -726,11 +794,14 @@ def fetch_news_articles(keyword: str, user_plan: str = "basic") -> list:
                 pass
         # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
         published = _try_parse_uncertain_published(published)
+        source_published = published
         # 未来 / 30日以上前 / パース不能 のときは元記事から日付を再取得
         published, date_verified = _verify_and_repair_published(published, url)
         # 再取得に失敗した30日以上前の記事は保存しない（古い記事の紛れ込みを防ぐ）
         if _is_old_unverified(published, date_verified):
             print(f"[fetch] skip old unverified: {url}")
+            continue
+        if _should_skip_date_mismatch(source_published, published, title):
             continue
         articles.append({
             "keyword":       keyword,
@@ -810,10 +881,13 @@ def fetch_bing_news_articles(keyword: str, user_plan: str = "basic") -> list:
         # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
         published = _try_parse_uncertain_published(published)
         if title and url:
+            source_published = published
             published, date_verified = _verify_and_repair_published(published, url)
             # 再取得に失敗した30日以上前の記事は保存しない（古い記事の紛れ込みを防ぐ）
             if _is_old_unverified(published, date_verified):
                 print(f"[fetch] skip old unverified: {url}")
+                continue
+            if _should_skip_date_mismatch(source_published, published, title):
                 continue
             articles.append({
                 "keyword":       keyword,
@@ -887,7 +961,10 @@ def fetch_prtimes_articles(keyword: str, user_plan: str = "basic") -> list:
         # '~' 付き published を RFC822 としてパース試行（成功時のみ '~' を除去）
         published = _try_parse_uncertain_published(published)
         if title and url:
+            source_published = published
             published, date_verified = _verify_and_repair_published(published, url)
+            if _should_skip_date_mismatch(source_published, published, title):
+                continue
             articles.append({
                 "keyword":       keyword,
                 "title":         title,
