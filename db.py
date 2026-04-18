@@ -861,7 +861,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name_kana, first_name_kana, phone FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name, first_name, last_name_kana, first_name_kana, phone, sports_filter FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()
