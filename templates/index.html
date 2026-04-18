@@ -355,6 +355,7 @@
       .news-section-title { align-items: flex-start; }
       .news-title-left { flex-direction: column; align-items: flex-start; gap: 2px; }
       .tdnet-list .history-item:nth-child(n+4) { display: none; }
+      .article-card-bottom { justify-content: flex-end; }
     }
 
     /* ── スマホ (〜 480px) ── */
@@ -829,7 +830,7 @@ function _articleItemHtml(article) {
       <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
       ${meta}
     </div>
-    <div style="display:flex;gap:6px;align-items:center;">
+    <div class="article-card-bottom" style="display:flex;gap:6px;align-items:center;">
       ${article.has_feedback
         ? '<button type="button" disabled style="font-size:0.72rem;color:#aaa;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:not-allowed;">フィードバック済み</button>'
         : '<button type="button" onclick="showDashFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>'
