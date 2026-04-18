@@ -3144,12 +3144,13 @@ def _bing_search_candidate_url(company_name: str) -> str | None:
     api_key = os.environ.get("GOOGLE_CSE_API_KEY", "").strip()
     cx = os.environ.get("GOOGLE_CSE_CX", "").strip()
     if not api_key:
-        print(f"[cse_search] GOOGLE_CSE_API_KEY is not set")
+        logger.warning("[cse_search] GOOGLE_CSE_API_KEY is not set")
         return None
     if not cx:
-        print(f"[cse_search] GOOGLE_CSE_CX is not set")
+        logger.warning("[cse_search] GOOGLE_CSE_CX is not set")
         return None
     try:
+        logger.info("[cse_search] searching: %s", company_name)
         resp = _req.get(
             "https://www.googleapis.com/customsearch/v1",
             params={"key": api_key, "cx": cx,
@@ -3158,9 +3159,10 @@ def _bing_search_candidate_url(company_name: str) -> str | None:
             timeout=10,
         )
         resp.raise_for_status()
-        items = resp.json().get("items", [])
+        data = resp.json()
+        items = data.get("items", [])
         if not items:
-            print(f"[cse_search] no results for {company_name}")
+            logger.warning("[cse_search] no results for %s (keys: %s)", company_name, list(data.keys()))
             return None
         for item in items:
             link = item.get("link", "")
@@ -3168,9 +3170,11 @@ def _bing_search_candidate_url(company_name: str) -> str | None:
                 continue
             if "google.com" in link:
                 continue
+            logger.info("[cse_search] found: %s -> %s", company_name, link)
             return link
+        logger.warning("[cse_search] no valid link in %d items for %s", len(items), company_name)
     except Exception as e:
-        print(f"[cse_search] error for {company_name}: {e}")
+        logger.error("[cse_search] error for %s: %s", company_name, e)
     return None
 
 
