@@ -839,7 +839,7 @@ function _articleItemHtml(article) {
     </div>
     <div class="dash-feedback-form" style="display:none;margin-top:8px;padding:10px;background:#f9fafb;border-radius:8px;font-size:0.82rem;">
       <div style="margin-bottom:6px;font-weight:600;">主役の企業は？</div>
-      <select class="bf-company" style="width:100%;padding:5px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px;font-size:0.82rem;">
+      <select class="bf-company" style="width:100%;padding:5px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px;font-size:16px;">
         <option value="">どの登録企業でもない</option>${companyOptions}
       </select>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
@@ -858,7 +858,7 @@ function _articleItemHtml(article) {
           <label style="cursor:pointer;"><input type="radio" name="bf-imp-${article.id}" value="unknown"> わからない</label>
         </div>
       </div>
-      <input type="text" class="bf-text" placeholder="一言メモ（任意）" maxlength="200" style="width:100%;padding:5px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px;font-size:0.82rem;">
+      <input type="text" class="bf-text" placeholder="一言メモ（任意）" maxlength="200" style="width:100%;padding:5px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px;font-size:16px;">
       <div style="display:flex;gap:6px;">
         <button type="button" onclick="submitDashFeedback(this)" style="font-size:0.78rem;background:#1a1a2e;color:#fff;border:none;border-radius:6px;padding:4px 14px;cursor:pointer;">送信</button>
         <button type="button" onclick="this.closest('.dash-feedback-form').style.display='none'" style="font-size:0.78rem;background:none;border:1px solid #d1d5db;border-radius:6px;padding:4px 14px;cursor:pointer;color:#666;">キャンセル</button>
@@ -968,6 +968,7 @@ function submitDashFeedback(btn) {
   impEls.forEach(function(r) { if (r.checked && r.value) impFeedback = r.value; });
   if (impFeedback === 'unknown') impFeedback = null;
   var reasonText = form.querySelector('.bf-text').value || '';
+  if (document.activeElement) document.activeElement.blur();
   fetch('/api/badge-feedback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
