@@ -831,7 +831,7 @@ function _articleItemHtml(article) {
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
       ${article.has_feedback
-        ? '<button type="button" disabled style="font-size:0.72rem;color:#555;background:#e0e0e0;border:1px solid #bbb;border-radius:4px;padding:1px 6px;cursor:not-allowed;">フィードバック済み</button>'
+        ? '<button type="button" disabled style="font-size:0.72rem;color:#aaa;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:not-allowed;">フィードバック済み</button>'
         : '<button type="button" onclick="showDashFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>'
       }
       <button class="btn-check-done" onclick="markRead(this)">既読にする</button>
@@ -854,6 +854,7 @@ function _articleItemHtml(article) {
           <label style="cursor:pointer;"><input type="radio" name="bf-imp-${article.id}" value="high"> 重要にすべき</label>
           <label style="cursor:pointer;"><input type="radio" name="bf-imp-${article.id}" value="medium"> 注目にすべき</label>
           <label style="cursor:pointer;"><input type="radio" name="bf-imp-${article.id}" value="low"> 低いにすべき</label>
+          <label style="cursor:pointer;"><input type="radio" name="bf-imp-${article.id}" value="unknown"> わからない</label>
         </div>
       </div>
       <input type="text" class="bf-text" placeholder="一言メモ（任意）" maxlength="200" style="width:100%;padding:5px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px;font-size:0.82rem;">
@@ -964,6 +965,7 @@ function submitDashFeedback(btn) {
   var impEls = form.querySelectorAll('input[name^="bf-imp-"]');
   var impFeedback = null;
   impEls.forEach(function(r) { if (r.checked && r.value) impFeedback = r.value; });
+  if (impFeedback === 'unknown') impFeedback = null;
   var reasonText = form.querySelector('.bf-text').value || '';
   fetch('/api/badge-feedback', {
     method: 'POST',
