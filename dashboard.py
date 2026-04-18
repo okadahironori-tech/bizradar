@@ -3139,32 +3139,56 @@ def admin_fetch_securities_master():
 
 
 def _bing_search_candidate_url(company_name: str) -> str | None:
-    """Bing検索で企業の公式サイト候補URLを1件返す。"""
+    """Bing検索→DuckDuckGoフォールバックで企業の公式サイト候補URLを1件返す。"""
     import requests as _req
-    from urllib.parse import quote_plus, urlparse, parse_qs
+    from urllib.parse import quote_plus, urlparse, parse_qs, unquote
     from bs4 import BeautifulSoup
+    _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+    _headers = {"User-Agent": _UA, "Accept-Language": "ja,en;q=0.9"}
+    query = f"{company_name} 公式サイト"
+    skip_domains = {"bing.com", "microsoft.com", "msn.com", "google.com",
+                    "cache.google.com", "duckduckgo.com"}
+
+    def _is_valid(href):
+        if not href or not href.startswith(("http://", "https://")):
+            return False
+        domain = urlparse(href).netloc.lower().lstrip("www.")
+        return not any(sd in domain for sd in skip_domains)
+
+    # 1. Bing検索
     try:
-        query = f"{company_name} 公式サイト"
         url = f"https://www.bing.com/search?q={quote_plus(query)}"
-        resp = _req.get(url, timeout=5, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept-Language": "ja,en;q=0.9",
-        })
+        resp = _req.get(url, timeout=5, headers=_headers)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
-        skip_domains = {"bing.com", "microsoft.com", "msn.com", "google.com", "cache.google.com"}
         for a_tag in soup.select("li.b_algo h2 a[href]"):
             href = a_tag["href"]
-            parsed = urlparse(href)
-            domain = parsed.netloc.lower().lstrip("www.")
-            if any(sd in domain for sd in skip_domains):
-                continue
-            if not parsed.scheme.startswith("http"):
-                continue
-            return href
+            if _is_valid(href):
+                return href
     except Exception as e:
         print(f"[bing_search] error for {company_name}: {e}")
+
+    # 2. DuckDuckGoフォールバック
+    try:
+        url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+        resp = _req.get(url, timeout=5, headers=_headers)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for a_tag in soup.select("a.result__a[href]"):
+            href = a_tag.get("href", "")
+            if "duckduckgo.com/l/" in href:
+                parsed_qs = parse_qs(urlparse(href).query)
+                uddg = parsed_qs.get("uddg", [None])[0]
+                if uddg:
+                    href = unquote(uddg)
+                else:
+                    continue
+            if _is_valid(href):
+                return href
+    except Exception as e:
+        print(f"[ddg_search] error for {company_name}: {e}")
+
     return None
 
 
