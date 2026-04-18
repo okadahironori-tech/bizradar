@@ -570,7 +570,7 @@ function changeArticlePageSize() { _articlePage = 1; renderArticles(); }
 
 function goArticlePage(delta) {
   const filtered = _getFilteredArticles();
-  const pageSize = parseInt(document.getElementById('articles-count-select').value);
+  const pageSize = parseInt((document.getElementById('articles-count-select') || {}).value) || 5;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   _articlePage = Math.max(1, Math.min(totalPages, _articlePage + delta));
   renderArticles();
@@ -657,7 +657,7 @@ function renderAlertPinnedSection() {
 function renderArticles() {
   const container = document.getElementById('articles-container');
   if (!container) return;
-  const pageSize = parseInt(document.getElementById('articles-count-select').value);
+  const pageSize = parseInt((document.getElementById('articles-count-select') || {}).value) || 5;
   const filtered = _getFilteredArticles();
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
