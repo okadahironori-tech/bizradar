@@ -3130,6 +3130,93 @@ def delete_excluded_source(user_id: int, source_id: int) -> bool:
             return cur.rowcount > 0
 
 
+def load_feedback_examples_for_user(user_id: int, user_limit: int = 10,
+                                    global_limit: int = 5) -> dict:
+    """AI判定の few-shot 学習例をフィードバックから取得する。"""
+    result = {"user_examples": [], "global_examples": []}
+
+    def _format_row(row):
+        reason_type = row.get("reason_type")
+        if reason_type is None and row.get("importance_feedback"):
+            return {
+                "title": row.get("title", ""),
+                "verdict": row.get("original_badge_name"),
+                "reason": "correct",
+                "importance": row.get("importance_feedback"),
+            }
+        elif reason_type == "wrong_company":
+            return {
+                "title": row.get("title", ""),
+                "verdict": row.get("correct_company_name"),
+                "reason": "wrong_company",
+                "importance": row.get("importance_feedback"),
+            }
+        elif reason_type == "not_company_news":
+            return {
+                "title": row.get("title", ""),
+                "verdict": None,
+                "reason": "not_company_news",
+                "importance": row.get("importance_feedback"),
+            }
+        return None
+
+    base_join = (
+        "FROM badge_feedback bf "
+        "JOIN articles a ON bf.article_id = a.id "
+        "LEFT JOIN companies c ON bf.correct_company_id = c.id "
+        "LEFT JOIN companies ao_company ON a.primary_company_id = ao_company.id "
+    )
+    base_where = (
+        "AND ("
+        "  bf.reason_type IN ('wrong_company', 'not_company_news') "
+        "  OR (bf.reason_type IS NULL AND bf.importance_feedback IS NOT NULL)"
+        ") "
+    )
+    base_select = (
+        "SELECT bf.article_id, a.title, bf.reason_type, bf.correct_company_id, "
+        "c.name AS correct_company_name, bf.importance_feedback, "
+        "a.importance AS original_importance, "
+        "ao_company.name AS original_badge_name "
+    )
+
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                base_select + base_join +
+                "WHERE bf.user_id = %s " + base_where +
+                "ORDER BY bf.created_at DESC LIMIT %s",
+                (user_id, user_limit),
+            )
+            user_rows = [dict(r) for r in cur.fetchall()]
+            user_article_ids = [r["article_id"] for r in user_rows]
+
+            for r in user_rows:
+                fmt = _format_row(r)
+                if fmt:
+                    result["user_examples"].append(fmt)
+
+            global_where = (
+                "WHERE bf.user_id IS NOT NULL AND bf.user_id != %s " + base_where
+            )
+            params = [user_id]
+            if user_article_ids:
+                global_where += "AND bf.article_id != ALL(%s) "
+                params.append(user_article_ids)
+            params.append(global_limit)
+
+            cur.execute(
+                base_select + base_join + global_where +
+                "ORDER BY bf.created_at DESC LIMIT %s",
+                params,
+            )
+            for r in cur.fetchall():
+                fmt = _format_row(dict(r))
+                if fmt:
+                    result["global_examples"].append(fmt)
+
+    return result
+
+
 def save_badge_feedback(article_id: int, user_id: int,
                         correct_company_id: int | None,
                         reason_type: str, reason_text: str = "",

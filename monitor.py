@@ -338,9 +338,11 @@ def _send_line_notification(line_user_id: str, message: str) -> tuple:
 
 
 def _score_article_importance(title: str, plan: str,
-                              candidate_companies: list | None = None) -> dict:
+                              candidate_companies: list | None = None,
+                              feedback_examples: dict | None = None) -> dict:
     """記事タイトルの重要度と主役企業名を返す。
     candidate_companies: ユーザーの登録企業名リスト（優先照合用）。
+    feedback_examples: few-shot 学習例 dict。
     戻り値: {"importance": "high"/"medium"/"low", "primary_company": "企業名" or None}
     business/pro プラン以外は AI 未呼び出し。
     """
@@ -373,13 +375,55 @@ def _score_article_importance(title: str, plan: str,
             "- 「豊田合成、車載部品をトヨタbZ7に採用」-> 主役は豊田合成。候補に豊田合成がなければ null。\n"
             "- 「トヨタ自動車、新型車発表」-> 主役はトヨタ自動車。候補にトヨタ自動車があれば「トヨタ自動車」。\n"
         )
-    prompt = (
+    # --- 学習例セクション構築 ---
+    examples_section = ""
+    if feedback_examples:
+        all_ex = (feedback_examples.get("user_examples", [])
+                  + feedback_examples.get("global_examples", []))
+        correct_lines = []
+        wrong_lines = []
+        norel_lines = []
+        cand_set = set(candidates)
+        for ex in all_ex:
+            t = (ex.get("title") or "")[:60]
+            v = ex.get("verdict")
+            r = ex.get("reason")
+            if r == "correct":
+                if not v:
+                    continue
+                correct_lines.append(f'- タイトル「{t}」-> 主役企業:{v}')
+            elif r == "wrong_company":
+                if v and v in cand_set:
+                    wrong_lines.append(f'- タイトル「{t}」-> 主役企業:{v}')
+                else:
+                    wrong_lines.append(f'- タイトル「{t}」-> 主役企業:null(正しい主役は候補外)')
+            elif r == "not_company_news":
+                norel_lines.append(f'- タイトル「{t}」-> 主役企業:null(登録企業と関係ない)')
+        parts = []
+        if correct_lines:
+            parts.append("[正解例]\n" + "\n".join(correct_lines))
+        if wrong_lines:
+            parts.append("[誤判定から学ぶ例]\n" + "\n".join(wrong_lines))
+        if norel_lines:
+            parts.append("[関係ない記事の例]\n" + "\n".join(norel_lines))
+        if parts:
+            examples_section = (
+                "\n過去の判定例(参考):\n"
+                + "\n".join(parts)
+                + "\n\n上記の判定例を参考に、今回の記事の主役企業を判定してください。\n"
+            )
+
+    # --- プロンプト構築（固定ブロック + 記事固有ブロック） ---
+    static_block = (
         "次のニュースタイトルを重要度で分類してください。\n\n"
         "high（重要）: 決算・業績発表、人事（就任・退任・解任）、M&A・経営統合・買収、倒産・民事再生、リコール・重大事故、工場閉鎖・大規模リストラ\n"
         "medium（注目）: 業務提携・合弁、新規事業参入、新製品・新サービス発表、受注・契約締結\n"
         "low（通常）: セミナー・展示会・発表大会への参加・出展、プレスリリース・お知らせ、サイト更新、定例報告、イベント開催告知、表彰・受賞、インタビュー・コラム・解説記事\n\n"
         "注意：PR TIMESやプレスリリース配信サービス由来と思われる記事はlowを優先してください。\n"
-        "注意：タイトルに「〜大会」「〜フェスタ」「〜セミナー」「〜展」が含まれる場合はlowにしてください。\n\n"
+        "注意：タイトルに「〜大会」「〜フェスタ」「〜セミナー」「〜展」が含まれる場合はlowにしてください。\n"
+        + examples_section
+    )
+    article_block = (
         f"タイトル: {title}\n"
         f"{company_section}\n"
         "以下のJSON形式で回答してください。他の文字は不要です。\n"
@@ -391,7 +435,14 @@ def _score_article_importance(title: str, plan: str,
         msg = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=80,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": static_block,
+                     "cache_control": {"type": "ephemeral"}},
+                    {"type": "text", "text": article_block},
+                ],
+            }],
         )
         text = ""
         for block in msg.content:
@@ -422,7 +473,10 @@ def _score_article_importance(title: str, plan: str,
                 if cn in title_str:
                     result["primary_company"] = cn
                     break
-        print(f"[importance] {result['importance']}: {title[:30]} company={result['primary_company']!r} candidates={len(candidates)}")
+        _ex_count = 0
+        if feedback_examples:
+            _ex_count = len(feedback_examples.get("user_examples", [])) + len(feedback_examples.get("global_examples", []))
+        print(f"[importance] {result['importance']}: {title[:30]} company={result['primary_company']!r} candidates={len(candidates)} examples={_ex_count}")
     except Exception as e:
         print(f"[importance] API error title={title[:30]!r}: {e}")
     return result
@@ -1295,10 +1349,11 @@ def check_single_keyword(keyword: str, user_id=None):
         print(f"  → {len(new_articles)} 件の新着記事")
         _all_cos = db.load_companies(user_id)
         _kw_cid = db.get_user_keyword_company_id(user_id, keyword)
+        _fb_examples = db.load_feedback_examples_for_user(user_id)
         for _a in new_articles:
             candidates = _build_candidate_companies(
                 _a.get("title", ""), keyword, _kw_cid, user_id, _all_cos)
-            score = _score_article_importance(_a.get("title", ""), user_plan, candidates)
+            score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples)
             _a["importance"] = score["importance"]
             _a["primary_company_id"] = _resolve_primary_company_id(
                 score["primary_company"] or _a.pop("_primary_company", None), user_id)
@@ -1351,6 +1406,7 @@ def check_all_keywords():
         exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
         user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
         _all_cos = db.load_companies(user_id)
+        _fb_examples = db.load_feedback_examples_for_user(user_id)
 
         for keyword, _notify_enabled_cached, keyword_id, company_id in keywords:
             if not keyword:
@@ -1415,7 +1471,7 @@ def check_all_keywords():
                 for _a in new_articles:
                     candidates = _build_candidate_companies(
                         _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates)
+                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples)
                     _a["importance"] = score["importance"]
                     _a["primary_company_id"] = _resolve_primary_company_id(
                         score["primary_company"] or _a.pop("_primary_company", None), user_id)
@@ -1501,6 +1557,7 @@ def check_keywords_for_user(user_id: int) -> dict:
     exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
     user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
     _all_cos = db.load_companies(user_id)
+    _fb_examples = db.load_feedback_examples_for_user(user_id)
 
     for keyword, _ne, keyword_id, company_id in keywords:
         if not keyword:
@@ -1552,7 +1609,7 @@ def check_keywords_for_user(user_id: int) -> dict:
             for _a in new_articles:
                 candidates = _build_candidate_companies(
                     _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                score = _score_article_importance(_a.get("title", ""), user_plan, candidates)
+                score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples)
                 _a["importance"] = score["importance"]
                 _a["primary_company_id"] = _resolve_primary_company_id(
                     score["primary_company"] or _a.pop("_primary_company", None), user_id)
