@@ -268,70 +268,42 @@
     }
     .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
 
+    /* 記事カードコンテナ */
+    #dash-alert-container, #dash-news-container { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
     /* 記事アイテム */
     .article-item {
-      display: flex; align-items: flex-start; gap: 12px;
-      padding: 12px 20px; border-bottom: 1px solid #f0f2f5;
+      background: #fff; border: 1px solid #e8eaf0;
+      border-left: 3px solid #3949ab;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 11px 14px;
+      display: flex; flex-direction: column;
     }
-    .article-item:last-child { border-bottom: none; }
-    .article-kw {
-      flex-shrink: 0; padding: 2px 9px; border-radius: 12px;
-      font-size: 0.72rem; font-weight: 600;
-      background: #e3f2fd; color: #1565c0;
-      white-space: nowrap; margin-top: 3px;
-    }
-    .article-body { flex: 1; min-width: 0; }
+    .article-kw { font-size: 0.72rem; background: #e8eaf6; color: #3949ab; border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
+    .article-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .article-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
     .article-title {
-      font-size: 0.9rem; font-weight: 600; color: #3949ab;
+      font-size: 0.88rem; font-weight: 600; color: #1a1a2e;
       text-decoration: none; line-height: 1.45;
-      display: block;
+      display: block; margin-bottom: 8px;
     }
-    .article-title:hover { color: #1a237e; text-decoration: underline; }
-    .article-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 3px; }
-    .article-meta .article-date { color: #1a1a2e; }
-    .article-meta .article-date.date-uncertain { color: #bdbdbd; }
+    .article-title:hover { color: #3949ab; text-decoration: underline; }
+    .article-date { font-size: 0.72rem; color: #1a1a2e; white-space: nowrap; flex-shrink: 0; }
+    .date-uncertain { color: #bdbdbd; }
     .article-date-unverified { color: #aaa; }
-    .article-item.article-read { background: #f3f4f6; }
+    .article-source { font-size: 0.72rem; color: #9ca3af; }
+    .article-item.article-read { opacity: 0.7; border-left-color: #e8eaf0; }
     .article-item.article-read .article-title { color: #9ca3af; }
-    .article-item.article-read .article-meta { color: #cbd5e1; }
     .article-item.article-read .article-kw { background: #e5e7eb; color: #6b7280; }
-    .article-item.article-alert {
-      background: #fff8f8;
-      border-left: 3px solid #dc2626;
-    }
-    .article-alert-badge {
-      flex-shrink: 0;
-      background: #dc2626; color: #fff;
-      font-size: 0.68rem; font-weight: 700;
-      padding: 2px 7px; border-radius: 4px;
-      white-space: nowrap; margin-top: 4px;
-      align-self: flex-start;
-    }
-    .article-read-mark {
-      flex-shrink: 0;
-      width: 22px; height: 22px; border-radius: 50%;
-      background: #e8f5e9; color: #2e7d32;
-      font-size: 0.85rem; font-weight: 700;
-      display: inline-flex; align-items: center; justify-content: center;
-      margin-top: 2px;
-    }
-    .btn-check-done {
-      flex-shrink: 0; align-self: center;
-      background: #4b5563; color: #fff;
-      border: 1px solid #374151; border-radius: 7px;
-      padding: 4px 10px; font-size: 0.72rem; font-weight: 600;
-      cursor: pointer; white-space: nowrap;
-    }
-    .btn-check-done:hover { background: #374151; border-color: #1f2937; }
-    .btn-unread {
-      flex-shrink: 0; align-self: center;
-      background: none; color: #666;
-      border: 1px solid #d1d5db; border-radius: 7px;
-      padding: 3px 9px; font-size: 0.70rem; font-weight: 600;
-      cursor: pointer; white-space: nowrap;
-    }
-    .btn-unread:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
-    .article-card-bottom { margin-left: auto; }
+    .article-item.article-alert { background: #fff8f8; border-left-color: #dc2626; }
+    .article-importance-high-badge { font-size: 0.68rem; font-weight: 700; background: #e53935; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .article-importance-medium-badge { font-size: 0.68rem; font-weight: 700; background: #3949ab; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .article-alert-badge { font-size: 0.68rem; font-weight: 700; background: #dc2626; color: #fff; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .article-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+    .article-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .article-read-mark { font-size: 0.78rem; color: #059669; font-weight: 700; }
+    .btn-check-done { font-size: 0.72rem; background: #3949ab; color: #fff; border: 1px solid #3949ab; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .btn-check-done:hover { background: #2d3a8c; border-color: #2d3a8c; }
+    .btn-unread { font-size: 0.72rem; background: #f3f4f6; color: #666; border: 1px solid #999; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .btn-unread:hover { background: #e5e7eb; }
     .btn-sort {
       font-size: 0.75rem; padding: 3px 10px;
       border: 1px solid #3949ab; border-radius: 6px;
@@ -352,11 +324,10 @@
       .section-title { flex-wrap: wrap; row-gap: 8px; }
       .card { overflow-x: auto; }
       #dash-news-container { overflow-x: visible; }
-      #dash-news-container .article-body { min-width: 0; }
       .news-section-title { align-items: flex-start; }
       .news-title-left { flex-direction: column; align-items: flex-start; gap: 2px; }
       .tdnet-list .history-item:nth-child(n+4) { display: none; }
-      .article-card-bottom { justify-content: flex-end; flex: 0 0 100%; }
+      .article-card-bottom { flex-wrap: wrap; }
     }
 
     /* ── スマホ (〜 480px) ── */
@@ -376,9 +347,7 @@
       .timeline-item { padding: 11px 14px; gap: 10px; }
       .timeline-meta { font-size: 0.72rem; }
 
-      .article-item { padding: 10px 14px; gap: 6px 8px; flex-wrap: wrap; align-items: flex-start; }
-      .article-body { flex: 0 0 100%; min-width: 0; }
-      .btn-check-done { flex: 0 0 auto; margin-top: 0; }
+      .article-item { padding: 10px 14px; }
       .article-title { font-size: 0.86rem; }
       .view-all-link { font-size: 0.94rem; }
 
@@ -395,18 +364,7 @@
       padding: 2px 7px;
       white-space: nowrap;
     }
-    /* 重要アラート記事: badges行を上に、タイトル以降を下にする2段構成 */
-    .article-item.article-alert {
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .article-item.article-alert .article-badges-row {
-      flex: 0 0 100%;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
+    /* 重要キーワードバッジ（アラート記事内） */
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -815,28 +773,35 @@ function _articleItemHtml(article) {
   const pubHtml = pubText
     ? `<span class="article-date${pubUncertain ? ' date-uncertain' : ''}${pubUnverified ? ' article-date-unverified' : ''}">${_esc(pubText)}</span>`
     : '';
-  const sourceHtml = article.source ? `<span>${_esc(article.source)}</span>` : '';
-  const metaInner = [sourceHtml, pubHtml].filter(Boolean).join(' · ');
-  const meta = metaInner ? `<div class="article-meta">${metaInner}</div>` : '';
-  const leftCol = isHighOrAlert
-    ? `<div class="article-badges-row">${alertBadge}${kwHtml}${alertKwHtml}</div>`
-    : kwHtml;
+  const sourceText = article.source ? _esc(article.source) : '';
+  const impBadge = article.importance === 'medium' ? '<span class="article-importance-medium-badge">注目</span>' : '';
+  const topBadges = isHighOrAlert
+    ? `${alertBadge}${kwHtml}${alertKwHtml}`
+    : `${impBadge}${kwHtml}`;
   var impLabel = isHighOrAlert ? '重要' : (article.importance === 'medium' ? '注目' : '低い');
   var companyOptions = _userCompanies.map(function(c) {
     return '<option value="' + c.id + '">' + _esc(c.name) + '</option>';
   }).join('');
   return `<div class="article-item${alertClass}" data-article-id="${article.id}">
-    ${leftCol}
-    <div class="article-body">
-      <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
-      ${meta}
+    <div class="article-card-top">
+      <div class="article-card-top-left">
+        ${topBadges}
+      </div>
     </div>
-    <div class="article-card-bottom" style="display:flex;gap:6px;align-items:center;">
-      ${article.has_feedback
-        ? '<button type="button" disabled style="font-size:0.72rem;color:#aaa;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:not-allowed;">フィードバック済み</button>'
-        : '<button type="button" onclick="showDashFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>'
-      }
-      <button class="btn-check-done" onclick="markRead(this)">既読にする</button>
+    <a class="article-title" href="${_esc(article.url)}" target="_blank" rel="noopener">${_esc(article.title)}</a>
+    <div class="article-card-bottom">
+      <span class="article-source">
+        ${sourceText}${sourceText && pubHtml ? '・' : ''}${pubHtml}
+      </span>
+      <div class="article-card-actions">
+        ${article.has_feedback
+          ? '<button type="button" disabled style="font-size:0.72rem;color:#aaa;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:not-allowed;">フィードバック済み</button>'
+          : '<button type="button" onclick="showDashFeedback(this)" style="font-size:0.72rem;color:#888;background:none;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:pointer;">フィードバック</button>'
+        }
+        <span class="article-read-mark" style="display:none">✓</span>
+        <button class="btn-check-done" onclick="markRead(this)">既読にする</button>
+        <button class="btn-unread" onclick="markUnread(this)" style="display:none">未読に戻す</button>
+      </div>
     </div>
     <div class="dash-feedback-form" style="display:none;margin-top:8px;padding:10px;background:#f9fafb;border-radius:8px;font-size:0.82rem;">
       <div style="margin-bottom:6px;font-weight:600;">主役の企業は？</div>
