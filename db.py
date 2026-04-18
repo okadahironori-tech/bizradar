@@ -686,6 +686,19 @@ def _run_migrations():
                 );
             """)
 
+            # fix_url_log: エラーURL修正履歴
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS fix_url_log (
+                    id SERIAL PRIMARY KEY,
+                    securities_code VARCHAR(10),
+                    company_name VARCHAR(255),
+                    old_url TEXT,
+                    new_url TEXT,
+                    fixed_at TIMESTAMP DEFAULT NOW(),
+                    fixed_by VARCHAR(50) DEFAULT 'admin'
+                );
+            """)
+
             # listed_companies: 公式サイトURL カラム追加
             cur.execute(
                 "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "
@@ -3664,3 +3677,41 @@ def get_listed_companies_count() -> int:
             cur.execute("SELECT COUNT(*) FROM listed_companies")
             row = cur.fetchone()
             return row[0] if row else 0
+
+
+def get_listed_company_by_code(securities_code: str) -> dict | None:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT securities_code, company_name, website_url, url_status "
+                "FROM listed_companies WHERE securities_code = %s",
+                (securities_code,),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def apply_fixed_url(securities_code: str, new_url: str, company_name: str, old_url: str):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE listed_companies SET website_url = %s, url_status = 'ok' "
+                "WHERE securities_code = %s",
+                (new_url, securities_code),
+            )
+            cur.execute(
+                "INSERT INTO fix_url_log (securities_code, company_name, old_url, new_url) "
+                "VALUES (%s, %s, %s, %s)",
+                (securities_code, company_name, old_url, new_url),
+            )
+
+
+def load_fix_url_log(limit: int = 50) -> list:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT securities_code, company_name, old_url, new_url, fixed_at "
+                "FROM fix_url_log ORDER BY fixed_at DESC LIMIT %s",
+                (limit,),
+            )
+            return [dict(r) for r in cur.fetchall()]

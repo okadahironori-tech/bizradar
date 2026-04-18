@@ -3138,6 +3138,71 @@ def admin_fetch_securities_master():
         return jsonify({"error": str(e)}), 500
 
 
+def _bing_search_candidate_url(company_name: str) -> str | None:
+    """Bing検索で企業の公式サイト候補URLを1件返す。"""
+    import requests as _req
+    from urllib.parse import quote_plus, urlparse, parse_qs
+    from bs4 import BeautifulSoup
+    try:
+        query = f"{company_name} 公式サイト"
+        url = f"https://www.bing.com/search?q={quote_plus(query)}"
+        resp = _req.get(url, timeout=5, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "ja,en;q=0.9",
+        })
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        skip_domains = {"bing.com", "microsoft.com", "msn.com", "google.com", "cache.google.com"}
+        for a_tag in soup.select("li.b_algo h2 a[href]"):
+            href = a_tag["href"]
+            parsed = urlparse(href)
+            domain = parsed.netloc.lower().lstrip("www.")
+            if any(sd in domain for sd in skip_domains):
+                continue
+            if not parsed.scheme.startswith("http"):
+                continue
+            return href
+    except Exception as e:
+        print(f"[bing_search] error for {company_name}: {e}")
+    return None
+
+
+@app.route("/admin/fix-error-urls")
+@admin_required
+def admin_fix_error_urls():
+    errors = db.get_url_check_errors()
+    for e in errors:
+        try:
+            e["candidate_url"] = _bing_search_candidate_url(e["company_name"])
+        except Exception:
+            e["candidate_url"] = None
+    fix_log = db.load_fix_url_log(50)
+    return render_template("admin_fix_urls.html", errors=errors, fix_log=fix_log)
+
+
+@app.route("/admin/fix-error-urls/apply", methods=["POST"])
+@admin_required
+def admin_apply_fixed_url():
+    securities_code = request.form.get("securities_code", "").strip()
+    new_url = request.form.get("new_url", "").strip()
+    if not new_url or not new_url.startswith(("http://", "https://")):
+        flash("候補URLが無効です", "error")
+        return redirect(url_for("admin_fix_error_urls"))
+    company = db.get_listed_company_by_code(securities_code)
+    if not company:
+        flash("企業が見つかりません", "error")
+        return redirect(url_for("admin_fix_error_urls"))
+    try:
+        db.apply_fixed_url(
+            securities_code, new_url,
+            company["company_name"], company["website_url"])
+        flash(f'{company["company_name"]} のURLを更新しました', "success")
+    except Exception as e:
+        flash(f"更新に失敗しました: {e}", "error")
+    return redirect(url_for("admin_fix_error_urls"))
+
+
 @app.route("/terms")
 def terms():
     back_url = url_for("index") if session.get("user_id") else url_for("login")
