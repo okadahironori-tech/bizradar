@@ -356,13 +356,15 @@ def _score_article_importance(title: str, plan: str,
     except ImportError:
         print(f"[importance] low: {title[:30]} (anthropic not installed)")
         return result
+    candidates = candidate_companies[:10] if candidate_companies else []
     company_section = ""
-    if candidate_companies:
-        names = "、".join(candidate_companies[:20])
+    if candidates:
+        bullet_list = "\n".join(f"- {n}" for n in candidates)
         company_section = (
-            f"\nモニタリング対象企業: {names}\n"
-            "primary_companyはこのリストの中から最も関連の深い企業名を1つ選んでください。"
-            "リスト内のどの企業とも関係ない場合のみnullとしてください。\n"
+            f"\n候補企業リスト:\n{bullet_list}\n\n"
+            "上記の候補企業リストの中から、この記事の主役企業（最も中心的に扱われている企業）を1社選んでください。\n"
+            "どれも該当しない場合は null を返してください。\n"
+            "候補リスト外の企業名を返してはいけません。\n"
         )
     prompt = (
         "次のニュースタイトルを重要度で分類してください。\n\n"
@@ -403,10 +405,39 @@ def _score_article_importance(title: str, plan: str,
                 if level in text_lower:
                     result["importance"] = level
                     break
-        print(f"[importance] {result['importance']}: {title[:30]} company={result['primary_company']!r}")
+            for cn in candidates:
+                if cn in text:
+                    result["primary_company"] = cn
+                    break
+        if not result["primary_company"] and candidates:
+            title_str = title or ""
+            for cn in candidates:
+                if cn in title_str:
+                    result["primary_company"] = cn
+                    break
+        print(f"[importance] {result['importance']}: {title[:30]} company={result['primary_company']!r} candidates={len(candidates)}")
     except Exception as e:
         print(f"[importance] API error title={title[:30]!r}: {e}")
     return result
+
+
+def _build_candidate_companies(title: str, keyword: str, company_id,
+                               user_id: int, all_companies: list) -> list:
+    """AIに渡す候補企業リストを構築する。
+    最優先: キーワードに紐づく企業。補助: タイトルに名前が含まれる企業。最大10社。"""
+    primary = []
+    if company_id:
+        for c in all_companies:
+            if c["id"] == company_id:
+                primary.append(c["name"])
+                break
+    extras = []
+    for c in all_companies:
+        name = c.get("name", "")
+        if name not in primary and name and name in (title or ""):
+            extras.append(name)
+    candidates = primary + extras
+    return candidates[:10]
 
 
 def _resolve_primary_company_id(company_name: str | None, user_id: int) -> int | None:
@@ -1255,9 +1286,12 @@ def check_single_keyword(keyword: str, user_id=None):
 
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
-        _companies = [c["name"] for c in db.load_companies(user_id)]
+        _all_cos = db.load_companies(user_id)
+        _kw_cid = db.get_user_keyword_company_id(user_id, keyword)
         for _a in new_articles:
-            score = _score_article_importance(_a.get("title", ""), user_plan, _companies)
+            candidates = _build_candidate_companies(
+                _a.get("title", ""), keyword, _kw_cid, user_id, _all_cos)
+            score = _score_article_importance(_a.get("title", ""), user_plan, candidates)
             _a["importance"] = score["importance"]
             _a["primary_company_id"] = _resolve_primary_company_id(
                 score["primary_company"] or _a.pop("_primary_company", None), user_id)
@@ -1309,7 +1343,7 @@ def check_all_keywords():
         seen_titles = db.load_article_seen_titles(user_id)
         exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
         user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
-        _user_company_names = [c["name"] for c in db.load_companies(user_id)]
+        _all_cos = db.load_companies(user_id)
 
         for keyword, _notify_enabled_cached, keyword_id, company_id in keywords:
             if not keyword:
@@ -1372,7 +1406,9 @@ def check_all_keywords():
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
                 for _a in new_articles:
-                    score = _score_article_importance(_a.get("title", ""), user_plan, _user_company_names)
+                    candidates = _build_candidate_companies(
+                        _a.get("title", ""), keyword, company_id, user_id, _all_cos)
+                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates)
                     _a["importance"] = score["importance"]
                     _a["primary_company_id"] = _resolve_primary_company_id(
                         score["primary_company"] or _a.pop("_primary_company", None), user_id)
@@ -1457,7 +1493,7 @@ def check_keywords_for_user(user_id: int) -> dict:
     seen_titles = db.load_article_seen_titles(user_id)
     exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
     user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
-    _user_company_names = [c["name"] for c in db.load_companies(user_id)]
+    _all_cos = db.load_companies(user_id)
 
     for keyword, _ne, keyword_id, company_id in keywords:
         if not keyword:
@@ -1507,7 +1543,9 @@ def check_keywords_for_user(user_id: int) -> dict:
             print(f"  -> {len(new_articles)} 件の新着記事")
             result["new_articles"] += len(new_articles)
             for _a in new_articles:
-                score = _score_article_importance(_a.get("title", ""), user_plan, _user_company_names)
+                candidates = _build_candidate_companies(
+                    _a.get("title", ""), keyword, company_id, user_id, _all_cos)
+                score = _score_article_importance(_a.get("title", ""), user_plan, candidates)
                 _a["importance"] = score["importance"]
                 _a["primary_company_id"] = _resolve_primary_company_id(
                     score["primary_company"] or _a.pop("_primary_company", None), user_id)
