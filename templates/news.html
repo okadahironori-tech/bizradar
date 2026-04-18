@@ -812,6 +812,13 @@ function submitBadgeFeedback(btn) {
     credentials: 'same-origin',
     body: JSON.stringify({ article_id: parseInt(articleId), correct_company_id: companyId ? parseInt(companyId) : null, reason_type: reasonType, reason_text: reasonText, importance_feedback: impFeedback })
   }).then(function(r) { return r.json(); }).then(function(d) {
+    var origBtn = item.querySelector('button[onclick*="showBadgeFeedback"]');
+    if (origBtn) {
+      origBtn.disabled = true;
+      origBtn.removeAttribute('onclick');
+      origBtn.textContent = 'フィードバック済み';
+      origBtn.style.cssText = 'font-size:0.72rem;color:#aaa;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:1px 6px;cursor:not-allowed;';
+    }
     form.innerHTML = '<div style="color:#059669;padding:8px 0;">ありがとうございます</div>';
     setTimeout(function() { form.style.display = 'none'; form.innerHTML = ''; }, 2500);
   }).catch(function() {
