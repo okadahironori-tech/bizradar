@@ -1947,7 +1947,7 @@ def check_single_site(url: str, site_name: str = "", max_pages: int = 1) -> bool
             log["last_checks"][url] = {"timestamp": now_str, "status": "ok"}
 
         previous_hashes[url] = new_hash
-        content_store[url]   = content[:30000]
+        content_store[url]   = (content or "").replace("\x00", "")[:30000]
 
     db.save_hashes(previous_hashes)
     db.save_monitor_log(log)

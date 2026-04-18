@@ -1246,11 +1246,16 @@ def save_content_store(store: dict):
     with _conn() as conn:
         with conn.cursor() as cur:
             for url, content in store.items():
-                cur.execute(
-                    "INSERT INTO content_store (url, content) VALUES (%s, %s) "
-                    "ON CONFLICT (url) DO UPDATE SET content = EXCLUDED.content",
-                    (url, content[:30000])
-                )
+                try:
+                    safe_content = (content or "").replace("\x00", "")[:30000]
+                    cur.execute(
+                        "INSERT INTO content_store (url, content) VALUES (%s, %s) "
+                        "ON CONFLICT (url) DO UPDATE SET content = EXCLUDED.content",
+                        (url, safe_content)
+                    )
+                except Exception as e:
+                    print(f"[save_content_store] failed for url={url}: {e}")
+                    continue
 
 
 # ============================================================
