@@ -337,8 +337,10 @@ def _send_line_notification(line_user_id: str, message: str) -> tuple:
 
 
 
-def _score_article_importance(title: str, plan: str) -> dict:
+def _score_article_importance(title: str, plan: str,
+                              candidate_companies: list | None = None) -> dict:
     """記事タイトルの重要度と主役企業名を返す。
+    candidate_companies: ユーザーの登録企業名リスト（優先照合用）。
     戻り値: {"importance": "high"/"medium"/"low", "primary_company": "企業名" or None}
     business/pro プラン以外は AI 未呼び出し。
     """
@@ -354,6 +356,14 @@ def _score_article_importance(title: str, plan: str) -> dict:
     except ImportError:
         print(f"[importance] low: {title[:30]} (anthropic not installed)")
         return result
+    company_section = ""
+    if candidate_companies:
+        names = "、".join(candidate_companies[:20])
+        company_section = (
+            f"\nモニタリング対象企業: {names}\n"
+            "primary_companyはこのリストの中から最も関連の深い企業名を1つ選んでください。"
+            "リスト内のどの企業とも関係ない場合のみnullとしてください。\n"
+        )
     prompt = (
         "次のニュースタイトルを重要度で分類してください。\n\n"
         "high（重要）: 決算・業績発表、人事（就任・退任・解任）、M&A・経営統合・買収、倒産・民事再生、リコール・重大事故、工場閉鎖・大規模リストラ\n"
@@ -361,9 +371,10 @@ def _score_article_importance(title: str, plan: str) -> dict:
         "low（通常）: セミナー・展示会・発表大会への参加・出展、プレスリリース・お知らせ、サイト更新、定例報告、イベント開催告知、表彰・受賞、インタビュー・コラム・解説記事\n\n"
         "注意：PR TIMESやプレスリリース配信サービス由来と思われる記事はlowを優先してください。\n"
         "注意：タイトルに「〜大会」「〜フェスタ」「〜セミナー」「〜展」が含まれる場合はlowにしてください。\n\n"
-        f"タイトル: {title}\n\n"
+        f"タイトル: {title}\n"
+        f"{company_section}\n"
         "以下のJSON形式で回答してください。他の文字は不要です。\n"
-        '{"importance": "high または medium または low", "primary_company": "主役企業名（日本語）。特定企業の話でなければnull"}'
+        '{"importance": "high または medium または low", "primary_company": "主役企業名（日本語）。該当なしならnull"}'
     )
     try:
         import json as _json
@@ -1244,8 +1255,9 @@ def check_single_keyword(keyword: str, user_id=None):
 
     if new_articles:
         print(f"  → {len(new_articles)} 件の新着記事")
+        _companies = [c["name"] for c in db.load_companies(user_id)]
         for _a in new_articles:
-            score = _score_article_importance(_a.get("title", ""), user_plan)
+            score = _score_article_importance(_a.get("title", ""), user_plan, _companies)
             _a["importance"] = score["importance"]
             _a["primary_company_id"] = _resolve_primary_company_id(
                 score["primary_company"] or _a.pop("_primary_company", None), user_id)
@@ -1297,6 +1309,7 @@ def check_all_keywords():
         seen_titles = db.load_article_seen_titles(user_id)
         exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
         user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
+        _user_company_names = [c["name"] for c in db.load_companies(user_id)]
 
         for keyword, _notify_enabled_cached, keyword_id, company_id in keywords:
             if not keyword:
@@ -1359,7 +1372,7 @@ def check_all_keywords():
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
                 for _a in new_articles:
-                    score = _score_article_importance(_a.get("title", ""), user_plan)
+                    score = _score_article_importance(_a.get("title", ""), user_plan, _user_company_names)
                     _a["importance"] = score["importance"]
                     _a["primary_company_id"] = _resolve_primary_company_id(
                         score["primary_company"] or _a.pop("_primary_company", None), user_id)
@@ -1444,6 +1457,7 @@ def check_keywords_for_user(user_id: int) -> dict:
     seen_titles = db.load_article_seen_titles(user_id)
     exclude_kws = {e["keyword"].lower() for e in db.get_exclude_keywords(user_id)}
     user_plan = (db.get_user_by_id(user_id) or {}).get("plan", "basic")
+    _user_company_names = [c["name"] for c in db.load_companies(user_id)]
 
     for keyword, _ne, keyword_id, company_id in keywords:
         if not keyword:
@@ -1493,7 +1507,7 @@ def check_keywords_for_user(user_id: int) -> dict:
             print(f"  -> {len(new_articles)} 件の新着記事")
             result["new_articles"] += len(new_articles)
             for _a in new_articles:
-                score = _score_article_importance(_a.get("title", ""), user_plan)
+                score = _score_article_importance(_a.get("title", ""), user_plan, _user_company_names)
                 _a["importance"] = score["importance"]
                 _a["primary_company_id"] = _resolve_primary_company_id(
                     score["primary_company"] or _a.pop("_primary_company", None), user_id)
