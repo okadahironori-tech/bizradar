@@ -1675,75 +1675,143 @@ def check_keywords_for_user(user_id: int) -> dict:
         print(traceback.format_exc())
 
 
-_NOISE_TAGS = ["script", "style", "nav", "footer", "header", "aside", "iframe", "noscript"]
-_NOISE_RE = re.compile(
-    r"pager|pagination|pagenav|page.nav|"
-    r"ranking|popular|recommend|related|"
-    r"\bad\b|ads|advertisement|banner|"
-    r"tracking|analytics|cookie|"
-    r"breadcrumb|pankuzu|sitemap|sns|share|"
-    r"counter|access.?count|"
-    r"menu|gnav|\bnav\b|global.nav|local.nav|sidebar|"
-    r"\bcategory\b|tag.?list|article.?category|cat.?label|"
-    r"area.?nav|region.?nav|topic.?nav|"
-    r"pagetop|page.top|back.?to.?top|totop",
+_NOISE_TAGS = ["nav", "header", "footer", "aside", "script", "style", "noscript", "iframe"]
+
+_NOISE_CLASS_ID_RE = re.compile(
+    r"nav|navigation|menu|header|footer|sidebar|breadcrumb|"
+    r"banner|ad-|ads|advertisement|advertising|cookie|popup|"
+    r"modal|overlay|sns|share|related|recommend|ranking",
     re.IGNORECASE,
 )
-_CONTENT_RE = re.compile(r"content|main|news.?list|article.?list|entry", re.IGNORECASE)
+
+_MAIN_CONTENT_ID_RE = re.compile(r"main|content|body|primary", re.IGNORECASE)
+_MAIN_CONTENT_CLASS_RE = re.compile(r"main|content|body|primary", re.IGNORECASE)
+
+_PROTECT_TAGS = {"body", "html", "main", "article"}
 
 
-def extract_main_content(soup, url: str = ""):
-    """ノイズ要素を除外して主要コンテンツのテキストを返す。
-    結果が 50 文字未満の場合は空文字を返す（呼び出し元でタイトルのみ表示する想定）。
-    """
-    # ① script/style/noscript を含むタグ名で除去、および role 属性によるナビ・ヘッダー・フッター系除去
-    for tag in soup(_NOISE_TAGS):
-        tag.decompose()
-    for role in ("navigation", "banner", "contentinfo", "complementary"):
-        for tag in soup.find_all(attrs={"role": role}):
+def _remove_noise_tags(body):
+    for tag_name in _NOISE_TAGS:
+        for tag in body.find_all(tag_name):
             tag.decompose()
 
-    # ② class/id のノイズパターンで除去
-    noise_tags = [
-        tag for tag in soup.find_all(True)
-        if _NOISE_RE.search(" ".join(tag.get("class", [])))
-        or _NOISE_RE.search(tag.get("id") or "")
-    ]
-    for tag in noise_tags:
-        tag.decompose()
 
-    # ③ 主要コンテンツ領域を優先抽出
-    main = (
-        soup.find("main")
-        or soup.find("article")
-        or soup.find("section", class_=_CONTENT_RE)
-        or soup.find("div", class_=_CONTENT_RE)
-        or soup.find(id=_CONTENT_RE)
-    )
-    target = main or soup.find("body") or soup
+def _remove_noise_by_class_id(body):
+    targets = []
+    for tag in body.find_all(True):
+        if tag.name in _PROTECT_TAGS:
+            continue
+        cls = " ".join(tag.get("class", []))
+        tid = tag.get("id") or ""
+        if _NOISE_CLASS_ID_RE.search(cls) or _NOISE_CLASS_ID_RE.search(tid):
+            targets.append(tag)
+    for tag in targets:
+        try:
+            tag.decompose()
+        except Exception:
+            pass
 
-    # ④ プレーンテキスト化 → 残存HTMLタグを除去 → 行正規化
-    raw_text = target.get_text(separator="\n")
-    raw_text = re.sub(r"<[^>]+>", "", raw_text)  # 稀に残るタグを保険として除去
-    text = _normalize_lines(raw_text)
 
-    # ⑤ 連続する空行を1つに圧縮し、先頭・末尾の空白を除去
-    text = re.sub(r"\n{2,}", "\n", text).strip()
+def _remove_high_link_density(body):
+    for child in list(body.children):
+        if not hasattr(child, 'name') or child.name is None:
+            continue
+        if child.name in _PROTECT_TAGS:
+            continue
+        total = len(child.get_text())
+        if total < 10:
+            continue
+        link_len = sum(len(a.get_text()) for a in child.find_all("a"))
+        if link_len / total >= 0.7:
+            try:
+                child.decompose()
+            except Exception:
+                pass
 
-    # ⑥ 抽出結果が極端に短い場合は空文字を返す
-    if len(text) < 50:
-        print(f"[extract] too short: {url}")
-        return ""
 
+def _find_main_content(body):
+    candidates = []
+    for el in body.find_all("main"):
+        candidates.append(el)
+    for el in body.find_all("article"):
+        candidates.append(el)
+    for el in body.find_all(True, id=_MAIN_CONTENT_ID_RE):
+        if el not in candidates:
+            candidates.append(el)
+    for el in body.find_all(True, class_=_MAIN_CONTENT_CLASS_RE):
+        if el not in candidates:
+            candidates.append(el)
+    if not candidates:
+        return None
+    best = max(candidates, key=lambda el: len(el.get_text()))
+    if len(best.get_text()) < 300:
+        return None
+    return best
+
+
+def _extract_text(element):
+    raw = element.get_text(separator="\n")
+    raw = re.sub(r"<[^>]+>", "", raw)
+    lines = []
+    for ln in raw.splitlines():
+        ln = ln.replace("\t", " ")
+        ln = " ".join(ln.split())
+        if len(ln) <= 3:
+            continue
+        if re.fullmatch(r"\d+", ln):
+            continue
+        lines.append(ln)
+    text = "\n".join(lines)
+    text = re.sub(r"\n{3,}", "\n", text).strip()
     return text
 
 
+def extract_main_content(soup, url: str = ""):
+    """ノイズ要素を除外して主要コンテンツのテキストを返す。"""
+    try:
+        body = soup.find("body") or soup
+
+        # STEP 2: ノイズタグ除去
+        _remove_noise_tags(body)
+
+        # STEP 3: ノイズクラス・ID除去
+        _remove_noise_by_class_id(body)
+
+        # STEP 4: リンク密度による除去
+        _remove_high_link_density(body)
+
+        # STEP 5: メインコンテンツ領域の特定
+        main_el = _find_main_content(body)
+        target = main_el or body
+
+        # STEP 6: テキスト抽出と正規化
+        text = _extract_text(target)
+
+        # STEP 7: フォールバック
+        if len(text) < 200:
+            body_fallback = soup.find("body") or soup
+            _remove_noise_tags(body_fallback)
+            text = _extract_text(body_fallback)
+
+        if len(text) < 50:
+            print(f"[extract] too short: {url}")
+            return ""
+
+        return text
+    except Exception as e:
+        print(f"[extract] error: {url}: {e}")
+        try:
+            body = soup.find("body") or soup
+            return body.get_text(separator="\n").strip()
+        except Exception:
+            return ""
+
+
 def _normalize_lines(text: str) -> str:
-    """テキストの各行を正規化する（タブ除去・連続空白圧縮・strip + 3文字以下の行を除去）"""
     lines = []
     for ln in text.splitlines():
-        ln = ln.replace("\t", " ")          # タブ→スペース
-        ln = " ".join(ln.split())           # 連続空白を1つに圧縮（strip込み）
+        ln = ln.replace("\t", " ")
+        ln = " ".join(ln.split())
         if len(ln) > 3:
             lines.append(ln)
     return "\n".join(lines)
