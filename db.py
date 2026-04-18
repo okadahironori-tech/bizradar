@@ -1277,6 +1277,7 @@ def load_monitor_log(user_id=None) -> dict:
 
 
 def save_monitor_log(log: dict):
+    _nul = lambda s: s.replace("\x00", "") if isinstance(s, str) else s
     with _conn() as conn:
         with conn.cursor() as cur:
             for url, info in log.get("last_checks", {}).items():
@@ -1284,14 +1285,16 @@ def save_monitor_log(log: dict):
                     "INSERT INTO last_checks (url, timestamp, status, error) VALUES (%s, %s, %s, %s) "
                     "ON CONFLICT (url) DO UPDATE SET "
                     "timestamp = EXCLUDED.timestamp, status = EXCLUDED.status, error = EXCLUDED.error",
-                    (url, info.get("timestamp", ""), info.get("status", "unknown"), info.get("error", ""))
+                    (_nul(url), _nul(info.get("timestamp", "")),
+                     _nul(info.get("status", "unknown")), _nul(info.get("error", "")))
                 )
             for entry in log.get("change_history", []):
+                _diff_json = json.dumps(entry.get("diff", []), ensure_ascii=False).replace("\x00", "")
                 cur.execute(
                     "INSERT INTO change_history (timestamp, url, name, diff) VALUES (%s, %s, %s, %s) "
                     "ON CONFLICT (timestamp, url) DO NOTHING",
-                    (entry.get("timestamp", ""), entry.get("url", ""),
-                     entry.get("name", ""), json.dumps(entry.get("diff", [])))
+                    (_nul(entry.get("timestamp", "")), _nul(entry.get("url", "")),
+                     _nul(entry.get("name", "")), _diff_json)
                 )
 
 
