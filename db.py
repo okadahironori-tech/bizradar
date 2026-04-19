@@ -774,6 +774,37 @@ def _run_migrations():
             if _ml_row and _ml_row[0] is not None and _ml_row[0] < 50:
                 cur.execute("ALTER TABLE merge_log ALTER COLUMN action TYPE VARCHAR(50);")
 
+            # url_enrichment_candidates: URL自動充足候補
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS url_enrichment_candidates (
+                    id SERIAL PRIMARY KEY,
+                    securities_code VARCHAR(10) NOT NULL,
+                    source VARCHAR(50) NOT NULL,
+                    candidate_url TEXT NOT NULL,
+                    reachable BOOLEAN,
+                    http_status INTEGER,
+                    title_text TEXT,
+                    title_match_score INTEGER DEFAULT 0,
+                    domain_match_score INTEGER DEFAULT 0,
+                    source_trust_score INTEGER DEFAULT 0,
+                    reachable_penalty INTEGER DEFAULT 0,
+                    total_score INTEGER DEFAULT 0,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    reviewed_at TIMESTAMP,
+                    reviewed_by VARCHAR(255),
+                    UNIQUE(securities_code, source, candidate_url)
+                );
+            """)
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_url_enrichment_sec "
+                "ON url_enrichment_candidates(securities_code);"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_url_enrichment_status "
+                "ON url_enrichment_candidates(status);"
+            )
+
             # listed_companies: 公式サイトURL カラム追加
             cur.execute(
                 "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "

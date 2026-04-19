@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — URL自動充足管理</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+    header { background: #1a1a2e; color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    main { max-width: 1200px; margin: 32px auto; padding: 0 16px; }
+    .section-title { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; margin-bottom: 16px; }
+    .stats { display: flex; gap: 12px; flex-wrap: wrap; padding: 16px 20px; }
+    .stat-box { background: #f8f9fa; border-radius: 8px; padding: 10px 14px; min-width: 100px; }
+    .stat-label { font-size: 0.72rem; color: #6b7280; }
+    .stat-value { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th { background: #f8f9fa; font-weight: 600; text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; color: #4a4a6a; font-size: 0.72rem; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+    .url-cell { word-break: break-all; max-width: 280px; }
+    .btn { border: none; border-radius: 6px; padding: 4px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #3949ab; color: #fff; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+    .flash { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; }
+    .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .flash-warning { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+    a.back-link { color: #3949ab; text-decoration: none; font-size: 0.85rem; }
+    a.back-link:hover { text-decoration: underline; }
+    .score { display: inline-block; font-size: 0.7rem; padding: 1px 5px; border-radius: 3px; }
+    .score-high { background: #d1fae5; color: #065f46; }
+    .score-mid { background: #fef08a; color: #854d0e; }
+    .score-low { background: #fecaca; color: #991b1b; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">URL自動充足管理</div>
+  </div>
+</header>
+
+<main>
+  <div style="margin-bottom:16px;">
+    <a href="/admin" class="back-link">← 管理者パネルに戻る</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="flash flash-{{ category }}">{{ message }}</div>
+  {% endfor %}
+  {% endwith %}
+
+  <div class="section-title">統計</div>
+  <div class="card">
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-label">全企業数</div>
+        <div class="stat-value">{{ total }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">URL未設定</div>
+        <div class="stat-value">{{ no_url }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">URL設定済</div>
+        <div class="stat-value">{{ has_url }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">自動適用</div>
+        <div class="stat-value">{{ auto_applied }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">要確認</div>
+        <div class="stat-value">{{ needs_review }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">却下</div>
+        <div class="stat-value">{{ rejected }}</div>
+      </div>
+    </div>
+    <div style="padding:0 20px 16px; display:flex; gap:10px; flex-wrap:wrap;">
+      <form method="POST" action="/admin/url-enrichment/run" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary"
+                {% if is_running %}disabled{% endif %}
+                onclick="return confirm('100社のURL取得を開始します。実行しますか?')">
+          {% if is_running %}実行中...{% else %}100社ピックアップで実行{% endif %}
+        </button>
+      </form>
+      <button class="btn btn-disabled" disabled>全件実行（未実装）</button>
+    </div>
+  </div>
+
+  {% if review_list %}
+  <div class="section-title" style="margin-top:24px;">
+    要確認リスト ({{ review_list|length }}社)
+    <form method="POST" action="/admin/url-enrichment/approve-top" style="display:inline; margin-left:12px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary" onclick="return confirm('全件の最高スコア候補を一括承認します。実行しますか?')">一括承認</button>
+    </form>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>コード</th>
+          <th>企業名</th>
+          <th>候補URL</th>
+          <th>合計</th>
+          <th>信頼</th>
+          <th>ドメイン</th>
+          <th>タイトル</th>
+          <th>到達</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for code, group in review_list %}
+        {% for c in group.candidates %}
+        <tr>
+          <td>{{ code }}</td>
+          <td>{{ group.company_name }}</td>
+          <td class="url-cell"><a href="{{ c.candidate_url }}" target="_blank" rel="noopener" style="color:#3949ab;">{{ c.candidate_url }}</a></td>
+          <td><span class="score {% if c.total_score >= 120 %}score-high{% elif c.total_score >= 50 %}score-mid{% else %}score-low{% endif %}">{{ c.total_score }}</span></td>
+          <td>{{ c.source_trust_score }}</td>
+          <td>{{ c.domain_match_score }}</td>
+          <td>{{ c.title_match_score }}</td>
+          <td>{{ c.reachable_penalty }}</td>
+          <td style="white-space:nowrap;">
+            <form method="POST" action="/admin/url-enrichment/approve" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="candidate_id" value="{{ c.id }}">
+              <input type="hidden" name="securities_code" value="{{ code }}">
+              <button type="submit" class="btn btn-primary">承認</button>
+            </form>
+            {% if loop.first %}
+            <form method="POST" action="/admin/url-enrichment/reject" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="securities_code" value="{{ code }}">
+              <button type="submit" class="btn btn-danger">却下</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if applied_rows %}
+  <div class="section-title" style="margin-top:24px;">適用済みログ (最新30件)</div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>コード</th>
+          <th>企業名</th>
+          <th>適用URL</th>
+          <th>スコア</th>
+          <th>種別</th>
+          <th>日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in applied_rows %}
+        <tr>
+          <td>{{ r.securities_code }}</td>
+          <td>{{ r.company_name }}</td>
+          <td class="url-cell"><a href="{{ r.candidate_url }}" target="_blank" rel="noopener" style="color:#3949ab;">{{ r.candidate_url }}</a></td>
+          <td>{{ r.total_score }}</td>
+          <td>{{ r.status }}</td>
+          <td style="font-size:0.75rem; color:#9ca3af;">{% if r.reviewed_at %}{{ r.reviewed_at.strftime('%Y-%m-%d %H:%M') if r.reviewed_at.strftime is defined else r.reviewed_at }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</main>
+
+<footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">
+  <a href="/terms" style="color:#9ca3af; text-decoration:none; margin:0 8px;">利用規約</a>
+  <span style="color:#d1d5db;">|</span>
+  <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 8px;">プライバシーポリシー</a>
+</footer>
+</body>
+</html>

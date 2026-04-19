@@ -3414,6 +3414,211 @@ def admin_fetch_securities_master():
         return jsonify({"error": str(e)}), 500
 
 
+_url_enrichment_running = False
+
+
+@app.route("/admin/url-enrichment")
+@admin_required
+def admin_url_enrichment():
+    import psycopg2.extras
+    with db._conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM listed_companies")
+            total = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM listed_companies WHERE website_url IS NULL OR website_url = ''")
+            no_url = cur.fetchone()[0]
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT status, COUNT(*) AS cnt FROM url_enrichment_candidates GROUP BY status"
+            )
+            status_counts = {r["status"]: r["cnt"] for r in cur.fetchall()}
+            cur.execute(
+                "SELECT c.id, c.securities_code, c.source, c.candidate_url, "
+                "c.total_score, c.title_text, c.source_trust_score, c.domain_match_score, "
+                "c.title_match_score, c.reachable_penalty, c.reachable, "
+                "lc.company_name "
+                "FROM url_enrichment_candidates c "
+                "JOIN listed_companies lc ON lc.securities_code = c.securities_code "
+                "WHERE c.status = 'needs_review' "
+                "ORDER BY c.securities_code, c.total_score DESC LIMIT 200"
+            )
+            review_rows = [dict(r) for r in cur.fetchall()]
+            cur.execute(
+                "SELECT c.securities_code, c.candidate_url, c.total_score, c.status, "
+                "c.reviewed_at, lc.company_name "
+                "FROM url_enrichment_candidates c "
+                "JOIN listed_companies lc ON lc.securities_code = c.securities_code "
+                "WHERE c.status IN ('auto_applied','applied_manually') "
+                "ORDER BY c.reviewed_at DESC NULLS LAST, c.id DESC LIMIT 30"
+            )
+            applied_rows = [dict(r) for r in cur.fetchall()]
+    review_groups = {}
+    for r in review_rows:
+        key = r["securities_code"]
+        if key not in review_groups:
+            review_groups[key] = {"company_name": r["company_name"], "candidates": []}
+        review_groups[key]["candidates"].append(r)
+    review_list = list(review_groups.items())[:50]
+    return render_template("admin_url_enrichment.html",
+                           total=total, no_url=no_url, has_url=total - no_url,
+                           auto_applied=status_counts.get("auto_applied", 0),
+                           needs_review=status_counts.get("needs_review", 0),
+                           rejected=status_counts.get("rejected", 0),
+                           review_list=review_list, applied_rows=applied_rows,
+                           is_running=_url_enrichment_running)
+
+
+@app.route("/admin/url-enrichment/run", methods=["POST"])
+@admin_required
+def admin_url_enrichment_run():
+    global _url_enrichment_running
+    if _url_enrichment_running:
+        flash("既に実行中です", "warning")
+        return redirect(url_for("admin_url_enrichment"))
+    _url_enrichment_running = True
+
+    def _run():
+        global _url_enrichment_running
+        try:
+            import url_enrichment
+            url_enrichment.run_enrichment_batch(100)
+        except Exception as e:
+            logger.exception("[url_enrichment] batch error: %s", e)
+        finally:
+            _url_enrichment_running = False
+
+    import threading
+    t = threading.Thread(target=_run, daemon=True, name="url-enrichment-batch")
+    t.start()
+    flash("100社の処理を開始しました", "success")
+    return redirect(url_for("admin_url_enrichment"))
+
+
+@app.route("/admin/url-enrichment/approve", methods=["POST"])
+@admin_required
+def admin_url_enrichment_approve():
+    candidate_id = int(request.form.get("candidate_id", 0))
+    securities_code = request.form.get("securities_code", "")
+    reviewed_by = session.get("email", "admin")
+    with db._conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT website_url FROM listed_companies WHERE securities_code=%s",
+                        (securities_code,))
+            lc = cur.fetchone()
+            existing = (lc[0] if lc else "").strip() if lc else ""
+            if existing:
+                cur.execute(
+                    "UPDATE url_enrichment_candidates SET status='rejected', "
+                    "reviewed_at=NOW(), reviewed_by=%s "
+                    "WHERE securities_code=%s AND status IN ('pending','needs_review')",
+                    (reviewed_by, securities_code),
+                )
+                flash("既に website_url が設定されているため反映されませんでした", "warning")
+            else:
+                cur.execute("SELECT candidate_url FROM url_enrichment_candidates WHERE id=%s",
+                            (candidate_id,))
+                row = cur.fetchone()
+                if not row:
+                    flash("候補が見つかりません", "error")
+                    return redirect(url_for("admin_url_enrichment"))
+                cur.execute(
+                    "UPDATE listed_companies SET website_url=%s WHERE securities_code=%s",
+                    (row[0], securities_code),
+                )
+                cur.execute(
+                    "UPDATE url_enrichment_candidates SET status='applied_manually', "
+                    "reviewed_at=NOW(), reviewed_by=%s WHERE id=%s",
+                    (reviewed_by, candidate_id),
+                )
+                cur.execute(
+                    "UPDATE url_enrichment_candidates SET status='rejected', "
+                    "reviewed_at=NOW(), reviewed_by=%s "
+                    "WHERE securities_code=%s AND id != %s AND status IN ('pending','needs_review')",
+                    (reviewed_by, securities_code, candidate_id),
+                )
+                flash("承認しました", "success")
+    return redirect(url_for("admin_url_enrichment"))
+
+
+@app.route("/admin/url-enrichment/reject", methods=["POST"])
+@admin_required
+def admin_url_enrichment_reject():
+    securities_code = request.form.get("securities_code", "")
+    reviewed_by = session.get("email", "admin")
+    with db._conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE url_enrichment_candidates SET status='rejected', "
+                "reviewed_at=NOW(), reviewed_by=%s "
+                "WHERE securities_code=%s AND status IN ('pending','needs_review')",
+                (reviewed_by, securities_code),
+            )
+    flash("却下しました", "success")
+    return redirect(url_for("admin_url_enrichment"))
+
+
+@app.route("/admin/url-enrichment/approve-top", methods=["POST"])
+@admin_required
+def admin_url_enrichment_approve_top():
+    reviewed_by = session.get("email", "admin")
+    applied = 0
+    excluded = 0
+    with db._conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT securities_code FROM url_enrichment_candidates "
+                "WHERE status='needs_review'"
+            )
+            codes = [r[0] for r in cur.fetchall()]
+            for code in codes:
+                cur.execute(
+                    "SELECT id, candidate_url, total_score FROM url_enrichment_candidates "
+                    "WHERE securities_code=%s AND status='needs_review' "
+                    "ORDER BY total_score DESC, id ASC",
+                    (code,),
+                )
+                rows = cur.fetchall()
+                if not rows:
+                    continue
+                top_score = rows[0][2]
+                tied = [r for r in rows if r[2] == top_score]
+                if len(tied) > 1:
+                    excluded += 1
+                    continue
+                cur.execute("SELECT website_url FROM listed_companies WHERE securities_code=%s",
+                            (code,))
+                lc = cur.fetchone()
+                existing = (lc[0] if lc else "").strip() if lc else ""
+                if existing:
+                    cur.execute(
+                        "UPDATE url_enrichment_candidates SET status='rejected', "
+                        "reviewed_at=NOW(), reviewed_by=%s "
+                        "WHERE securities_code=%s AND status='needs_review'",
+                        (reviewed_by, code),
+                    )
+                    continue
+                best_id, best_url, _ = rows[0]
+                cur.execute(
+                    "UPDATE listed_companies SET website_url=%s WHERE securities_code=%s",
+                    (best_url, code),
+                )
+                cur.execute(
+                    "UPDATE url_enrichment_candidates SET status='applied_manually', "
+                    "reviewed_at=NOW(), reviewed_by=%s WHERE id=%s",
+                    (reviewed_by, best_id),
+                )
+                other_ids = [r[0] for r in rows if r[0] != best_id]
+                if other_ids:
+                    cur.execute(
+                        "UPDATE url_enrichment_candidates SET status='rejected', "
+                        "reviewed_at=NOW(), reviewed_by=%s WHERE id = ANY(%s)",
+                        (reviewed_by, other_ids),
+                    )
+                applied += 1
+    flash(f"一括承認: 適用 {applied}件、同点首位のため除外 {excluded}件", "success")
+    return redirect(url_for("admin_url_enrichment"))
+
+
 def _bing_search_candidate_url(company_name: str) -> str | None:
     """Google Custom Search APIで企業の公式サイト候補URLを1件返す。"""
     import requests as _req
