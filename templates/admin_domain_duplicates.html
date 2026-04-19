@@ -71,9 +71,7 @@
         <div class="stat-value">{{ fail_count }}</div>
       </div>
     </div>
-    <div style="padding:0 20px 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <a href="/admin/domain-overrides/duplicates/export"
-         style="display:inline-block;background:#3949ab; color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; text-decoration:none;">CSVダウンロード</a>
+    <div style="padding:0 20px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       {% if yes_count > 0 %}
       <form method="POST" action="/admin/domain-overrides/auto-merge" style="display:inline;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -90,8 +88,15 @@
       <a href="/admin/domain-overrides/manual-merge?mode=no_url"
          style="display:inline-block;background:#3949ab; color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; text-decoration:none;">URL未登録を処理 ({{ nourl_count }}件)</a>
       {% endif %}
-      <a href="/admin/domain-overrides/merge-log"
-         style="font-size:0.82rem; color:#3949ab; text-decoration:none;">マージ履歴を見る</a>
+    </div>
+    <div style="border-top:1px solid #e5e7eb; margin:12px 20px 0; padding-top:12px; padding-bottom:16px;">
+      <div style="font-size:0.72rem; color:#9ca3af; margin-bottom:6px;">補助操作</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+        <a href="/admin/domain-overrides/duplicates/export"
+           style="display:inline-block;background:#fff; color:#3949ab; border:1px solid #3949ab; border-radius:6px; padding:4px 14px; font-size:0.8rem; font-weight:600; text-decoration:none;">CSVダウンロード</a>
+        <a href="/admin/domain-overrides/merge-log"
+           style="font-size:0.82rem; color:#3949ab; text-decoration:none;">マージ履歴を見る</a>
+      </div>
     </div>
   </div>
 
