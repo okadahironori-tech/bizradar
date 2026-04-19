@@ -102,7 +102,7 @@
         <label>ふりがな</label>
         <input type="text" name="edit_company_name_kana" id="edit-cnk">
         <label>推奨URL{% if mode == 'no_url' %} (必須){% endif %}</label>
-        <input type="text" name="edit_suggested_url" id="edit-url">
+        <input type="text" name="edit_suggested_url" id="edit-url" {% if mode == 'no_url' %}required{% endif %}>
       </div>
 
       <div class="btn-row">
@@ -122,7 +122,7 @@ function selectEntry(radio) {
     document.getElementById('edit-cn').value = radio.dataset.cn;
     document.getElementById('edit-cnk').value = radio.dataset.cnk;
     document.getElementById('edit-url').value = radio.dataset.url;
-    form.style.display = '';
+    form.style.display = 'block';
   } else {
     keepInput.value = '';
     form.style.display = 'none';
