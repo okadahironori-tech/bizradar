@@ -160,6 +160,7 @@
           <td style="white-space:nowrap;">
             <form method="POST" action="/admin/domain-overrides/delete/{{ r.id }}" style="display:inline;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="duplicates">
               <button type="submit" onclick="return confirm('このエントリを削除しますか?')"
                       style="background:#dc2626; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:0.75rem; cursor:pointer;">削除</button>
             </form>

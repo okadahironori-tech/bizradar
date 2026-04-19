@@ -3171,6 +3171,9 @@ def admin_csv_upload_domain_overrides():
 def admin_delete_domain_override(override_id):
     db.delete_domain_override(override_id)
     flash("削除しました", "success")
+    next_url = request.form.get("next", "")
+    if next_url == "duplicates":
+        return redirect(url_for("admin_domain_overrides_duplicates"))
     return redirect(url_for("admin_domain_overrides"))
 
 
