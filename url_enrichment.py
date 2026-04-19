@@ -19,27 +19,6 @@ _UA = (
 # ── 情報源ごとの候補取得 ──
 
 
-def fetch_candidates_from_kabutan(securities_code: str) -> list:
-    """Kabutan から公式サイトURLを取得する。"""
-    try:
-        url = f"https://kabutan.jp/stock/?code={securities_code}"
-        resp = requests.get(url, timeout=15, headers={"User-Agent": _UA})
-        if resp.status_code != 200:
-            return []
-        soup = BeautifulSoup(resp.text, "html.parser")
-        for th in soup.find_all("th"):
-            if "会社サイト" in th.get_text():
-                td = th.find_next_sibling("td")
-                if td:
-                    a = td.find("a", href=True)
-                    if a and a["href"].startswith(("http://", "https://")):
-                        return [{"source": "kabutan", "url": a["href"].strip()}]
-        return []
-    except Exception as e:
-        logger.warning("[url_enrichment] kabutan error code=%s: %s", securities_code, e)
-        return []
-
-
 def fetch_candidates_from_edinet(securities_code: str) -> list:
     return []
 
@@ -94,7 +73,6 @@ def check_url_reachable(url: str) -> dict:
 
 
 _TRUST_SCORES = {
-    "kabutan": 80,
     "jpx": 100,
     "edinet": 90,
     "wikipedia": 70,
@@ -162,7 +140,6 @@ def score_candidate(candidate: dict, company_name: str) -> dict:
 
 def enrich_company(securities_code: str, company_name: str) -> dict:
     candidates = []
-    candidates.extend(fetch_candidates_from_kabutan(securities_code))
     candidates.extend(fetch_candidates_from_edinet(securities_code))
     candidates.extend(fetch_candidates_from_wikipedia(company_name))
     candidates.extend(fetch_candidates_from_google_cse(company_name))
