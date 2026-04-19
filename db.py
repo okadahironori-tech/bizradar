@@ -3962,11 +3962,6 @@ def execute_manual_merge(norm_key: str, keep_id: int | None, entries: list,
                 )
                 return
             norm = normalize_domain(domain) or norm_key
-            cur.execute(
-                "UPDATE domain_overrides SET domain=%s, suggested_url=%s, "
-                "company_name=%s, company_name_kana=%s WHERE id=%s",
-                (norm, suggested_url, company_name, company_name_kana, keep_id),
-            )
             deleted_info = [
                 {"id": e["id"], "domain": e["original_domain"],
                  "company_name": e.get("company_name", ""),
@@ -3977,6 +3972,11 @@ def execute_manual_merge(norm_key: str, keep_id: int | None, entries: list,
             for e in entries:
                 if e["id"] != keep_id:
                     cur.execute("DELETE FROM domain_overrides WHERE id=%s", (e["id"],))
+            cur.execute(
+                "UPDATE domain_overrides SET domain=%s, suggested_url=%s, "
+                "company_name=%s, company_name_kana=%s WHERE id=%s",
+                (norm, suggested_url, company_name, company_name_kana, keep_id),
+            )
             cur.execute(
                 "INSERT INTO merge_log (action, normalized_domain, kept_entry_id, "
                 "kept_domain, kept_company_name, kept_suggested_url, "
