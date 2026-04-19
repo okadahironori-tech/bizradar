@@ -240,31 +240,38 @@ def fetch_candidates_from_google_cse(company_name: str) -> list:
 
 def check_url_reachable(url: str) -> dict:
     result = {"reachable": False, "http_status": None, "title": None}
-    resp = None
+    resp_for_title = None
+    # Step 1: HEAD で reachable 判定
     try:
-        resp = requests.head(url, timeout=10, allow_redirects=True,
-                             headers={"User-Agent": _UA})
-        result["http_status"] = resp.status_code
-        if 200 <= resp.status_code < 300:
+        head_resp = requests.head(url, timeout=10, allow_redirects=True,
+                                  headers={"User-Agent": _UA})
+        result["http_status"] = head_resp.status_code
+        if 200 <= head_resp.status_code < 300:
             result["reachable"] = True
-        else:
-            resp = requests.get(url, timeout=10, allow_redirects=True,
-                                headers={"User-Agent": _UA})
-            result["http_status"] = resp.status_code
-            if 200 <= resp.status_code < 300:
-                result["reachable"] = True
     except Exception:
+        pass
+    # Step 2: HEAD 失敗時は GET でフォールバック判定
+    if not result["reachable"]:
         try:
-            resp = requests.get(url, timeout=10, allow_redirects=True,
-                                headers={"User-Agent": _UA})
-            result["http_status"] = resp.status_code
-            result["reachable"] = 200 <= resp.status_code < 300
+            resp_for_title = requests.get(url, timeout=10, allow_redirects=True,
+                                          headers={"User-Agent": _UA})
+            result["http_status"] = resp_for_title.status_code
+            if 200 <= resp_for_title.status_code < 300:
+                result["reachable"] = True
         except Exception:
             return result
-    if result["reachable"] and resp and hasattr(resp, "text"):
+    # Step 3: title 取得用 GET（HEAD 成功時は追加実行）
+    if result["reachable"] and resp_for_title is None:
         try:
-            resp.encoding = resp.apparent_encoding  # P1: charset未指定時の文字化け解消
-            soup = BeautifulSoup(resp.text[:10000], "html.parser")
+            resp_for_title = requests.get(url, timeout=10, allow_redirects=True,
+                                          headers={"User-Agent": _UA})
+        except Exception:
+            pass
+    # Step 4: title 抽出（GET レスポンスのみ）
+    if resp_for_title and hasattr(resp_for_title, "text"):
+        try:
+            resp_for_title.encoding = resp_for_title.apparent_encoding  # P1
+            soup = BeautifulSoup(resp_for_title.text[:10000], "html.parser")
             title_tag = soup.find("title")
             if title_tag:
                 result["title"] = title_tag.get_text().strip()[:500]
