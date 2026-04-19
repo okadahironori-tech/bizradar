@@ -3890,7 +3890,8 @@ def execute_manual_merge(norm_key: str, keep_id: int | None, entries: list,
                           action: str, domain: str = "", company_name: str = "",
                           company_name_kana: str = "", suggested_url: str = "",
                           skip_session_id: str | None = None,
-                          executed_by: str = "admin"):
+                          executed_by: str = "admin",
+                          entry_edits: dict | None = None):
     """手動マージ/全削除/スキップを1トランザクションで実行する。"""
     import json
     with _conn() as conn:
@@ -3903,13 +3904,31 @@ def execute_manual_merge(norm_key: str, keep_id: int | None, entries: list,
                 )
                 return
             if action == "keep_both_as_exception":
+                edits = entry_edits or {}
                 for e in entries:
                     host = clean_hostname(e["original_domain"])
-                    if host:
-                        cur.execute(
-                            "UPDATE domain_overrides SET domain=%s, is_exception=TRUE WHERE id=%s",
-                            (host, e["id"]),
-                        )
+                    if not host:
+                        continue
+                    edit = edits.get(e["id"], {})
+                    cn = edit.get("company_name", "")
+                    cnk = edit.get("company_name_kana", "")
+                    surl = edit.get("suggested_url", "")
+                    updates = ["domain=%s", "is_exception=TRUE"]
+                    params = [host]
+                    if cn:
+                        updates.append("company_name=%s")
+                        params.append(cn)
+                    if cnk:
+                        updates.append("company_name_kana=%s")
+                        params.append(cnk)
+                    if surl:
+                        updates.append("suggested_url=%s")
+                        params.append(surl)
+                    params.append(e["id"])
+                    cur.execute(
+                        f"UPDATE domain_overrides SET {', '.join(updates)} WHERE id=%s",
+                        params,
+                    )
                 kept_id = min(e["id"] for e in entries)
                 cur.execute(
                     "INSERT INTO merge_log (action, normalized_domain, kept_entry_id, executed_by) "

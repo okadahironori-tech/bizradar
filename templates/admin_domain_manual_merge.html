@@ -79,6 +79,16 @@
           </div>
         </label>
       </div>
+      <input type="hidden" name="original_domain_{{ e.id }}" value="{{ e.original_domain }}">
+      <div class="edit-form keep-both-edit" style="display:none; margin-top:-4px; margin-bottom:8px;">
+        <div style="font-size:0.78rem; font-weight:600; color:#92400e; margin-bottom:8px;">{{ e.original_domain }} の編集</div>
+        <label>企業名</label>
+        <input type="text" name="keep_both_company_name_{{ e.id }}" value="{{ e.company_name or '' }}">
+        <label>ふりがな</label>
+        <input type="text" name="keep_both_company_name_kana_{{ e.id }}" value="{{ e.company_name_kana or '' }}">
+        <label>推奨URL</label>
+        <input type="text" name="keep_both_suggested_url_{{ e.id }}" value="{{ e.suggested_url or '' }}">
+      </div>
       {% endfor %}
 
       <div class="special-row">
@@ -127,15 +137,22 @@
 function selectEntry(radio) {
   var form = document.getElementById('edit-form');
   var keepInput = document.getElementById('keep-id-input');
+  var keepBothForms = document.querySelectorAll('.keep-both-edit');
   if (radio.value === 'manual_merge') {
     keepInput.value = radio.dataset.keepId;
     document.getElementById('edit-cn').value = radio.dataset.cn;
     document.getElementById('edit-cnk').value = radio.dataset.cnk;
     document.getElementById('edit-url').value = radio.dataset.url;
     form.style.display = 'block';
+    keepBothForms.forEach(function(f) { f.style.display = 'none'; });
+  } else if (radio.value === 'keep_both_as_exception') {
+    keepInput.value = '';
+    form.style.display = 'none';
+    keepBothForms.forEach(function(f) { f.style.display = 'block'; });
   } else {
     keepInput.value = '';
     form.style.display = 'none';
+    keepBothForms.forEach(function(f) { f.style.display = 'none'; });
   }
 }
 document.getElementById('merge-form').addEventListener('submit', function(e) {

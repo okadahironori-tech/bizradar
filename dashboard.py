@@ -3341,8 +3341,16 @@ def admin_manual_merge():
                 db.execute_manual_merge(norm_key, None, entries, "skip",
                                         skip_session_id=token, executed_by=executed_by)
             elif action == "keep_both_as_exception":
+                entry_edits = {}
+                for e in entries:
+                    eid = e["id"]
+                    entry_edits[eid] = {
+                        "company_name": request.form.get(f"keep_both_company_name_{eid}", "").strip(),
+                        "company_name_kana": request.form.get(f"keep_both_company_name_kana_{eid}", "").strip(),
+                        "suggested_url": request.form.get(f"keep_both_suggested_url_{eid}", "").strip(),
+                    }
                 db.execute_manual_merge(norm_key, None, entries, "keep_both_as_exception",
-                                        executed_by=executed_by)
+                                        executed_by=executed_by, entry_edits=entry_edits)
             elif action == "delete_all":
                 db.execute_manual_merge(norm_key, None, entries, "delete_all",
                                         executed_by=executed_by)
