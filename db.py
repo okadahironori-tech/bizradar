@@ -753,7 +753,7 @@ def _run_migrations():
                 CREATE TABLE IF NOT EXISTS merge_log (
                     id SERIAL PRIMARY KEY,
                     executed_at TIMESTAMP DEFAULT NOW(),
-                    action VARCHAR(20) NOT NULL,
+                    action VARCHAR(50) NOT NULL,
                     normalized_domain VARCHAR(255),
                     kept_entry_id INTEGER,
                     kept_domain VARCHAR(255),
@@ -764,6 +764,15 @@ def _run_migrations():
                     executed_by VARCHAR(255) DEFAULT 'admin'
                 );
             """)
+
+            # merge_log: action カラムサイズ拡張
+            cur.execute(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                "WHERE table_name='merge_log' AND column_name='action'"
+            )
+            _ml_row = cur.fetchone()
+            if _ml_row and _ml_row[0] is not None and _ml_row[0] < 50:
+                cur.execute("ALTER TABLE merge_log ALTER COLUMN action TYPE VARCHAR(50);")
 
             # listed_companies: 公式サイトURL カラム追加
             cur.execute(
