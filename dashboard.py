@@ -2991,6 +2991,29 @@ def admin_domain_overrides():
                            is_admin=True)
 
 
+@app.route("/admin/domain-overrides/export")
+@admin_required
+def admin_domain_overrides_export():
+    import csv, io
+    from datetime import datetime, timezone, timedelta
+    overrides = db.get_all_domain_overrides()
+    overrides.sort(key=lambda r: r.get("domain", ""))
+    buf = io.StringIO()
+    buf.write("\ufeff")
+    writer = csv.writer(buf)
+    writer.writerow(["domain", "company_name", "company_name_kana", "suggested_url"])
+    for r in overrides:
+        writer.writerow([r.get("domain", ""), r.get("company_name", ""),
+                         r.get("company_name_kana", ""), r.get("suggested_url", "")])
+    jst = timezone(timedelta(hours=9))
+    fname = f"bizradar_domain_overrides_{datetime.now(jst).strftime('%Y%m%d')}.csv"
+    return app.response_class(
+        buf.getvalue().encode("utf-8-sig"),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
+    )
+
+
 @app.route("/admin/domain-overrides/add", methods=["POST"])
 @admin_required
 def admin_add_domain_override():
