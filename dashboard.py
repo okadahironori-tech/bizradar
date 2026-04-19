@@ -3213,6 +3213,13 @@ def admin_domain_overrides_duplicates():
     group_count = len(sorted_keys)
     entry_count = sum(len(v) for v in dup_groups.values())
     fail_count = len(failed)
+    yes_groups = {k: v for k, v in dup_groups.items() if v[0]["auto_merge_safe"] == "yes"}
+    no_groups = {k: v for k, v in dup_groups.items() if v[0]["auto_merge_safe"] == "no"}
+    nourl_groups = {k: v for k, v in dup_groups.items() if v[0]["auto_merge_safe"] == "no_url"}
+    yes_count = len(yes_groups)
+    yes_entry_count = sum(len(v) for v in yes_groups.values())
+    no_count = len(no_groups)
+    nourl_count = len(nourl_groups)
     preview_keys = sorted_keys[:20]
     preview_rows = []
     for k in preview_keys:
@@ -3223,7 +3230,9 @@ def admin_domain_overrides_duplicates():
     return render_template("admin_domain_duplicates.html",
                            group_count=group_count, entry_count=entry_count,
                            fail_count=fail_count, preview_rows=preview_rows,
-                           fail_preview=fail_preview, truncated=truncated)
+                           fail_preview=fail_preview, truncated=truncated,
+                           yes_count=yes_count, yes_entry_count=yes_entry_count,
+                           no_count=no_count, nourl_count=nourl_count)
 
 
 @app.route("/admin/domain-overrides/duplicates/export")
@@ -3253,6 +3262,119 @@ def admin_domain_overrides_duplicates_export():
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={fname}"},
     )
+
+
+@app.route("/admin/domain-overrides/auto-merge", methods=["POST"])
+@admin_required
+def admin_auto_merge():
+    dup_groups, _ = _build_duplicate_groups()
+    yes_groups = {k: v for k, v in dup_groups.items() if v[0]["auto_merge_safe"] == "yes"}
+    if not yes_groups:
+        flash("自動マージ対象がありません", "warning")
+        return redirect(url_for("admin_domain_overrides_duplicates"))
+    try:
+        executed_by = session.get("email", "admin")
+        merged_groups, merged_entries = db.execute_auto_merge(yes_groups, executed_by)
+        flash(f"自動マージ完了: {merged_groups}件のグループ、{merged_entries}件のエントリを統合しました", "success")
+    except Exception as e:
+        flash(f"自動マージに失敗しました: {e}", "error")
+    return redirect(url_for("admin_domain_overrides_duplicates"))
+
+
+def _get_merge_session_token():
+    import secrets
+    if "merge_session_token" not in session:
+        session["merge_session_token"] = secrets.token_urlsafe(32)
+    return session["merge_session_token"]
+
+
+def _get_unprocessed_groups(mode: str = "no"):
+    dup_groups, _ = _build_duplicate_groups()
+    target_safe = mode
+    target = {k: v for k, v in dup_groups.items() if v[0]["auto_merge_safe"] == target_safe}
+    token = _get_merge_session_token()
+    unprocessed = {}
+    for norm_key, entries in sorted(target.items()):
+        log = db.get_merge_log_latest_action(norm_key)
+        if log:
+            if log["action"] in ("auto_merge", "manual_merge", "delete_all"):
+                continue
+            if log["action"] == "skip" and log.get("skip_session_id") == token:
+                continue
+        unprocessed[norm_key] = entries
+    return unprocessed, len(target)
+
+
+@app.route("/admin/domain-overrides/manual-merge", methods=["GET", "POST"])
+@admin_required
+def admin_manual_merge():
+    mode = request.args.get("mode", "no")
+    if mode not in ("no", "no_url"):
+        mode = "no"
+    executed_by = session.get("email", "admin")
+    token = _get_merge_session_token()
+
+    if request.method == "POST":
+        norm_key = request.form.get("normalized_domain", "")
+        action = request.form.get("action", "skip")
+        if action not in ("manual_merge", "delete_all", "skip"):
+            action = "skip"
+        unprocessed, _ = _get_unprocessed_groups(mode)
+        if norm_key not in unprocessed:
+            flash("このグループは既に処理済みです", "warning")
+            return redirect(url_for("admin_manual_merge", mode=mode))
+        entries = unprocessed[norm_key]
+        try:
+            if action == "skip":
+                db.execute_manual_merge(norm_key, None, entries, "skip",
+                                        skip_session_id=token, executed_by=executed_by)
+            elif action == "delete_all":
+                db.execute_manual_merge(norm_key, None, entries, "delete_all",
+                                        executed_by=executed_by)
+            elif action == "manual_merge":
+                keep_id = request.form.get("keep_id")
+                if not keep_id:
+                    flash("残すエントリを選択してください", "error")
+                    return redirect(url_for("admin_manual_merge", mode=mode))
+                keep_id = int(keep_id)
+                suggested_url = request.form.get("edit_suggested_url", "").strip()
+                if mode == "no_url" and not suggested_url:
+                    flash("推奨URLを入力してください", "error")
+                    return redirect(url_for("admin_manual_merge", mode=mode))
+                db.execute_manual_merge(
+                    norm_key, keep_id, entries, "manual_merge",
+                    domain=norm_key,
+                    company_name=request.form.get("edit_company_name", "").strip(),
+                    company_name_kana=request.form.get("edit_company_name_kana", "").strip(),
+                    suggested_url=suggested_url,
+                    executed_by=executed_by,
+                )
+        except Exception as e:
+            flash(f"処理に失敗しました: {e}", "error")
+        return redirect(url_for("admin_manual_merge", mode=mode))
+
+    unprocessed, total = _get_unprocessed_groups(mode)
+    if not unprocessed:
+        flash("手動マージ完了", "success")
+        return redirect(url_for("admin_domain_overrides_duplicates"))
+    sorted_keys = sorted(unprocessed.keys())
+    current_key = sorted_keys[0]
+    current_entries = sorted(unprocessed[current_key], key=lambda x: x["original_domain"])
+    processed_count = total - len(unprocessed)
+    return render_template("admin_domain_manual_merge.html",
+                           norm_key=current_key, entries=current_entries,
+                           remaining=len(unprocessed), total=total,
+                           processed=processed_count, mode=mode)
+
+
+@app.route("/admin/domain-overrides/merge-log")
+@admin_required
+def admin_merge_log():
+    logs = db.load_merge_log(100)
+    for log in logs:
+        de = log.get("deleted_entries")
+        log["deleted_count"] = len(de) if isinstance(de, list) else 0
+    return render_template("admin_merge_log.html", logs=logs)
 
 
 @app.route("/admin/fetch_securities_master", methods=["POST"])

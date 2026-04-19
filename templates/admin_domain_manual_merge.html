@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 手動マージ</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+    header { background: #1a1a2e; color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    main { max-width: 800px; margin: 32px auto; padding: 0 16px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; margin-bottom: 16px; padding: 20px; }
+    .progress { font-size: 0.82rem; color: #6b7280; margin-bottom: 16px; }
+    .norm-key { font-size: 1.1rem; font-weight: 700; color: #3949ab; margin-bottom: 16px; }
+    .entry-row { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px; }
+    .entry-row label { cursor: pointer; flex: 1; }
+    .entry-info { font-size: 0.82rem; color: #4a4a6a; line-height: 1.6; }
+    .entry-info .domain { font-weight: 600; }
+    .entry-info .url { color: #3949ab; word-break: break-all; }
+    .special-row { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+    .edit-form { background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 12px; display: none; }
+    .edit-form label { display: block; font-size: 0.82rem; font-weight: 600; color: #4a4a6a; margin-bottom: 4px; margin-top: 10px; }
+    .edit-form label:first-child { margin-top: 0; }
+    .edit-form input { width: 100%; padding: 7px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.88rem; }
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+    .btn { border: none; border-radius: 6px; padding: 8px 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-primary { background: #3949ab; color: #fff; }
+    .btn-secondary { background: #f3f4f6; color: #666; border: 1px solid #d1d5db; }
+    .flash { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; }
+    .flash-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .flash-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .flash-warning { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+    a.back-link { color: #3949ab; text-decoration: none; font-size: 0.85rem; }
+    a.back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">手動マージ{% if mode == 'no_url' %} (URL未登録){% endif %}</div>
+  </div>
+</header>
+
+<main>
+  <div style="margin-bottom:16px;">
+    <a href="/admin/domain-overrides/duplicates" class="back-link">← 重複候補一覧に戻る</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="flash flash-{{ category }}">{{ message }}</div>
+  {% endfor %}
+  {% endwith %}
+
+  <div class="card">
+    <div class="progress">未処理 {{ remaining }}件 / 全体 {{ total }}件 (このセッションで {{ processed }}件処理済み)</div>
+    <div class="norm-key">正規化後ドメイン: {{ norm_key }}</div>
+
+    <form method="POST" action="/admin/domain-overrides/manual-merge?mode={{ mode }}" id="merge-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="normalized_domain" value="{{ norm_key }}">
+
+      {% for e in entries %}
+      <div class="entry-row">
+        <input type="radio" name="action" value="manual_merge" id="keep-{{ e.id }}"
+               data-keep-id="{{ e.id }}"
+               data-cn="{{ e.company_name or '' }}"
+               data-cnk="{{ e.company_name_kana or '' }}"
+               data-url="{{ e.suggested_url or '' }}"
+               onchange="selectEntry(this)">
+        <label for="keep-{{ e.id }}">
+          <div class="entry-info">
+            <div class="domain">{{ e.original_domain }}</div>
+            <div>企業名: {{ e.company_name or '-' }} / ふりがな: {{ e.company_name_kana or '-' }}</div>
+            {% if e.suggested_url %}<div class="url">{{ e.suggested_url }}</div>{% else %}<div style="color:#9ca3af;">URL未登録</div>{% endif %}
+          </div>
+        </label>
+      </div>
+      {% endfor %}
+
+      <div class="special-row">
+        <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+          <input type="radio" name="action" value="delete_all" onchange="selectEntry(this)">
+          <span style="font-size:0.85rem; color:#dc2626; font-weight:600;">全て削除</span>
+        </label>
+      </div>
+
+      <div class="special-row">
+        <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+          <input type="radio" name="action" value="skip" checked onchange="selectEntry(this)">
+          <span style="font-size:0.85rem; color:#6b7280; font-weight:600;">スキップ（後で対応）</span>
+        </label>
+      </div>
+
+      <div class="edit-form" id="edit-form">
+        <input type="hidden" name="keep_id" id="keep-id-input">
+        <label>企業名</label>
+        <input type="text" name="edit_company_name" id="edit-cn">
+        <label>ふりがな</label>
+        <input type="text" name="edit_company_name_kana" id="edit-cnk">
+        <label>推奨URL{% if mode == 'no_url' %} (必須){% endif %}</label>
+        <input type="text" name="edit_suggested_url" id="edit-url">
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary" id="submit-btn">保存して次へ →</button>
+        <a href="/admin/domain-overrides/duplicates" class="btn btn-secondary">中断して一覧に戻る</a>
+      </div>
+    </form>
+  </div>
+</main>
+
+<script>
+function selectEntry(radio) {
+  var form = document.getElementById('edit-form');
+  var keepInput = document.getElementById('keep-id-input');
+  if (radio.value === 'manual_merge') {
+    keepInput.value = radio.dataset.keepId;
+    document.getElementById('edit-cn').value = radio.dataset.cn;
+    document.getElementById('edit-cnk').value = radio.dataset.cnk;
+    document.getElementById('edit-url').value = radio.dataset.url;
+    form.style.display = '';
+  } else {
+    keepInput.value = '';
+    form.style.display = 'none';
+  }
+}
+document.getElementById('merge-form').addEventListener('submit', function(e) {
+  var action = document.querySelector('input[name="action"]:checked');
+  if (action && action.value === 'delete_all') {
+    if (!confirm('このグループの全エントリを削除します。実行しますか?')) {
+      e.preventDefault();
+    }
+  }
+});
+</script>
+
+<footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">
+  <a href="/terms" style="color:#9ca3af; text-decoration:none; margin:0 8px;">利用規約</a>
+  <span style="color:#d1d5db;">|</span>
+  <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 8px;">プライバシーポリシー</a>
+</footer>
+</body>
+</html>

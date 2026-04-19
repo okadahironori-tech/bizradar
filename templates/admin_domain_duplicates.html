@@ -71,9 +71,27 @@
         <div class="stat-value">{{ fail_count }}</div>
       </div>
     </div>
-    <div style="padding:0 20px 16px;">
+    <div style="padding:0 20px 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <a href="/admin/domain-overrides/duplicates/export"
          style="display:inline-block;background:#3949ab; color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; text-decoration:none;">CSVダウンロード</a>
+      {% if yes_count > 0 %}
+      <form method="POST" action="/admin/domain-overrides/auto-merge" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" onclick="return confirm('{{ yes_count }}件のグループを自動マージします。実行しますか?')"
+                style="background:#3949ab; color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; cursor:pointer;">自動マージを一括実行</button>
+      </form>
+      <span style="font-size:0.78rem; color:#6b7280;">対象: {{ yes_count }}件のグループ / {{ yes_entry_count }}件のエントリ</span>
+      {% endif %}
+      {% if no_count > 0 %}
+      <a href="/admin/domain-overrides/manual-merge?mode=no"
+         style="display:inline-block;background:#3949ab; color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; text-decoration:none;">手動判断を開始 ({{ no_count }}件)</a>
+      {% endif %}
+      {% if nourl_count > 0 %}
+      <a href="/admin/domain-overrides/manual-merge?mode=no_url"
+         style="display:inline-block;background:#3949ab; color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; text-decoration:none;">URL未登録を処理 ({{ nourl_count }}件)</a>
+      {% endif %}
+      <a href="/admin/domain-overrides/merge-log"
+         style="font-size:0.82rem; color:#3949ab; text-decoration:none;">マージ履歴を見る</a>
     </div>
   </div>
 
@@ -124,6 +142,7 @@
           <th>企業名</th>
           <th>ふりがな</th>
           <th>推奨URL</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody>
@@ -133,6 +152,13 @@
           <td>{{ r.company_name or '-' }}</td>
           <td>{{ r.company_name_kana or '' }}</td>
           <td class="url-cell">{% if r.suggested_url %}<a href="{{ r.suggested_url }}" target="_blank" rel="noopener" style="color:#3949ab;">{{ r.suggested_url }}</a>{% else %}-{% endif %}</td>
+          <td style="white-space:nowrap;">
+            <form method="POST" action="/admin/domain-overrides/delete/{{ r.id }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" onclick="return confirm('このエントリを削除しますか?')"
+                      style="background:#dc2626; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:0.75rem; cursor:pointer;">削除</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

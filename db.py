@@ -720,6 +720,23 @@ def _run_migrations():
                 );
             """)
 
+            # merge_log: ドメインオーバーライドマージ履歴
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS merge_log (
+                    id SERIAL PRIMARY KEY,
+                    executed_at TIMESTAMP DEFAULT NOW(),
+                    action VARCHAR(20) NOT NULL,
+                    normalized_domain VARCHAR(255),
+                    kept_entry_id INTEGER,
+                    kept_domain VARCHAR(255),
+                    kept_company_name VARCHAR(255),
+                    kept_suggested_url TEXT,
+                    deleted_entries JSONB,
+                    skip_session_id VARCHAR(100),
+                    executed_by VARCHAR(255) DEFAULT 'admin'
+                );
+            """)
+
             # listed_companies: 公式サイトURL カラム追加
             cur.execute(
                 "ALTER TABLE listed_companies ADD COLUMN IF NOT EXISTS "
@@ -3752,6 +3769,141 @@ def load_fix_url_log(limit: int = 50) -> list:
             cur.execute(
                 "SELECT securities_code, company_name, old_url, new_url, fixed_at "
                 "FROM fix_url_log ORDER BY fixed_at DESC LIMIT %s",
+                (limit,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+def execute_auto_merge(groups: dict, executed_by: str = "admin"):
+    """auto_merge_safe=yes のグループを一括マージする。1トランザクション。"""
+    import json
+    merged_groups = 0
+    merged_entries = 0
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            for norm_key, entries in groups.items():
+                entries_with_url = [e for e in entries if e.get("suggested_url")]
+                if entries_with_url:
+                    keep = min(entries_with_url, key=lambda e: e["id"])
+                else:
+                    keep = min(entries, key=lambda e: e["id"])
+                keep_cn = keep["company_name"]
+                keep_cnk = keep["company_name_kana"]
+                for e in entries:
+                    if e["id"] == keep["id"]:
+                        continue
+                    if not keep_cn and e.get("company_name"):
+                        keep_cn = e["company_name"]
+                    if not keep_cnk and e.get("company_name_kana"):
+                        keep_cnk = e["company_name_kana"]
+                norm = normalize_domain(keep["original_domain"])
+                cur.execute(
+                    "UPDATE domain_overrides SET domain=%s, company_name=%s, company_name_kana=%s WHERE id=%s",
+                    (norm, keep_cn, keep_cnk, keep["id"]),
+                )
+                delete_ids = [e["id"] for e in entries if e["id"] != keep["id"]]
+                deleted_info = [
+                    {"id": e["id"], "domain": e["original_domain"],
+                     "company_name": e.get("company_name", ""),
+                     "company_name_kana": e.get("company_name_kana", ""),
+                     "suggested_url": e.get("suggested_url", "")}
+                    for e in entries if e["id"] != keep["id"]
+                ]
+                for did in delete_ids:
+                    cur.execute("DELETE FROM domain_overrides WHERE id=%s", (did,))
+                cur.execute(
+                    "INSERT INTO merge_log (action, normalized_domain, kept_entry_id, "
+                    "kept_domain, kept_company_name, kept_suggested_url, "
+                    "deleted_entries, executed_by) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                    ("auto_merge", norm_key, keep["id"], norm, keep_cn,
+                     keep.get("suggested_url", ""),
+                     json.dumps(deleted_info, ensure_ascii=False),
+                     executed_by),
+                )
+                merged_groups += 1
+                merged_entries += len(delete_ids)
+    return merged_groups, merged_entries
+
+
+def execute_manual_merge(norm_key: str, keep_id: int | None, entries: list,
+                          action: str, domain: str = "", company_name: str = "",
+                          company_name_kana: str = "", suggested_url: str = "",
+                          skip_session_id: str | None = None,
+                          executed_by: str = "admin"):
+    """手動マージ/全削除/スキップを1トランザクションで実行する。"""
+    import json
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            if action == "skip":
+                cur.execute(
+                    "INSERT INTO merge_log (action, normalized_domain, skip_session_id, executed_by) "
+                    "VALUES (%s, %s, %s, %s)",
+                    ("skip", norm_key, skip_session_id, executed_by),
+                )
+                return
+            if action == "delete_all":
+                deleted_info = [
+                    {"id": e["id"], "domain": e["original_domain"],
+                     "company_name": e.get("company_name", ""),
+                     "company_name_kana": e.get("company_name_kana", ""),
+                     "suggested_url": e.get("suggested_url", "")}
+                    for e in entries
+                ]
+                for e in entries:
+                    cur.execute("DELETE FROM domain_overrides WHERE id=%s", (e["id"],))
+                cur.execute(
+                    "INSERT INTO merge_log (action, normalized_domain, deleted_entries, executed_by) "
+                    "VALUES (%s, %s, %s, %s)",
+                    ("delete_all", norm_key, json.dumps(deleted_info, ensure_ascii=False), executed_by),
+                )
+                return
+            norm = normalize_domain(domain) or norm_key
+            cur.execute(
+                "UPDATE domain_overrides SET domain=%s, suggested_url=%s, "
+                "company_name=%s, company_name_kana=%s WHERE id=%s",
+                (norm, suggested_url, company_name, company_name_kana, keep_id),
+            )
+            deleted_info = [
+                {"id": e["id"], "domain": e["original_domain"],
+                 "company_name": e.get("company_name", ""),
+                 "company_name_kana": e.get("company_name_kana", ""),
+                 "suggested_url": e.get("suggested_url", "")}
+                for e in entries if e["id"] != keep_id
+            ]
+            for e in entries:
+                if e["id"] != keep_id:
+                    cur.execute("DELETE FROM domain_overrides WHERE id=%s", (e["id"],))
+            cur.execute(
+                "INSERT INTO merge_log (action, normalized_domain, kept_entry_id, "
+                "kept_domain, kept_company_name, kept_suggested_url, "
+                "deleted_entries, executed_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                ("manual_merge", norm_key, keep_id, norm, company_name,
+                 suggested_url, json.dumps(deleted_info, ensure_ascii=False),
+                 executed_by),
+            )
+
+
+def get_merge_log_latest_action(normalized_domain: str) -> dict | None:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT action, skip_session_id FROM merge_log "
+                "WHERE normalized_domain=%s ORDER BY executed_at DESC LIMIT 1",
+                (normalized_domain,),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def load_merge_log(limit: int = 100) -> list:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, executed_at, action, normalized_domain, kept_entry_id, "
+                "kept_domain, deleted_entries, executed_by "
+                "FROM merge_log ORDER BY executed_at DESC LIMIT %s",
                 (limit,),
             )
             return [dict(r) for r in cur.fetchall()]

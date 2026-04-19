@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — マージ履歴</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+    header { background: #1a1a2e; color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    main { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    .section-title { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { background: #f8f9fa; font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4a4a6a; font-size: 0.75rem; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+    .badge-auto { background: #d1fae5; color: #065f46; }
+    .badge-manual { background: #dbeafe; color: #1e40af; }
+    .badge-delete { background: #fecaca; color: #991b1b; }
+    .badge-skip { background: #e5e7eb; color: #6b7280; }
+    a.back-link { color: #3949ab; text-decoration: none; font-size: 0.85rem; }
+    a.back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">マージ履歴</div>
+  </div>
+</header>
+
+<main>
+  <div style="margin-bottom:16px;">
+    <a href="/admin/domain-overrides/duplicates" class="back-link">← 重複候補一覧に戻る</a>
+  </div>
+
+  <div class="section-title">マージ履歴 (最新100件)</div>
+  <div class="card">
+    {% if logs %}
+    <table>
+      <thead>
+        <tr>
+          <th>実行日時</th>
+          <th>操作</th>
+          <th>正規化ドメイン</th>
+          <th>残ID</th>
+          <th>残ドメイン</th>
+          <th>削除数</th>
+          <th>実行者</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="white-space:nowrap; font-size:0.78rem; color:#9ca3af;">
+            {% if log.executed_at %}{{ log.executed_at.strftime('%Y-%m-%d %H:%M') if log.executed_at.strftime is defined else log.executed_at }}{% endif %}
+          </td>
+          <td>
+            {% if log.action == 'auto_merge' %}<span class="badge badge-auto">auto_merge</span>
+            {% elif log.action == 'manual_merge' %}<span class="badge badge-manual">manual_merge</span>
+            {% elif log.action == 'delete_all' %}<span class="badge badge-delete">delete_all</span>
+            {% elif log.action == 'skip' %}<span class="badge badge-skip">skip</span>
+            {% else %}{{ log.action }}{% endif %}
+          </td>
+          <td>{{ log.normalized_domain or '' }}</td>
+          <td>{{ log.kept_entry_id or '-' }}</td>
+          <td>{{ log.kept_domain or '-' }}</td>
+          <td>{{ log.deleted_count }}</td>
+          <td style="font-size:0.78rem; color:#9ca3af;">{{ log.executed_by or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:24px; text-align:center; color:#9ca3af; font-size:0.88rem;">
+      まだ履歴はありません
+    </div>
+    {% endif %}
+  </div>
+</main>
+
+<footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">
+  <a href="/terms" style="color:#9ca3af; text-decoration:none; margin:0 8px;">利用規約</a>
+  <span style="color:#d1d5db;">|</span>
+  <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 8px;">プライバシーポリシー</a>
+</footer>
+</body>
+</html>
