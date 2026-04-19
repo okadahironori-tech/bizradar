@@ -3782,6 +3782,7 @@ def execute_auto_merge(groups: dict, executed_by: str = "admin"):
     with _conn() as conn:
         with conn.cursor() as cur:
             for norm_key, entries in groups.items():
+                logger.info("[auto_merge] processing: %s (%d entries)", norm_key, len(entries))
                 entries_with_url = [e for e in entries if e.get("suggested_url")]
                 if entries_with_url:
                     keep = min(entries_with_url, key=lambda e: e["id"])
@@ -3797,10 +3798,6 @@ def execute_auto_merge(groups: dict, executed_by: str = "admin"):
                     if not keep_cnk and e.get("company_name_kana"):
                         keep_cnk = e["company_name_kana"]
                 norm = normalize_domain(keep["original_domain"])
-                cur.execute(
-                    "UPDATE domain_overrides SET domain=%s, company_name=%s, company_name_kana=%s WHERE id=%s",
-                    (norm, keep_cn, keep_cnk, keep["id"]),
-                )
                 delete_ids = [e["id"] for e in entries if e["id"] != keep["id"]]
                 deleted_info = [
                     {"id": e["id"], "domain": e["original_domain"],
@@ -3809,8 +3806,14 @@ def execute_auto_merge(groups: dict, executed_by: str = "admin"):
                      "suggested_url": e.get("suggested_url", "")}
                     for e in entries if e["id"] != keep["id"]
                 ]
+                logger.info("[auto_merge] keep id=%s, delete ids=%s", keep["id"], delete_ids)
                 for did in delete_ids:
                     cur.execute("DELETE FROM domain_overrides WHERE id=%s", (did,))
+                cur.execute(
+                    "UPDATE domain_overrides SET domain=%s, company_name=%s, company_name_kana=%s WHERE id=%s",
+                    (norm, keep_cn, keep_cnk, keep["id"]),
+                )
+                logger.info("[auto_merge] inserting log for: %s", norm_key)
                 cur.execute(
                     "INSERT INTO merge_log (action, normalized_domain, kept_entry_id, "
                     "kept_domain, kept_company_name, kept_suggested_url, "
@@ -3823,6 +3826,7 @@ def execute_auto_merge(groups: dict, executed_by: str = "admin"):
                 )
                 merged_groups += 1
                 merged_entries += len(delete_ids)
+    logger.info("[auto_merge] completed: %d groups, %d entries", merged_groups, merged_entries)
     return merged_groups, merged_entries
 
 

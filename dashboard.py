@@ -3269,6 +3269,7 @@ def admin_domain_overrides_duplicates_export():
 def admin_auto_merge():
     dup_groups, _ = _build_duplicate_groups()
     yes_groups = {k: v for k, v in dup_groups.items() if v[0]["auto_merge_safe"] == "yes"}
+    logger.info("[auto_merge] groups found: %d", len(yes_groups))
     if not yes_groups:
         flash("自動マージ対象がありません", "warning")
         return redirect(url_for("admin_domain_overrides_duplicates"))
@@ -3277,6 +3278,7 @@ def admin_auto_merge():
         merged_groups, merged_entries = db.execute_auto_merge(yes_groups, executed_by)
         flash(f"自動マージ完了: {merged_groups}件のグループ、{merged_entries}件のエントリを統合しました", "success")
     except Exception as e:
+        logger.exception("[auto_merge] failed: %s", e)
         flash(f"自動マージに失敗しました: {e}", "error")
     return redirect(url_for("admin_domain_overrides_duplicates"))
 
