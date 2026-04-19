@@ -2157,6 +2157,25 @@ def get_running_task_statuses() -> dict:
             return result
 
 
+def is_enrichment_running(timeout_minutes: int = 30) -> bool:
+    """url_enrichment バッチが実行中かDBで判定。タイムアウト超過分は自動で timeout に更新。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE running_tasks SET completed_at = NOW(), error_message = 'timeout' "
+                "WHERE task_type = 'url_enrichment' AND key = 'batch' "
+                "AND completed_at IS NULL AND started_at < NOW() - INTERVAL '%s minutes'",
+                (timeout_minutes,),
+            )
+            cur.execute(
+                "SELECT 1 FROM running_tasks "
+                "WHERE task_type = 'url_enrichment' AND key = 'batch' "
+                "AND completed_at IS NULL AND started_at >= NOW() - INTERVAL '%s minutes'",
+                (timeout_minutes,),
+            )
+            return cur.fetchone() is not None
+
+
 def get_user_notify_timing(user_id: int) -> str:
     """ユーザーのダイジェスト送信タイミング設定を返す (digest_07 等)"""
     with _conn() as conn:

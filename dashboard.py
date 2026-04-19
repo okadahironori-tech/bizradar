@@ -3414,13 +3414,11 @@ def admin_fetch_securities_master():
         return jsonify({"error": str(e)}), 500
 
 
-_url_enrichment_running = False
-
-
 @app.route("/admin/url-enrichment")
 @admin_required
 def admin_url_enrichment():
     import psycopg2.extras
+    is_running = db.is_enrichment_running()
     with db._conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM listed_companies")
@@ -3465,27 +3463,25 @@ def admin_url_enrichment():
                            needs_review=status_counts.get("needs_review", 0),
                            rejected=status_counts.get("rejected", 0),
                            review_list=review_list, applied_rows=applied_rows,
-                           is_running=_url_enrichment_running)
+                           is_running=is_running)
 
 
 @app.route("/admin/url-enrichment/run", methods=["POST"])
 @admin_required
 def admin_url_enrichment_run():
-    global _url_enrichment_running
-    if _url_enrichment_running:
+    if db.is_enrichment_running():
         flash("既に実行中です", "warning")
         return redirect(url_for("admin_url_enrichment"))
-    _url_enrichment_running = True
+    db.add_running_task("url_enrichment", "batch")
 
     def _run():
-        global _url_enrichment_running
         try:
             import url_enrichment
             url_enrichment.run_enrichment_batch(100)
+            db.remove_running_task("url_enrichment", "batch")
         except Exception as e:
             logger.exception("[url_enrichment] batch error: %s", e)
-        finally:
-            _url_enrichment_running = False
+            db.fail_running_task("url_enrichment", "batch", str(e))
 
     import threading
     t = threading.Thread(target=_run, daemon=True, name="url-enrichment-batch")
