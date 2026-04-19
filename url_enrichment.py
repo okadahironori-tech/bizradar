@@ -263,6 +263,7 @@ def check_url_reachable(url: str) -> dict:
             return result
     if result["reachable"] and resp and hasattr(resp, "text"):
         try:
+            resp.encoding = resp.apparent_encoding  # P1: charset未指定時の文字化け解消
             soup = BeautifulSoup(resp.text[:10000], "html.parser")
             title_tag = soup.find("title")
             if title_tag:
@@ -291,29 +292,46 @@ def score_candidate(candidate: dict, company_name: str) -> dict:
 
     source_trust = _TRUST_SCORES.get(source, 30)
 
+    # P3: 企業名正規化を単語単位に変更
+    import unicodedata
+    nfkc_name = unicodedata.normalize("NFKC", company_name)
+    name_parts = re.sub(
+        r'株式会社|（株）|\(株\)|有限会社|合同会社|ホールディングス|グループ|HD|Inc\.|Co\.,\s*Ltd\.|Corporation',
+        '', nfkc_name
+    )
+    name_parts = re.sub(r'[（）()]', '', name_parts).strip()
+
     domain_match = 0
     try:
         domain = urlparse(url).netloc.lower()
-        name_parts = re.sub(r'[株式会社グループホールディングス（）\(\)]', '', company_name).strip()
+        # P2: tldextract で主要ドメイン部分を抽出
+        import tldextract
+        domain_sld = tldextract.extract(url).domain.lower()
         try:
             import pykakasi
             kks = pykakasi.kakasi()
             result = kks.convert(name_parts)
             romaji = "".join(item.get("hepburn", "") for item in result).lower()
-            if romaji and len(romaji) >= 3 and romaji in domain:
-                domain_match = 20
+            # P2: 長音正規化 ou→o, uu→u
+            normalized_romaji = romaji.replace("ou", "o").replace("uu", "u")
+            # P2: 双方向部分一致
+            if normalized_romaji and len(normalized_romaji) >= 3 and domain_sld and len(domain_sld) >= 3:
+                if normalized_romaji in domain or domain_sld in normalized_romaji:
+                    domain_match = 20
         except Exception:
             pass
         if not domain_match:
             ascii_part = re.sub(r'[^a-z0-9]', '', name_parts.lower())
-            if ascii_part and len(ascii_part) >= 3 and ascii_part in domain:
-                domain_match = 20
+            if ascii_part and len(ascii_part) >= 3 and domain_sld and len(domain_sld) >= 3:
+                if ascii_part in domain or domain_sld in ascii_part:
+                    domain_match = 20
     except Exception:
         pass
 
     title_match = 0
     if title and company_name:
-        short_name = re.sub(r'株式会社', '', company_name).strip()
+        # P3: title比較用にも同じ正規化を適用
+        short_name = name_parts.strip()
         if short_name and short_name in title:
             title_match = 30
         elif short_name and len(short_name) >= 2:
