@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 正規化後の重複候補</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+    main { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    .section-title { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; margin-bottom: 16px; }
+    .stats { display: flex; gap: 16px; flex-wrap: wrap; padding: 16px 20px; }
+    .stat-box { background: #f8f9fa; border-radius: 8px; padding: 12px 16px; min-width: 140px; }
+    .stat-label { font-size: 0.75rem; color: #6b7280; }
+    .stat-value { font-size: 1.3rem; font-weight: 700; color: #1a1a2e; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { background: #f8f9fa; font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #4a4a6a; font-size: 0.75rem; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+    .url-cell { word-break: break-all; max-width: 300px; }
+    .row-yes { background: #ecfdf5; }
+    .row-no { background: #fefce8; }
+    .row-nourl { background: #f3f4f6; }
+    .row-fail { background: #fef2f2; }
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+    .badge-yes { background: #d1fae5; color: #065f46; }
+    .badge-no { background: #fef08a; color: #854d0e; }
+    .badge-nourl { background: #e5e7eb; color: #6b7280; }
+    a.back-link { color: #3949ab; text-decoration: none; font-size: 0.85rem; }
+    a.back-link:hover { text-decoration: underline; }
+    .note { font-size: 0.78rem; color: #9ca3af; padding: 12px 20px; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BizRadar</h1>
+    <div class="subtitle">正規化後の重複候補</div>
+  </div>
+</header>
+
+<main>
+  <div style="margin-bottom:16px;">
+    <a href="/admin/domain-overrides" class="back-link">← 推奨URL設定に戻る</a>
+  </div>
+
+  <div class="section-title">正規化後の重複候補</div>
+  <p style="font-size:0.82rem; color:#6b7280; margin-bottom:16px;">正規化後のドメインが同一になる複数エントリを表示します。手動マージ・自動マージの判断に使用します。</p>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-label">重複グループ数</div>
+        <div class="stat-value">{{ group_count }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">対象エントリ数</div>
+        <div class="stat-value">{{ entry_count }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">正規化失敗件数</div>
+        <div class="stat-value">{{ fail_count }}</div>
+      </div>
+    </div>
+    <div style="padding:0 20px 16px;">
+      <a href="/admin/domain-overrides/duplicates/export"
+         style="display:inline-block;background:#3949ab; color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; text-decoration:none;">CSVダウンロード</a>
+    </div>
+  </div>
+
+  {% if preview_rows %}
+  <div class="section-title" style="margin-top:24px;">重複グループ (先頭20グループ)</div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>正規化ドメイン</th>
+          <th>元ドメイン</th>
+          <th>企業名</th>
+          <th>ふりがな</th>
+          <th>推奨URL</th>
+          <th>件数</th>
+          <th>自動マージ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in preview_rows %}
+        <tr class="{% if r.auto_merge_safe == 'yes' %}row-yes{% elif r.auto_merge_safe == 'no' %}row-no{% elif r.auto_merge_safe == 'no_url' %}row-nourl{% endif %}">
+          <td>{{ r.normalized_domain }}</td>
+          <td>{{ r.original_domain }}</td>
+          <td>{{ r.company_name or '-' }}</td>
+          <td>{{ r.company_name_kana or '' }}</td>
+          <td class="url-cell">{% if r.suggested_url %}<a href="{{ r.suggested_url }}" target="_blank" rel="noopener" style="color:#3949ab;">{{ r.suggested_url }}</a>{% else %}-{% endif %}</td>
+          <td>{{ r.group_size }}</td>
+          <td>
+            {% if r.auto_merge_safe == 'yes' %}<span class="badge badge-yes">yes</span>
+            {% elif r.auto_merge_safe == 'no' %}<span class="badge badge-no">no</span>
+            {% elif r.auto_merge_safe == 'no_url' %}<span class="badge badge-nourl">no_url</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if fail_preview %}
+  <div class="section-title" style="margin-top:24px;">正規化失敗エントリ (先頭20件)</div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>元ドメイン</th>
+          <th>企業名</th>
+          <th>ふりがな</th>
+          <th>推奨URL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in fail_preview %}
+        <tr class="row-fail">
+          <td>{{ r.original_domain }}</td>
+          <td>{{ r.company_name or '-' }}</td>
+          <td>{{ r.company_name_kana or '' }}</td>
+          <td class="url-cell">{% if r.suggested_url %}<a href="{{ r.suggested_url }}" target="_blank" rel="noopener" style="color:#3949ab;">{{ r.suggested_url }}</a>{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if truncated %}
+  <div class="note">表示は一部のみです。全件はCSVをダウンロードしてください。</div>
+  {% endif %}
+</main>
+
+<footer style="text-align:center; padding:24px 16px; font-size:0.78rem; color:#9ca3af; margin-top:16px;">
+  <a href="/terms" style="color:#9ca3af; text-decoration:none; margin:0 8px;">利用規約</a>
+  <span style="color:#d1d5db;">|</span>
+  <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 8px;">プライバシーポリシー</a>
+</footer>
+</body>
+</html>

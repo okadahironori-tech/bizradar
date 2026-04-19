@@ -3166,6 +3166,95 @@ def admin_delete_domain_override(override_id):
     return redirect(url_for("admin_domain_overrides"))
 
 
+def _build_duplicate_groups():
+    """正規化後の重複候補データを生成する。画面表示とCSV出力で共用。"""
+    overrides = db.get_all_domain_overrides()
+    from collections import defaultdict
+    groups = defaultdict(list)
+    failed = []
+    for r in overrides:
+        norm = db.normalize_domain(r["domain"])
+        entry = {
+            "id": r.get("id"),
+            "original_domain": r["domain"],
+            "company_name": r.get("company_name", ""),
+            "company_name_kana": r.get("company_name_kana", ""),
+            "suggested_url": (r.get("suggested_url") or "").strip(),
+        }
+        if not norm:
+            failed.append(entry)
+        else:
+            groups[norm].append(entry)
+    dup_groups = {k: v for k, v in groups.items() if len(v) >= 2}
+    for norm_key, entries in dup_groups.items():
+        urls = {e["suggested_url"] for e in entries if e["suggested_url"]}
+        if not urls:
+            safe = "no_url"
+        elif len(urls) == 1:
+            safe = "yes"
+        else:
+            safe = "no"
+        for e in entries:
+            e["normalized_domain"] = norm_key
+            e["group_size"] = len(entries)
+            e["auto_merge_safe"] = safe
+    for e in failed:
+        e["normalized_domain"] = "(normalize_failed)"
+        e["group_size"] = len(failed)
+        e["auto_merge_safe"] = ""
+    return dup_groups, failed
+
+
+@app.route("/admin/domain-overrides/duplicates")
+@admin_required
+def admin_domain_overrides_duplicates():
+    dup_groups, failed = _build_duplicate_groups()
+    sorted_keys = sorted(dup_groups.keys())
+    group_count = len(sorted_keys)
+    entry_count = sum(len(v) for v in dup_groups.values())
+    fail_count = len(failed)
+    preview_keys = sorted_keys[:20]
+    preview_rows = []
+    for k in preview_keys:
+        for e in sorted(dup_groups[k], key=lambda x: x["original_domain"]):
+            preview_rows.append(e)
+    fail_preview = failed[:20]
+    truncated = group_count > 20 or len(failed) > 20
+    return render_template("admin_domain_duplicates.html",
+                           group_count=group_count, entry_count=entry_count,
+                           fail_count=fail_count, preview_rows=preview_rows,
+                           fail_preview=fail_preview, truncated=truncated)
+
+
+@app.route("/admin/domain-overrides/duplicates/export")
+@admin_required
+def admin_domain_overrides_duplicates_export():
+    import csv, io
+    from datetime import datetime, timezone, timedelta
+    dup_groups, failed = _build_duplicate_groups()
+    buf = io.StringIO()
+    buf.write("\ufeff")
+    writer = csv.writer(buf)
+    writer.writerow(["normalized_domain", "original_domain", "company_name",
+                     "company_name_kana", "suggested_url", "group_size", "auto_merge_safe"])
+    for norm_key in sorted(dup_groups.keys()):
+        for e in sorted(dup_groups[norm_key], key=lambda x: x["original_domain"]):
+            writer.writerow([e["normalized_domain"], e["original_domain"],
+                             e["company_name"], e["company_name_kana"],
+                             e["suggested_url"], e["group_size"], e["auto_merge_safe"]])
+    for e in sorted(failed, key=lambda x: x["original_domain"]):
+        writer.writerow([e["normalized_domain"], e["original_domain"],
+                         e["company_name"], e["company_name_kana"],
+                         e["suggested_url"], e["group_size"], e["auto_merge_safe"]])
+    jst = timezone(timedelta(hours=9))
+    fname = f"bizradar_domain_overrides_duplicates_{datetime.now(jst).strftime('%Y%m%d')}.csv"
+    return app.response_class(
+        buf.getvalue().encode("utf-8-sig"),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
+    )
+
+
 @app.route("/admin/fetch_securities_master", methods=["POST"])
 @admin_required
 def admin_fetch_securities_master():
