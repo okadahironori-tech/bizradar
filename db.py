@@ -29,6 +29,28 @@ def normalize_domain(value: str) -> str:
         return ""
     except Exception:
         return ""
+
+
+def clean_hostname(value: str) -> str:
+    """ホスト名を小文字化・空白除去・ポート除去・末尾ドット除去して返す。"""
+    if not value:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        v = value.strip().lower()
+        if "://" in v or "/" in v:
+            netloc = urlparse(v).netloc
+            if not netloc:
+                return ""
+            v = netloc
+        if ":" in v:
+            v = v.rsplit(":", 1)[0]
+        v = v.rstrip(".")
+        return v
+    except Exception:
+        return ""
+
+
 _gunicorn_error = logging.getLogger("gunicorn.error")
 if _gunicorn_error.handlers:
     logger.handlers = _gunicorn_error.handlers
@@ -694,6 +716,12 @@ def _run_migrations():
             cur.execute(
                 "ALTER TABLE domain_overrides ADD COLUMN IF NOT EXISTS "
                 "company_name_kana TEXT NOT NULL DEFAULT '';"
+            )
+
+            # domain_overrides: 正規化例外フラグ
+            cur.execute(
+                "ALTER TABLE domain_overrides ADD COLUMN IF NOT EXISTS "
+                "is_exception BOOLEAN DEFAULT FALSE;"
             )
 
             # JPX 上場企業一覧
@@ -2463,17 +2491,20 @@ def get_all_domain_overrides() -> list:
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, domain, suggested_url, company_name, company_name_kana, created_at "
+                "SELECT id, domain, suggested_url, company_name, company_name_kana, "
+                "COALESCE(is_exception, FALSE) AS is_exception, created_at "
                 "FROM domain_overrides ORDER BY company_name_kana, domain"
             )
             return [dict(row) for row in cur.fetchall()]
 
 
 def get_domain_overrides_dict() -> dict:
-    """ドメインオーバーライドを {正規化domain: suggested_url} の辞書で返す"""
+    """ドメインオーバーライドを {正規化domain: suggested_url} の辞書で返す (is_exception=FALSE のみ)"""
     rows = get_all_domain_overrides()
     result = {}
     for r in rows:
+        if r.get("is_exception"):
+            continue
         key = normalize_domain(r["domain"])
         if not key:
             continue
@@ -2485,40 +2516,65 @@ def get_domain_overrides_dict() -> dict:
     return result
 
 
+def get_domain_exceptions_dict() -> dict:
+    """正規化例外エントリを {元ホスト名: suggested_url} の辞書で返す"""
+    rows = get_all_domain_overrides()
+    result = {}
+    for r in rows:
+        if not r.get("is_exception"):
+            continue
+        key = r["domain"].strip().lower()
+        if not key:
+            continue
+        url = r.get("suggested_url", "")
+        if key not in result or not result[key]:
+            result[key] = url
+    return result
+
+
 def add_domain_override(domain: str, suggested_url: str,
-                        company_name: str = "", company_name_kana: str = "") -> dict:
+                        company_name: str = "", company_name_kana: str = "",
+                        is_exception: bool = False) -> dict:
     """ドメインオーバーライドを追加する"""
-    norm = normalize_domain(domain)
-    if not norm:
+    if is_exception:
+        dom = clean_hostname(domain)
+    else:
+        dom = normalize_domain(domain)
+    if not dom:
         return {"id": None, "domain": "", "suggested_url": "", "error": "invalid_domain"}
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO domain_overrides (domain, suggested_url, company_name, company_name_kana) "
-                "VALUES (%s, %s, %s, %s) "
+                "INSERT INTO domain_overrides (domain, suggested_url, company_name, company_name_kana, is_exception) "
+                "VALUES (%s, %s, %s, %s, %s) "
                 "ON CONFLICT (domain) DO UPDATE SET suggested_url = EXCLUDED.suggested_url, "
-                "company_name = EXCLUDED.company_name, company_name_kana = EXCLUDED.company_name_kana "
+                "company_name = EXCLUDED.company_name, company_name_kana = EXCLUDED.company_name_kana, "
+                "is_exception = EXCLUDED.is_exception "
                 "RETURNING id",
-                (norm, suggested_url.strip(),
-                 company_name.strip(), company_name_kana.strip()),
+                (dom, suggested_url.strip(),
+                 company_name.strip(), company_name_kana.strip(), is_exception),
             )
             row = cur.fetchone()
-            return {"id": row[0], "domain": norm, "suggested_url": suggested_url.strip()}
+            return {"id": row[0], "domain": dom, "suggested_url": suggested_url.strip()}
 
 
 def update_domain_override(override_id: int, domain: str, suggested_url: str,
-                           company_name: str = "", company_name_kana: str = "") -> bool:
+                           company_name: str = "", company_name_kana: str = "",
+                           is_exception: bool = False) -> bool:
     """ドメインオーバーライドを更新する"""
-    norm = normalize_domain(domain)
-    if not norm:
+    if is_exception:
+        dom = clean_hostname(domain)
+    else:
+        dom = normalize_domain(domain)
+    if not dom:
         return False
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE domain_overrides SET domain = %s, suggested_url = %s, "
-                "company_name = %s, company_name_kana = %s WHERE id = %s",
-                (norm, suggested_url.strip(),
-                 company_name.strip(), company_name_kana.strip(), override_id),
+                "company_name = %s, company_name_kana = %s, is_exception = %s WHERE id = %s",
+                (dom, suggested_url.strip(),
+                 company_name.strip(), company_name_kana.strip(), is_exception, override_id),
             )
             return cur.rowcount > 0
 
@@ -3844,6 +3900,21 @@ def execute_manual_merge(norm_key: str, keep_id: int | None, entries: list,
                     "INSERT INTO merge_log (action, normalized_domain, skip_session_id, executed_by) "
                     "VALUES (%s, %s, %s, %s)",
                     ("skip", norm_key, skip_session_id, executed_by),
+                )
+                return
+            if action == "keep_both_as_exception":
+                for e in entries:
+                    host = clean_hostname(e["original_domain"])
+                    if host:
+                        cur.execute(
+                            "UPDATE domain_overrides SET domain=%s, is_exception=TRUE WHERE id=%s",
+                            (host, e["id"]),
+                        )
+                kept_id = min(e["id"] for e in entries)
+                cur.execute(
+                    "INSERT INTO merge_log (action, normalized_domain, kept_entry_id, executed_by) "
+                    "VALUES (%s, %s, %s, %s)",
+                    ("keep_both_as_exception", norm_key, kept_id, executed_by),
                 )
                 return
             if action == "delete_all":

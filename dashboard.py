@@ -1989,6 +1989,10 @@ def api_suggest_url():
         return jsonify({"suggested": None})
 
     # 0. ドメイン固有の特例ルール（サイトマップ検索より優先）— DBから読み込み
+    _DOMAIN_EXCEPTIONS_DB = db.get_domain_exceptions_dict()
+    _exc_key = parsed.netloc.lower()
+    if _exc_key in _DOMAIN_EXCEPTIONS_DB:
+        return jsonify({"suggested": _DOMAIN_EXCEPTIONS_DB[_exc_key]})
     _DOMAIN_OVERRIDES_DB = db.get_domain_overrides_dict()
 
     # ハードコード分（DB未登録時のフォールバック／初回マイグレーション用）
@@ -3027,18 +3031,20 @@ def admin_add_domain_override():
     suggested_url = request.form.get("suggested_url", "").strip()
     company_name = request.form.get("company_name", "").strip()
     company_name_kana = request.form.get("company_name_kana", "").strip()
+    is_exception = request.form.get("is_exception") is not None
     if not domain or not suggested_url:
         flash("ドメインと推奨URLを入力してください", "error")
         return redirect(url_for("admin_domain_overrides"))
-    norm = db.normalize_domain(domain)
-    if not norm:
-        flash("無効なドメインです", "error")
-        return redirect(url_for("admin_domain_overrides"))
-    result = db.add_domain_override(norm, suggested_url, company_name, company_name_kana)
+    if not is_exception:
+        check = db.normalize_domain(domain)
+        if not check:
+            flash("無効なドメインです", "error")
+            return redirect(url_for("admin_domain_overrides"))
+    result = db.add_domain_override(domain, suggested_url, company_name, company_name_kana, is_exception)
     if result.get("error"):
         flash("無効なドメインです", "error")
     else:
-        label = company_name or norm
+        label = company_name or result.get("domain", domain)
         flash(f"{label}を追加しました", "success")
     return redirect(url_for("admin_domain_overrides"))
 
@@ -3050,14 +3056,16 @@ def admin_edit_domain_override(override_id):
     suggested_url = request.form.get("suggested_url", "").strip()
     company_name = request.form.get("company_name", "").strip()
     company_name_kana = request.form.get("company_name_kana", "").strip()
+    is_exception = request.form.get("is_exception") is not None
     if not domain or not suggested_url:
         flash("ドメインと推奨URLは必須です", "error")
         return redirect(url_for("admin_domain_overrides"))
-    norm = db.normalize_domain(domain)
-    if not norm:
-        flash("無効なドメインです", "error")
-        return redirect(url_for("admin_domain_overrides"))
-    db.update_domain_override(override_id, norm, suggested_url, company_name, company_name_kana)
+    if not is_exception:
+        check = db.normalize_domain(domain)
+        if not check:
+            flash("無効なドメインです", "error")
+            return redirect(url_for("admin_domain_overrides"))
+    db.update_domain_override(override_id, domain, suggested_url, company_name, company_name_kana, is_exception)
     flash("更新しました", "success")
     return redirect(url_for("admin_domain_overrides"))
 
@@ -3173,6 +3181,8 @@ def _build_duplicate_groups():
     groups = defaultdict(list)
     failed = []
     for r in overrides:
+        if r.get("is_exception"):
+            continue
         norm = db.normalize_domain(r["domain"])
         entry = {
             "id": r.get("id"),
@@ -3299,7 +3309,7 @@ def _get_unprocessed_groups(mode: str = "no"):
     for norm_key, entries in sorted(target.items()):
         log = db.get_merge_log_latest_action(norm_key)
         if log:
-            if log["action"] in ("auto_merge", "manual_merge", "delete_all"):
+            if log["action"] in ("auto_merge", "manual_merge", "delete_all", "keep_both_as_exception"):
                 continue
             if log["action"] == "skip" and log.get("skip_session_id") == token:
                 continue
@@ -3319,7 +3329,7 @@ def admin_manual_merge():
     if request.method == "POST":
         norm_key = request.form.get("normalized_domain", "")
         action = request.form.get("action", "skip")
-        if action not in ("manual_merge", "delete_all", "skip"):
+        if action not in ("manual_merge", "delete_all", "skip", "keep_both_as_exception"):
             action = "skip"
         unprocessed, _ = _get_unprocessed_groups(mode)
         if norm_key not in unprocessed:
@@ -3330,6 +3340,9 @@ def admin_manual_merge():
             if action == "skip":
                 db.execute_manual_merge(norm_key, None, entries, "skip",
                                         skip_session_id=token, executed_by=executed_by)
+            elif action == "keep_both_as_exception":
+                db.execute_manual_merge(norm_key, None, entries, "keep_both_as_exception",
+                                        executed_by=executed_by)
             elif action == "delete_all":
                 db.execute_manual_merge(norm_key, None, entries, "delete_all",
                                         executed_by=executed_by)

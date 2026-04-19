@@ -176,12 +176,12 @@
         <tr data-search="{{ o.company_name|lower }} {{ o.company_name_kana|lower }} {{ o.domain|lower }} {{ o.suggested_url|lower }}">
           <td class="company-col">{{ o.company_name or '-' }}</td>
           <td class="kana-col">{{ o.company_name_kana or '' }}</td>
-          <td class="domain-col">{{ o.domain }}</td>
+          <td class="domain-col">{{ o.domain }}{% if o.is_exception %} <span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:0.7rem;font-weight:600;">例外</span>{% endif %}</td>
           <td><a href="{{ o.suggested_url }}" target="_blank" rel="noopener">{{ o.suggested_url }}</a></td>
           <td>
             <div class="row-actions">
               <button type="button" class="btn btn-edit"
-                onclick="openEditModal({{ o.id }}, '{{ o.domain | e }}', '{{ o.suggested_url | e }}', '{{ (o.company_name or '') | e }}', '{{ (o.company_name_kana or '') | e }}')">編集</button>
+                onclick="openEditModal({{ o.id }}, '{{ o.domain | e }}', '{{ o.suggested_url | e }}', '{{ (o.company_name or '') | e }}', '{{ (o.company_name_kana or '') | e }}', {{ 'true' if o.is_exception else 'false' }})">編集</button>
               <form method="POST" action="/admin/domain-overrides/delete/{{ o.id }}" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-danger" onclick="return confirm('削除しますか？')">削除</button>
@@ -262,6 +262,13 @@
         <input type="text" name="suggested_url" id="edit-url" required>
         <div class="field-error" id="edit-err-url"></div>
       </div>
+      <div class="form-group">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" name="is_exception" id="edit-is-exception" value="1">
+          <span>正規化例外として扱う</span>
+        </label>
+        <div style="font-size:0.72rem; color:#9ca3af; margin-top:2px;">チェック時はドメインを正規化せず元のホスト名で保存します</div>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="closeEditModal()">キャンセル</button>
         <button type="submit" class="btn btn-primary">保存</button>
@@ -309,12 +316,13 @@ function filterRows() {
   badge.textContent = count + ' 件見つかりました';
 }
 
-function openEditModal(id, domain, url, name, kana) {
+function openEditModal(id, domain, url, name, kana, isException) {
   document.getElementById('edit-form').action = '/admin/domain-overrides/edit/' + id;
   document.getElementById('edit-domain').value = domain;
   document.getElementById('edit-url').value = url;
   document.getElementById('edit-company-name').value = name;
   document.getElementById('edit-company-name-kana').value = kana;
+  document.getElementById('edit-is-exception').checked = !!isException;
   document.getElementById('edit-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }

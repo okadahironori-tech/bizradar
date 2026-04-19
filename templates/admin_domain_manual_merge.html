@@ -89,6 +89,16 @@
       </div>
 
       <div class="special-row">
+        <label style="cursor:pointer; display:flex; align-items:flex-start; gap:8px;">
+          <input type="radio" name="action" value="keep_both_as_exception" onchange="selectEntry(this)" style="margin-top:3px;">
+          <div>
+            <span style="font-size:0.85rem; color:#92400e; font-weight:600;">両方残す（別組織として扱う）</span>
+            <div style="font-size:0.75rem; color:#9ca3af; margin-top:2px;">全エントリを正規化例外に設定し、元のホスト名で保存します</div>
+          </div>
+        </label>
+      </div>
+
+      <div class="special-row">
         <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
           <input type="radio" name="action" value="skip" checked onchange="selectEntry(this)">
           <span style="font-size:0.85rem; color:#6b7280; font-weight:600;">スキップ（後で対応）</span>

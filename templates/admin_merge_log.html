@@ -64,6 +64,7 @@
             {% elif log.action == 'manual_merge' %}<span class="badge badge-manual">manual_merge</span>
             {% elif log.action == 'delete_all' %}<span class="badge badge-delete">delete_all</span>
             {% elif log.action == 'skip' %}<span class="badge badge-skip">skip</span>
+            {% elif log.action == 'keep_both_as_exception' %}<span class="badge" style="background:#fef3c7;color:#92400e;">keep_both</span>
             {% else %}{{ log.action }}{% endif %}
           </td>
           <td>{{ log.normalized_domain or '' }}</td>
