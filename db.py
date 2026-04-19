@@ -8,6 +8,27 @@ import logging
 import bcrypt as _bcrypt
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_domain(value: str) -> str:
+    """ドメインを正規化して registered domain (例: toyota.co.jp) を返す。"""
+    if not value:
+        return ""
+    try:
+        import tldextract
+        from urllib.parse import urlparse
+        v = value.strip().lower()
+        if "://" in v or "/" in v:
+            netloc = urlparse(v).netloc
+            if not netloc:
+                return ""
+            v = netloc
+        ext = tldextract.extract(v)
+        if ext.domain and ext.suffix:
+            return f"{ext.domain}.{ext.suffix}"
+        return ""
+    except Exception:
+        return ""
 _gunicorn_error = logging.getLogger("gunicorn.error")
 if _gunicorn_error.handlers:
     logger.handlers = _gunicorn_error.handlers
@@ -2432,14 +2453,27 @@ def get_all_domain_overrides() -> list:
 
 
 def get_domain_overrides_dict() -> dict:
-    """ドメインオーバーライドを {domain: suggested_url} の辞書で返す"""
+    """ドメインオーバーライドを {正規化domain: suggested_url} の辞書で返す"""
     rows = get_all_domain_overrides()
-    return {r["domain"]: r["suggested_url"] for r in rows}
+    result = {}
+    for r in rows:
+        key = normalize_domain(r["domain"])
+        if not key:
+            continue
+        url = r.get("suggested_url", "")
+        if key not in result or not result[key]:
+            result[key] = url
+        elif url and not result[key]:
+            result[key] = url
+    return result
 
 
 def add_domain_override(domain: str, suggested_url: str,
                         company_name: str = "", company_name_kana: str = "") -> dict:
     """ドメインオーバーライドを追加する"""
+    norm = normalize_domain(domain)
+    if not norm:
+        return {"id": None, "domain": "", "suggested_url": "", "error": "invalid_domain"}
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -2448,22 +2482,25 @@ def add_domain_override(domain: str, suggested_url: str,
                 "ON CONFLICT (domain) DO UPDATE SET suggested_url = EXCLUDED.suggested_url, "
                 "company_name = EXCLUDED.company_name, company_name_kana = EXCLUDED.company_name_kana "
                 "RETURNING id",
-                (domain.strip().lower(), suggested_url.strip(),
+                (norm, suggested_url.strip(),
                  company_name.strip(), company_name_kana.strip()),
             )
             row = cur.fetchone()
-            return {"id": row[0], "domain": domain.strip().lower(), "suggested_url": suggested_url.strip()}
+            return {"id": row[0], "domain": norm, "suggested_url": suggested_url.strip()}
 
 
 def update_domain_override(override_id: int, domain: str, suggested_url: str,
                            company_name: str = "", company_name_kana: str = "") -> bool:
     """ドメインオーバーライドを更新する"""
+    norm = normalize_domain(domain)
+    if not norm:
+        return False
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE domain_overrides SET domain = %s, suggested_url = %s, "
                 "company_name = %s, company_name_kana = %s WHERE id = %s",
-                (domain.strip().lower(), suggested_url.strip(),
+                (norm, suggested_url.strip(),
                  company_name.strip(), company_name_kana.strip(), override_id),
             )
             return cur.rowcount > 0

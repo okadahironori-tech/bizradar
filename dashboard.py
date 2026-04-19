@@ -2281,10 +2281,16 @@ def api_suggest_url():
     }
     # ハードコード辞書をマイグレーション用に関数属性として保存
     api_suggest_url._hardcoded = _DOMAIN_OVERRIDES_HARDCODED
-    # DB優先、なければハードコードにフォールバック
-    _DOMAIN_OVERRIDES = {**_DOMAIN_OVERRIDES_HARDCODED, **_DOMAIN_OVERRIDES_DB}
-    if parsed.netloc in _DOMAIN_OVERRIDES:
-        return jsonify({"suggested": _DOMAIN_OVERRIDES[parsed.netloc]})
+    # ハードコード辞書を正規化キーに変換し、DB辞書(既に正規化済み)で上書き
+    _DOMAIN_OVERRIDES = {}
+    for k, v in _DOMAIN_OVERRIDES_HARDCODED.items():
+        nk = db.normalize_domain(k)
+        if nk and (nk not in _DOMAIN_OVERRIDES or not _DOMAIN_OVERRIDES[nk]):
+            _DOMAIN_OVERRIDES[nk] = v
+    _DOMAIN_OVERRIDES.update(_DOMAIN_OVERRIDES_DB)
+    _norm_key = db.normalize_domain(parsed.netloc)
+    if _norm_key and _norm_key in _DOMAIN_OVERRIDES:
+        return jsonify({"suggested": _DOMAIN_OVERRIDES[_norm_key]})
 
     # 1. sitemap.xml を取得して解析
     sitemap_resp = _fetch_get(base + "/sitemap.xml")
@@ -3021,12 +3027,19 @@ def admin_add_domain_override():
     suggested_url = request.form.get("suggested_url", "").strip()
     company_name = request.form.get("company_name", "").strip()
     company_name_kana = request.form.get("company_name_kana", "").strip()
-    if domain and suggested_url:
-        db.add_domain_override(domain, suggested_url, company_name, company_name_kana)
-        label = company_name or domain
-        flash(f"{label}を追加しました", "success")
-    else:
+    if not domain or not suggested_url:
         flash("ドメインと推奨URLを入力してください", "error")
+        return redirect(url_for("admin_domain_overrides"))
+    norm = db.normalize_domain(domain)
+    if not norm:
+        flash("無効なドメインです", "error")
+        return redirect(url_for("admin_domain_overrides"))
+    result = db.add_domain_override(norm, suggested_url, company_name, company_name_kana)
+    if result.get("error"):
+        flash("無効なドメインです", "error")
+    else:
+        label = company_name or norm
+        flash(f"{label}を追加しました", "success")
     return redirect(url_for("admin_domain_overrides"))
 
 
@@ -3037,11 +3050,15 @@ def admin_edit_domain_override(override_id):
     suggested_url = request.form.get("suggested_url", "").strip()
     company_name = request.form.get("company_name", "").strip()
     company_name_kana = request.form.get("company_name_kana", "").strip()
-    if domain and suggested_url:
-        db.update_domain_override(override_id, domain, suggested_url, company_name, company_name_kana)
-        flash("更新しました", "success")
-    else:
+    if not domain or not suggested_url:
         flash("ドメインと推奨URLは必須です", "error")
+        return redirect(url_for("admin_domain_overrides"))
+    norm = db.normalize_domain(domain)
+    if not norm:
+        flash("無効なドメインです", "error")
+        return redirect(url_for("admin_domain_overrides"))
+    db.update_domain_override(override_id, norm, suggested_url, company_name, company_name_kana)
+    flash("更新しました", "success")
     return redirect(url_for("admin_domain_overrides"))
 
 
@@ -3097,16 +3114,15 @@ def admin_csv_upload_domain_overrides():
 
         company_name = row[0].strip()
         company_name_kana = row[1].strip()
-        domain = row[2].strip().lower()
+        domain_raw = row[2].strip()
         suggested_url = row[3].strip()
 
-        # 企業名・ドメインが空
-        if not domain:
+        if not domain_raw:
             skip_empty += 1
             continue
 
-        # ドメイン形式チェック
-        if "://" in domain or "/" in domain:
+        domain = db.normalize_domain(domain_raw)
+        if not domain:
             skip_domain_fmt += 1
             continue
 
