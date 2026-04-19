@@ -85,7 +85,7 @@
         <div class="stat-value">{{ rejected }}</div>
       </div>
     </div>
-    <div style="padding:0 20px 16px; display:flex; gap:10px; flex-wrap:wrap;">
+    <div style="padding:0 20px 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <form method="POST" action="/admin/url-enrichment/run" style="display:inline;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-primary"
@@ -94,7 +94,20 @@
           {% if is_running %}実行中...{% else %}100社ピックアップで実行{% endif %}
         </button>
       </form>
-      <button class="btn btn-disabled" disabled>全件実行（未実装）</button>
+      <form method="POST" action="/admin/url-enrichment/run-full" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary"
+                {% if is_running %}disabled{% endif %}
+                onclick="return confirm('未処理の全企業を処理します（数時間かかります）。実行しますか?')">
+          {% if is_running %}実行中...{% else %}全件実行{% endif %}
+        </button>
+      </form>
+      {% if is_running and progress %}
+      <span style="font-size:0.85rem; color:#3949ab; font-weight:600;">
+        処理中: {{ progress.processed | default(0) }} / {{ progress.total | default('?') }} 社
+        {% if progress.total and progress.total > 0 %}({{ (progress.processed | default(0) * 100 / progress.total) | int }}%){% endif %}
+      </span>
+      {% endif %}
     </div>
   </div>
 

@@ -504,17 +504,32 @@ def apply_enrichment(securities_code: str) -> dict:
 # ── バッチ実行 ──
 
 
-def run_enrichment_batch(limit: int = 100):
-    logger.info("[url_enrichment] batch start limit=%d", limit)
+def _get_unprocessed_targets(limit: int | None = None) -> list:
+    """website_url未設定かつurl_enrichment_candidates未登録の企業を返す。"""
     with db._conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT securities_code, company_name FROM listed_companies "
-                "WHERE website_url IS NULL OR website_url = '' "
-                "ORDER BY securities_code ASC LIMIT %s",
-                (limit,),
+            sql = (
+                "SELECT lc.securities_code, lc.company_name FROM listed_companies lc "
+                "WHERE (lc.website_url IS NULL OR lc.website_url = '') "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM url_enrichment_candidates uc "
+                "  WHERE uc.securities_code = lc.securities_code"
+                ") "
+                "ORDER BY lc.securities_code ASC"
             )
-            targets = cur.fetchall()
+            if limit:
+                sql += " LIMIT %s"
+                cur.execute(sql, (limit,))
+            else:
+                cur.execute(sql)
+            return cur.fetchall()
+
+
+def run_enrichment_batch(limit: int = 100, task_key: str = "batch"):
+    logger.info("[url_enrichment] batch start limit=%d key=%s", limit, task_key)
+    targets = _get_unprocessed_targets(limit)
+    total = len(targets)
+    logger.info("[url_enrichment] targets: %d", total)
 
     stats = {"processed": 0, "auto_applied": 0, "needs_review": 0,
              "rejected": 0, "no_candidates": 0, "failed": 0, "skipped_existing": 0}
@@ -531,7 +546,17 @@ def run_enrichment_batch(limit: int = 100):
             stats["failed"] += 1
             stats["processed"] += 1
             logger.error("[url_enrichment] failed %s %s: %s", code, name, e)
+        if stats["processed"] % 10 == 0:
+            try:
+                db.update_enrichment_progress(task_key, stats["processed"], total)
+            except Exception:
+                pass
         time.sleep(2)
+
+    try:
+        db.update_enrichment_progress(task_key, stats["processed"], total)
+    except Exception:
+        pass
 
     logger.info(
         "[url_enrichment] run completed: processed=%d, auto_applied=%d, "

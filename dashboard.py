@@ -3457,13 +3457,14 @@ def admin_url_enrichment():
             review_groups[key] = {"company_name": r["company_name"], "candidates": []}
         review_groups[key]["candidates"].append(r)
     review_list = list(review_groups.items())[:50]
+    progress = db.get_enrichment_progress() if is_running else None
     return render_template("admin_url_enrichment.html",
                            total=total, no_url=no_url, has_url=total - no_url,
                            auto_applied=status_counts.get("auto_applied", 0),
                            needs_review=status_counts.get("needs_review", 0),
                            rejected=status_counts.get("rejected", 0),
                            review_list=review_list, applied_rows=applied_rows,
-                           is_running=is_running)
+                           is_running=is_running, progress=progress)
 
 
 @app.route("/admin/url-enrichment/run", methods=["POST"])
@@ -3487,6 +3488,30 @@ def admin_url_enrichment_run():
     t = threading.Thread(target=_run, daemon=True, name="url-enrichment-batch")
     t.start()
     flash("100社の処理を開始しました", "success")
+    return redirect(url_for("admin_url_enrichment"))
+
+
+@app.route("/admin/url-enrichment/run-full", methods=["POST"])
+@admin_required
+def admin_url_enrichment_run_full():
+    if db.is_enrichment_running():
+        flash("既に実行中です", "warning")
+        return redirect(url_for("admin_url_enrichment"))
+    db.add_running_task("url_enrichment", "batch_full")
+
+    def _run():
+        try:
+            import url_enrichment
+            url_enrichment.run_enrichment_batch(limit=None, task_key="batch_full")
+            db.remove_running_task("url_enrichment", "batch_full")
+        except Exception as e:
+            logger.exception("[url_enrichment] full batch error: %s", e)
+            db.fail_running_task("url_enrichment", "batch_full", str(e))
+
+    import threading
+    t = threading.Thread(target=_run, daemon=True, name="url-enrichment-full")
+    t.start()
+    flash("全件処理を開始しました", "success")
     return redirect(url_for("admin_url_enrichment"))
 
 

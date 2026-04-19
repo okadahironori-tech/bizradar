@@ -254,6 +254,8 @@ def _run_migrations():
             cur.execute("ALTER TABLE running_tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;")
             # running_tasks: error_message 追加
             cur.execute("ALTER TABLE running_tasks ADD COLUMN IF NOT EXISTS error_message TEXT;")
+            # running_tasks: metadata 追加（進捗情報等）
+            cur.execute("ALTER TABLE running_tasks ADD COLUMN IF NOT EXISTS metadata JSONB;")
 
             # sites: user_id 追加 + url PK → id PK + UNIQUE(user_id, url)
             cur.execute("ALTER TABLE sites ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id);")
@@ -2157,23 +2159,55 @@ def get_running_task_statuses() -> dict:
             return result
 
 
-def is_enrichment_running(timeout_minutes: int = 30) -> bool:
+def is_enrichment_running() -> bool:
     """url_enrichment バッチが実行中かDBで判定。タイムアウト超過分は自動で timeout に更新。"""
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE running_tasks SET completed_at = NOW(), error_message = 'timeout' "
-                "WHERE task_type = 'url_enrichment' AND key = 'batch' "
-                "AND completed_at IS NULL AND started_at < NOW() - INTERVAL '%s minutes'",
-                (timeout_minutes,),
+                "WHERE task_type = 'url_enrichment' AND key IN ('batch','batch_full') "
+                "AND completed_at IS NULL AND ("
+                "  (key = 'batch' AND started_at < NOW() - INTERVAL '30 minutes') OR "
+                "  (key = 'batch_full' AND started_at < NOW() - INTERVAL '24 hours')"
+                ")",
             )
             cur.execute(
                 "SELECT 1 FROM running_tasks "
-                "WHERE task_type = 'url_enrichment' AND key = 'batch' "
-                "AND completed_at IS NULL AND started_at >= NOW() - INTERVAL '%s minutes'",
-                (timeout_minutes,),
+                "WHERE task_type = 'url_enrichment' AND key IN ('batch','batch_full') "
+                "AND completed_at IS NULL",
             )
             return cur.fetchone() is not None
+
+
+def get_enrichment_progress() -> dict | None:
+    """実行中の url_enrichment バッチの進捗情報を返す。実行中でなければ None。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT key, metadata FROM running_tasks "
+                "WHERE task_type = 'url_enrichment' AND key IN ('batch','batch_full') "
+                "AND completed_at IS NULL ORDER BY started_at DESC LIMIT 1",
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            import json
+            meta = row[1] if row[1] else {}
+            if isinstance(meta, str):
+                meta = json.loads(meta)
+            return {"key": row[0], **meta}
+
+
+def update_enrichment_progress(key: str, processed: int, total: int):
+    """url_enrichment バッチの進捗を更新する。"""
+    import json
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE running_tasks SET metadata = %s "
+                "WHERE task_type = 'url_enrichment' AND key = %s AND completed_at IS NULL",
+                (json.dumps({"processed": processed, "total": total}), key),
+            )
 
 
 def get_user_notify_timing(user_id: int) -> str:
