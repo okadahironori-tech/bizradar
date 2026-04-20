@@ -709,6 +709,23 @@ def _run_migrations():
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
                 "securities_code VARCHAR(10);"
             )
+            # companies: securities_code FK to listed_companies
+            cur.execute(
+                "SELECT 1 FROM information_schema.table_constraints "
+                "WHERE constraint_name = 'fk_companies_listed' AND table_name = 'companies'"
+            )
+            if not cur.fetchone():
+                cur.execute(
+                    "UPDATE companies SET securities_code = NULL "
+                    "WHERE securities_code IS NOT NULL "
+                    "AND securities_code NOT IN (SELECT securities_code FROM listed_companies);"
+                )
+                cur.execute(
+                    "ALTER TABLE companies ADD CONSTRAINT fk_companies_listed "
+                    "FOREIGN KEY (securities_code) REFERENCES listed_companies(securities_code) "
+                    "ON DELETE SET NULL;"
+                )
+
             # tdnet_disclosures: 証券コード（TDnet API の company_code を保存）
             cur.execute(
                 "ALTER TABLE tdnet_disclosures ADD COLUMN IF NOT EXISTS "
