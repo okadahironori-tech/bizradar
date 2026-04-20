@@ -1,14 +1,23 @@
 """URL自動充足パイプライン"""
+import gc
 import logging
 import os
 import re
 import time
+import unicodedata
 from urllib.parse import urlparse, urlencode
 
 import requests
+import tldextract
 from bs4 import BeautifulSoup
 
 import db
+
+try:
+    import pykakasi
+    _KKS = pykakasi.kakasi()
+except Exception:
+    _KKS = None
 
 logger = logging.getLogger(__name__)
 
@@ -267,11 +276,13 @@ def check_url_reachable(url: str) -> dict:
                                           headers={"User-Agent": _UA})
         except Exception:
             pass
-    # Step 4: title 抽出（GET レスポンスのみ）
+    # Step 4: title 抽出（GET レスポンスのみ、先頭10KBのみ使用）
     if resp_for_title and hasattr(resp_for_title, "text"):
         try:
             resp_for_title.encoding = resp_for_title.apparent_encoding  # P1
-            soup = BeautifulSoup(resp_for_title.text[:10000], "html.parser")
+            html_snippet = resp_for_title.text[:10000]
+            del resp_for_title
+            soup = BeautifulSoup(html_snippet, "html.parser")
             title_tag = soup.find("title")
             if title_tag:
                 result["title"] = title_tag.get_text().strip()[:500]
@@ -300,7 +311,6 @@ def score_candidate(candidate: dict, company_name: str) -> dict:
     source_trust = _TRUST_SCORES.get(source, 30)
 
     # P3: 企業名正規化を単語単位に変更
-    import unicodedata
     nfkc_name = unicodedata.normalize("NFKC", company_name)
     name_parts = re.sub(
         r'株式会社|（株）|\(株\)|有限会社|合同会社|ホールディングス|グループ|HD|Inc\.|Co\.,\s*Ltd\.|Corporation',
@@ -312,12 +322,11 @@ def score_candidate(candidate: dict, company_name: str) -> dict:
     try:
         domain = urlparse(url).netloc.lower()
         # P2: tldextract で主要ドメイン部分を抽出
-        import tldextract
         domain_sld = tldextract.extract(url).domain.lower()
         try:
-            import pykakasi
-            kks = pykakasi.kakasi()
-            result = kks.convert(name_parts)
+            if not _KKS:
+                raise RuntimeError("pykakasi not available")
+            result = _KKS.convert(name_parts)
             romaji = "".join(item.get("hepburn", "") for item in result).lower()
             # P2: 長音正規化 ou→o, uu→u
             normalized_romaji = romaji.replace("ou", "o").replace("uu", "u")
@@ -504,54 +513,73 @@ def apply_enrichment(securities_code: str) -> dict:
 # ── バッチ実行 ──
 
 
-def _get_unprocessed_targets(limit: int | None = None) -> list:
-    """website_url未設定かつurl_enrichment_candidates未登録の企業を返す。"""
+_CHUNK_SIZE = 20
+
+
+def _count_unprocessed_targets() -> int:
     with db._conn() as conn:
         with conn.cursor() as cur:
-            sql = (
+            cur.execute(
+                "SELECT COUNT(*) FROM listed_companies lc "
+                "WHERE (lc.website_url IS NULL OR lc.website_url = '') "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM url_enrichment_candidates uc "
+                "  WHERE uc.securities_code = lc.securities_code"
+                ")"
+            )
+            return cur.fetchone()[0]
+
+
+def _fetch_next_chunk(chunk_size: int) -> list:
+    with db._conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
                 "SELECT lc.securities_code, lc.company_name FROM listed_companies lc "
                 "WHERE (lc.website_url IS NULL OR lc.website_url = '') "
                 "AND NOT EXISTS ("
                 "  SELECT 1 FROM url_enrichment_candidates uc "
                 "  WHERE uc.securities_code = lc.securities_code"
                 ") "
-                "ORDER BY lc.securities_code ASC"
+                "ORDER BY lc.securities_code ASC LIMIT %s",
+                (chunk_size,),
             )
-            if limit:
-                sql += " LIMIT %s"
-                cur.execute(sql, (limit,))
-            else:
-                cur.execute(sql)
             return cur.fetchall()
 
 
 def run_enrichment_batch(limit: int = 100, task_key: str = "batch"):
     logger.info("[url_enrichment] batch start limit=%d key=%s", limit, task_key)
-    targets = _get_unprocessed_targets(limit)
-    total = len(targets)
+    total = min(_count_unprocessed_targets(), limit) if limit else _count_unprocessed_targets()
     logger.info("[url_enrichment] targets: %d", total)
 
     stats = {"processed": 0, "auto_applied": 0, "needs_review": 0,
              "rejected": 0, "no_candidates": 0, "failed": 0, "skipped_existing": 0}
-    for code, name in targets:
-        try:
-            result = enrich_company(code, name)
-            r = result.get("result", "")
-            if r in stats:
-                stats[r] += 1
-            stats["processed"] += 1
-            logger.info("[url_enrichment] %s %s -> %s score=%s",
-                        code, name, r, result.get("top_score"))
-        except Exception as e:
-            stats["failed"] += 1
-            stats["processed"] += 1
-            logger.error("[url_enrichment] failed %s %s: %s", code, name, e)
-        if stats["processed"] % 10 == 0:
+    remaining = limit if limit else total
+
+    while remaining > 0:
+        chunk_size = min(_CHUNK_SIZE, remaining)
+        chunk = _fetch_next_chunk(chunk_size)
+        if not chunk:
+            break
+        for code, name in chunk:
             try:
-                db.update_enrichment_progress(task_key, stats["processed"], total)
-            except Exception:
-                pass
-        time.sleep(2)
+                result = enrich_company(code, name)
+                r = result.get("result", "")
+                if r in stats:
+                    stats[r] += 1
+                stats["processed"] += 1
+                logger.info("[url_enrichment] %s %s -> %s score=%s",
+                            code, name, r, result.get("top_score"))
+            except Exception as e:
+                stats["failed"] += 1
+                stats["processed"] += 1
+                logger.error("[url_enrichment] failed %s %s: %s", code, name, e)
+            time.sleep(2)
+        remaining -= len(chunk)
+        try:
+            db.update_enrichment_progress(task_key, stats["processed"], total)
+        except Exception:
+            pass
+        gc.collect()
 
     try:
         db.update_enrichment_progress(task_key, stats["processed"], total)
