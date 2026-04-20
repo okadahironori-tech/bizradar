@@ -144,18 +144,33 @@
       <form method="POST" action="/register">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
-          <label>お名前（任意）</label>
+          <label>お名前 <span style="color:#dc2626">*</span></label>
           <div style="display:flex;gap:8px;">
-            <input type="text" id="last_name" name="last_name" maxlength="50"
-                   placeholder="名字" autocomplete="family-name"
+            <input type="text" name="last_name" maxlength="50" required
+                   placeholder="山田" autocomplete="family-name"
                    style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
-            <input type="text" id="first_name" name="first_name" maxlength="50"
-                   placeholder="名前" autocomplete="given-name"
+            <input type="text" name="first_name" maxlength="50" required
+                   placeholder="太郎" autocomplete="given-name"
                    style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
           </div>
         </div>
         <div class="form-group">
-          <label for="email">メールアドレス</label>
+          <label>ふりがな <span style="color:#dc2626">*</span></label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" name="last_name_kana" maxlength="50" required
+                   placeholder="やまだ"
+                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
+            <input type="text" name="first_name_kana" maxlength="50" required
+                   placeholder="たろう"
+                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>電話番号 <span style="color:#dc2626">*</span></label>
+          <input type="tel" name="phone" maxlength="20" required placeholder="090-0000-0000">
+        </div>
+        <div class="form-group">
+          <label for="email">メールアドレス <span style="color:#dc2626">*</span></label>
           <input type="email" id="email" name="email" autocomplete="email" autofocus required>
         </div>
         <div class="form-group">
@@ -175,6 +190,46 @@
               表示
             </button>
           </div>
+        </div>
+        <div class="form-group">
+          <label>会社名 <span style="color:#dc2626">*</span></label>
+          <input type="text" name="company_name" maxlength="200" required placeholder="例：トヨタ自動車株式会社">
+        </div>
+        <div class="form-group">
+          <label>業種 <span style="color:#dc2626">*</span></label>
+          <select name="industry" required style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['製造業（自動車・輸送機器）','製造業（機械・設備）','製造業（電気・電子）','製造業（素材・化学）','製造業（食品・飲料）','製造業（その他）','建設・不動産','商社・卸売・小売','金融・保険','情報・通信・IT','メディア・出版・広告','コンサルティング','法律・会計・税務','医療・福祉・介護','教育・研究','運輸・物流','エネルギー・インフラ','飲食・宿泊・観光','官公庁・自治体・団体','その他'] %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>従業員規模 <span style="color:#dc2626">*</span></label>
+          <select name="company_size" required style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['1〜10人','11〜50人','51〜300人','301人以上'] %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>職種</label>
+          <select name="job_type" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['経営・経営企画','営業・販売','調達・購買','製造・生産管理','研究・開発・設計','財務・経理','人事・総務','広報・マーケティング','情報システム・IT','コンサルタント','その他'] %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>役職</label>
+          <select name="job_title" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
+            <option value="">選択してください</option>
+            {% for v in ['代表取締役・社長','取締役・役員','部長','課長','係長・主任','一般社員・担当','経営者・個人事業主','その他'] %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="form-group">
           <label>プラン</label>

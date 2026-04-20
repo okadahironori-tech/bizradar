@@ -885,7 +885,11 @@ def _upgrade_password_hash_to_bcrypt(user_id: int, password: str) -> None:
 
 
 def create_user(email: str, password: str, plan: str = "basic",
-                last_name: str = "", first_name: str = "") -> int:
+                last_name: str = "", first_name: str = "",
+                last_name_kana: str = "", first_name_kana: str = "",
+                phone: str = "", company_name: str = "",
+                industry: str = "", company_size: str = "",
+                job_type: str = "", job_title: str = "") -> int:
     """新規ユーザーを作成して user_id を返す（パスワードは bcrypt で保存）"""
     pw_hash = _hash_pw_bcrypt(password)
     admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
@@ -895,10 +899,16 @@ def create_user(email: str, password: str, plan: str = "basic",
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO users (email, password_hash, salt, is_admin, plan, last_name, first_name) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                "INSERT INTO users (email, password_hash, salt, is_admin, plan, "
+                "last_name, first_name, last_name_kana, first_name_kana, "
+                "phone, company_name, industry, company_size, job_type, job_title) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                 (email.lower(), pw_hash, "", is_admin, plan,
-                 (last_name or "").strip(), (first_name or "").strip())
+                 (last_name or "").strip(), (first_name or "").strip(),
+                 (last_name_kana or "").strip(), (first_name_kana or "").strip(),
+                 (phone or "").strip(), (company_name or "").strip(),
+                 (industry or "").strip(), (company_size or "").strip(),
+                 (job_type or "").strip(), (job_title or "").strip())
             )
             return cur.fetchone()[0]
 

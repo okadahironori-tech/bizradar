@@ -874,8 +874,28 @@ def register():
             plan = "basic"
         last_name = request.form.get("last_name", "").strip()[:50]
         first_name = request.form.get("first_name", "").strip()[:50]
+        last_name_kana = request.form.get("last_name_kana", "").strip()[:50]
+        first_name_kana = request.form.get("first_name_kana", "").strip()[:50]
+        phone = request.form.get("phone", "").strip()[:20]
+        company_name = request.form.get("company_name", "").strip()
+        industry = request.form.get("industry", "").strip()
+        company_size = request.form.get("company_size", "").strip()
+        job_type = request.form.get("job_type", "").strip()
+        job_title = request.form.get("job_title", "").strip()
 
-        if not email or "@" not in email:
+        if not last_name or not first_name:
+            error = "お名前を入力してください"
+        elif not last_name_kana or not first_name_kana:
+            error = "ふりがなを入力してください"
+        elif not phone:
+            error = "電話番号を入力してください"
+        elif not company_name:
+            error = "会社名を入力してください"
+        elif not industry:
+            error = "業種を選択してください"
+        elif not company_size:
+            error = "従業員規模を選択してください"
+        elif not email or "@" not in email:
             error = "有効なメールアドレスを入力してください"
         elif len(password) < 6:
             error = "パスワードは6文字以上で入力してください"
@@ -885,7 +905,10 @@ def register():
             error = "このメールアドレスはすでに登録されています"
         else:
             try:
-                user_id = db.create_user(email, password, plan, last_name, first_name)
+                user_id = db.create_user(email, password, plan, last_name, first_name,
+                                          last_name_kana, first_name_kana, phone,
+                                          company_name, industry, company_size,
+                                          job_type, job_title)
                 user = db.get_user_by_id(user_id)
                 session.permanent = True
                 session["user_id"] = user["id"]
