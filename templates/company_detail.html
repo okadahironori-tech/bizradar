@@ -795,15 +795,20 @@
 
       <!-- 新規サイト登録フォーム -->
       <div class="form-section-divider">新規登録</div>
-      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_site">
+      <form method="POST" action="/companies/{{ company.id }}/new_site"
+            style="padding:12px 16px; border-top:1px solid #f0f2f5; background:#f8f9ff;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200">
+        <input type="text" name="name" placeholder="サイト名（任意）" maxlength="200"
+               style="width:100%; padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; box-sizing:border-box; margin-bottom:8px;">
         <input type="url" name="url" id="site-url-input-detail" placeholder="https://example.com/news" maxlength="500" required
-               oninput="checkUrlHint(this, 'url-hint-detail')">
-        <select name="max_pages" style="padding:6px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem;">
-          <option value="1">1ページ</option><option value="2">2ページ</option><option value="3">3ページ</option><option value="5">5ページ</option><option value="10">10ページ</option>
-        </select>
-        <button type="submit" class="btn btn-primary">登録する</button>
+               oninput="checkUrlHint(this, 'url-hint-detail')"
+               style="width:100%; padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; box-sizing:border-box; margin-bottom:8px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select name="max_pages" style="padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem; flex:1;">
+            <option value="1">1ページ</option><option value="2">2ページ</option><option value="3">3ページ</option><option value="5">5ページ</option><option value="10">10ページ</option>
+          </select>
+          <button type="submit" class="btn btn-primary">登録</button>
+        </div>
       </form>
       <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px;">2ページ以上設定するとページネーションも取得します</div>
       <div id="url-hint-detail"></div>
