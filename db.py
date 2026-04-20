@@ -403,7 +403,7 @@ def _run_migrations():
             # users: 通知タイミング設定
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
-                "notify_timing TEXT NOT NULL DEFAULT 'immediate';"
+                "notify_timing TEXT NOT NULL DEFAULT 'digest_07';"
             )
             # articles: ダイジェスト送信済みフラグ
             cur.execute(
@@ -585,6 +585,10 @@ def _run_migrations():
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
                 "notify_days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6';"
+            )
+            # notify_timing: デフォルト値を immediate から digest_07 に変更
+            cur.execute(
+                "ALTER TABLE users ALTER COLUMN notify_timing SET DEFAULT 'digest_07';"
             )
 
             # users: ふりがな・電話番号
@@ -2279,15 +2283,15 @@ def set_user_notify_timing(user_id: int, timing: str) -> bool:
     timing はカンマ区切り文字列（例: "digest_05,digest_18"）。
     """
     values = [v.strip() for v in timing.split(",") if v.strip()]
+    values = [v for v in values if v in _VALID_TIMINGS]
     if not values:
-        return False
-    if any(v not in _VALID_TIMINGS for v in values):
-        return False
+        values = ["digest_07"]
+    clean_timing = ",".join(values)
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE users SET notify_timing = %s WHERE id = %s",
-                (timing, user_id),
+                (clean_timing, user_id),
             )
             return cur.rowcount > 0
 
