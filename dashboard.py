@@ -1161,7 +1161,7 @@ def rejoin():
         session["user_id"] = user["id"]
         session["email"] = user["email"]
         session["is_admin"] = user.get("is_admin", False)
-        flash("再入会が完了しました。おかえりなさい。", "success")
+        flash("再入会が完了しました。ご利用ありがとうございます。", "success")
         return redirect(url_for("index"))
     email = session.pop("rejoin_email", "")
     return render_template("rejoin.html", email=email)
