@@ -327,10 +327,6 @@
     .kw-toggle input:checked + .slider { background: #3949ab; }
     .kw-toggle input:checked + .slider::before { transform: translateX(18px); }
 
-    @media (min-width: 769px) {
-      #yt-ch-id-input { flex: 6; }
-      #yt-ch-label-input { flex: 4; }
-    }
     @media (max-width: 768px) {
       section .card table.kw-linked-table { display: block; padding: 0 12px; }
       section .card .kw-linked-table thead { display: none; }
@@ -1002,9 +998,11 @@
           {% endfor %}
         </div>
         <div id="yt-add-form" style="{% if youtube_channels | length >= 5 %}display:none;{% endif %}">
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <div style="margin-bottom:8px;">
             <input type="text" id="yt-ch-id-input" placeholder="例：UCxxxxxxxxxxxxxxxxxxxxxx" maxlength="100"
-                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1;">
+                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; width:100%; box-sizing:border-box;">
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
             <input type="text" id="yt-ch-label-input" placeholder="ラベル（任意）" maxlength="50"
                    style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1;">
             <button type="button" class="btn btn-primary" onclick="addYtChannel()">追加</button>
