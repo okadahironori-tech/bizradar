@@ -45,7 +45,7 @@
         メールアドレス: <strong style="color:#1a1a2e;">{{ email }}</strong>
       </div>
       {% if errors %}
-      <div class="error">入力内容にエラーがあります。各項目を確認してください。</div>
+      <div class="error">入力内容をご確認ください。</div>
       {% endif %}
       <form method="POST" action="/register/complete?token={{ token }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

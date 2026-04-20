@@ -928,8 +928,21 @@ def register_complete():
             errors["last_name_kana"] = "未記入です"
         if not form_data["first_name_kana"]:
             errors["first_name_kana"] = "未記入です"
-        if not form_data["phone"]:
+        phone_val = form_data["phone"]
+        if not phone_val:
             errors["phone"] = "未記入です"
+        else:
+            import re as _re
+            if not _re.fullmatch(r'[\d\-]+', phone_val):
+                errors["phone"] = "数字とハイフンのみ使用できます"
+            else:
+                digits = phone_val.replace("-", "")
+                if not digits.isdigit() or not digits.startswith("0"):
+                    errors["phone"] = "0から始まる電話番号を入力してください"
+                elif len(digits) not in (9, 10, 11):
+                    errors["phone"] = "桁数が正しくありません（9〜11桁）"
+                elif len(digits) == 11 and not _re.match(r'^0[789]0', digits):
+                    errors["phone"] = "11桁の場合は070/080/090で始まる番号を入力してください"
         if not form_data["company_name"]:
             errors["company_name"] = "未記入です"
         if form_data["industry"] not in _VALID_INDUSTRIES:
