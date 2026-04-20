@@ -941,8 +941,8 @@ def register_complete():
                     errors["phone"] = "0から始まる電話番号を入力してください"
                 elif len(digits) not in (9, 10, 11):
                     errors["phone"] = "桁数が正しくありません（9〜11桁）"
-                elif len(digits) == 11 and not _re.match(r'^0[789]0', digits):
-                    errors["phone"] = "11桁の場合は070/080/090で始まる番号を入力してください"
+                elif len(digits) == 11 and not _re.match(r'^0[5-9]0', digits):
+                    errors["phone"] = "11桁の場合は050/060/070/080/090で始まる番号を入力してください"
         if not form_data["company_name"]:
             errors["company_name"] = "未記入です"
         if form_data["industry"] not in _VALID_INDUSTRIES:
