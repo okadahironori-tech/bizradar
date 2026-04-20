@@ -428,14 +428,10 @@
         justify-content: flex-end;
       }
       /* kw-linked-table のスマホカード化は 768px ブロックで対応 */
-      .new-form {
-        flex-direction: column;
-      }
       .new-form input[type="text"],
       .new-form input[type="url"] {
-        width: 100%;
         min-width: 0;
-        flex: none;
+        flex: 1;
       }
       .new-form .btn {
         width: 100%;
@@ -864,7 +860,7 @@
       <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="keyword" id="kw-input-detail" placeholder="例：豊田佐吉、豊田自動織機　TOB" maxlength="200" required>
-        <button type="submit" class="btn btn-primary">登録する</button>
+        <button type="submit" class="btn btn-primary">登録</button>
       </form>
 
     </div>
