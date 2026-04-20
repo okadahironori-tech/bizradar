@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 退会</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 0; }
+    .wrap { width: 100%; max-width: 480px; padding: 0 16px; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 1.8rem; font-weight: 700; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); padding: 28px 24px; }
+    .notice { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 14px; font-size: 0.85rem; color: #991b1b; margin-bottom: 20px; line-height: 1.6; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 0.82rem; font-weight: 600; color: #4a4a6a; margin-bottom: 6px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; outline: none; color: #1a1a2e; font-family: inherit; }
+    .form-group input:focus, .form-group textarea:focus { border-color: #3949ab; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .radio-group { display: flex; flex-direction: column; gap: 10px; }
+    .radio-opt { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1.5px solid #d1d5db; border-radius: 8px; cursor: pointer; }
+    .radio-opt:has(input:checked) { border-color: #3949ab; background: #f5f7ff; }
+    .radio-opt input { margin-top: 3px; }
+    .radio-label { font-size: 0.9rem; font-weight: 600; }
+    .radio-desc { font-size: 0.78rem; color: #6b7280; margin-top: 2px; line-height: 1.5; }
+    .field-error { color: #dc2626; font-size: 0.78rem; margin-top: 4px; }
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }
+    .btn-danger { background: #dc2626; color: #fff; flex: 1; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-cancel { background: #f3f4f6; color: #4a4a6a; border: 1px solid #d1d5db; flex: 1; }
+    .btn-cancel:hover { background: #e5e7eb; }
+  </style>
+  <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="header"><h1>BizRadar</h1></div>
+    <div class="card">
+      <h2 style="font-size:1.1rem;margin-bottom:16px;">退会手続き</h2>
+      <div class="notice">
+        退会すると、ニュース収集・サイト監視・メール通知等の全機能が停止します。<br>
+        通常退会の場合、データは2年間保持され、同じメールアドレスで再入会できます。<br>
+        完全削除の場合、個人情報は即時削除され、復元できません。
+      </div>
+      <form method="POST" action="/withdraw">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>退会タイプ</label>
+          <div class="radio-group">
+            <label class="radio-opt">
+              <input type="radio" name="withdraw_type" value="soft" {% if form.withdraw_type != 'hard' %}checked{% endif %}>
+              <div>
+                <div class="radio-label">通常退会</div>
+                <div class="radio-desc">データを2年間保持します。同じメールアドレスで再入会すると、以前の設定がそのまま引き継がれます。</div>
+              </div>
+            </label>
+            <label class="radio-opt">
+              <input type="radio" name="withdraw_type" value="hard" {% if form.withdraw_type == 'hard' %}checked{% endif %}>
+              <div>
+                <div class="radio-label">完全削除</div>
+                <div class="radio-desc">個人情報を即時削除します。匿名加工情報のみ統計目的で保持します。再入会時にデータは引き継がれません。</div>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>退会理由（任意）</label>
+          <textarea name="withdraw_reason" maxlength="1000">{{ form.withdraw_reason }}</textarea>
+        </div>
+        <div class="form-group">
+          <label>パスワード（本人確認）</label>
+          <input type="password" name="password" required>
+          {% if errors.get('password') %}<div class="field-error">{{ errors.password }}</div>{% endif %}
+        </div>
+        <div class="btn-row">
+          <button type="submit" class="btn btn-danger">確認する</button>
+          <a href="/settings" class="btn btn-cancel">キャンセル</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

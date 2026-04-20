@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 退会確認</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 0; }
+    .wrap { width: 100%; max-width: 480px; padding: 0 16px; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 1.8rem; font-weight: 700; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); padding: 28px 24px; }
+    .confirm-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f2f5; font-size: 0.88rem; }
+    .confirm-label { color: #6b7280; font-weight: 600; font-size: 0.82rem; }
+    .confirm-value { color: #1a1a2e; }
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; flex: 1; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-back { background: #f3f4f6; color: #4a4a6a; border: 1px solid #d1d5db; }
+    .btn-back:hover { background: #e5e7eb; }
+    .warning { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; font-size: 0.85rem; color: #991b1b; margin-bottom: 16px; text-align: center; font-weight: 600; }
+  </style>
+  <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="header"><h1>BizRadar</h1></div>
+    <div class="card">
+      <h2 style="font-size:1.1rem;margin-bottom:16px;">退会内容の最終確認</h2>
+      <div class="warning">この操作は取り消せません</div>
+      <div class="confirm-row">
+        <span class="confirm-label">退会タイプ</span>
+        <span class="confirm-value">{{ '通常退会' if withdraw_type == 'soft' else '完全削除' }}</span>
+      </div>
+      {% if withdraw_reason %}
+      <div class="confirm-row">
+        <span class="confirm-label">退会理由</span>
+        <span class="confirm-value">{{ withdraw_reason }}</span>
+      </div>
+      {% endif %}
+      <div class="btn-row">
+        <form method="POST" action="/withdraw/execute" style="flex:1;display:flex;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger" onclick="return confirm('本当に退会しますか？')">退会する</button>
+        </form>
+        <a href="/withdraw" class="btn btn-back">修正する</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

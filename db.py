@@ -690,7 +690,12 @@ def _run_migrations():
                 "is_entertainment BOOLEAN DEFAULT FALSE;"
             )
 
-            # companies: 並び順カラム追加
+            # users: 退会関連カラム
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_type VARCHAR(10);")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawal_reason TEXT;")
+
+            # companies: ��び順カラム追加
             cur.execute(
                 "ALTER TABLE companies ADD COLUMN IF NOT EXISTS "
                 "sort_order INTEGER NOT NULL DEFAULT 0;"
@@ -1035,7 +1040,7 @@ def get_user_by_email(email: str):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name_kana, first_name_kana, phone FROM users WHERE email = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name_kana, first_name_kana, phone, deleted_at, deletion_type FROM users WHERE email = %s",
                 (email.lower(),)
             )
             row = cur.fetchone()
@@ -1046,7 +1051,7 @@ def get_user_by_id(user_id: int):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name, first_name, last_name_kana, first_name_kana, phone, sports_filter, entertainment_filter FROM users WHERE id = %s",
+                "SELECT id, email, password_hash, salt, is_admin, plan, slack_webhook_url, line_user_id, company_name, industry, job_type, job_title, company_size, is_active, last_name, first_name, last_name_kana, first_name_kana, phone, sports_filter, entertainment_filter, deleted_at, deletion_type FROM users WHERE id = %s",
                 (user_id,)
             )
             row = cur.fetchone()
@@ -1076,6 +1081,47 @@ def verify_user_password(user: dict, password: str) -> bool:
         except Exception:
             pass
     return ok
+
+
+def soft_delete_user(user_id: int, reason: str = ""):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET deleted_at = NOW(), deletion_type = 'soft', "
+                "withdrawal_reason = %s WHERE id = %s",
+                (reason, user_id),
+            )
+
+
+def hard_delete_user(user_id: int, reason: str = ""):
+    import secrets, uuid
+    dummy_email = f"deleted_{uuid.uuid4().hex}@deleted.local"
+    random_hash = secrets.token_urlsafe(64)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET deleted_at = NOW(), deletion_type = 'hard', "
+                "withdrawal_reason = %s, "
+                "email = %s, password_hash = %s, "
+                "last_name = NULL, first_name = NULL, "
+                "last_name_kana = NULL, first_name_kana = NULL, "
+                "phone = NULL, company_name = NULL, "
+                "industry = NULL, company_size = NULL, "
+                "job_type = NULL, job_title = NULL, "
+                "slack_webhook_url = '', line_user_id = '' "
+                "WHERE id = %s",
+                (reason, dummy_email, random_hash, user_id),
+            )
+
+
+def rejoin_user(user_id: int):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET deleted_at = NULL, deletion_type = NULL, "
+                "withdrawal_reason = NULL WHERE id = %s",
+                (user_id,),
+            )
 
 
 def get_user_last_login(user_id: int):
@@ -1561,7 +1607,9 @@ def load_all_keywords_with_users() -> list:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT user_id, keyword, COALESCE(notify_enabled, TRUE), id, company_id "
-                "FROM keywords WHERE user_id IS NOT NULL ORDER BY sort_order, id"
+                "FROM keywords WHERE user_id IS NOT NULL "
+                "AND user_id NOT IN (SELECT id FROM users WHERE deleted_at IS NOT NULL) "
+                "ORDER BY sort_order, id"
             )
             return [
                 (row[0], row[1], bool(row[2]), row[3], row[4])
@@ -2345,7 +2393,7 @@ def get_users_for_digest_hour(hour: int) -> list:
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id FROM users WHERE STRPOS(notify_timing, %s) > 0",
+                "SELECT id FROM users WHERE STRPOS(notify_timing, %s) > 0 AND deleted_at IS NULL",
                 (key,),
             )
             return [row[0] for row in cur.fetchall()]

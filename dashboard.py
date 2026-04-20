@@ -783,6 +783,9 @@ def login_required(f):
         if not uid:
             return redirect(url_for("login", next=request.path))
         user = db.get_user_by_id(uid)
+        if user and user.get("deleted_at"):
+            session.clear()
+            return redirect(url_for("login"))
         if user and not user.get("is_active", True):
             session.clear()
             flash("このアカウントは現在利用停止中です。管理者にお問い合わせください。", "danger")
@@ -827,6 +830,13 @@ def login():
         email = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
         user = db.get_user_by_email(email)
+        if user and user.get("deleted_at"):
+            if user.get("deletion_type") == "soft":
+                session["rejoin_email"] = email
+                flash("このメールアドレスは退会済みです。再入会される場合は以下より手続きをお願いします。", "danger")
+                return redirect(url_for("rejoin"))
+            return render_template("login.html", next=next_url,
+                                   error="メールアドレスまたはパスワードが正しくありません")
         if user and db.verify_user_password(user, password):
             if not user.get("is_active", True):
                 flash("このアカウントは現在利用停止中です。管理者にお問い合わせください。", "danger")
@@ -1026,6 +1036,135 @@ def register_confirm():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.route("/withdraw", methods=["GET", "POST"])
+@login_required
+def withdraw():
+    user_id = session["user_id"]
+    user = db.get_user_by_id(user_id)
+    if not user:
+        return redirect(url_for("login"))
+    errors = {}
+    form_data = {
+        "withdraw_type": session.get("withdraw_type", "soft"),
+        "withdraw_reason": session.get("withdraw_reason", ""),
+    }
+    if request.method == "POST":
+        import secrets as _secrets
+        withdraw_type = request.form.get("withdraw_type", "soft")
+        if withdraw_type not in ("soft", "hard"):
+            withdraw_type = "soft"
+        reason = request.form.get("withdraw_reason", "").strip()[:1000]
+        password = request.form.get("password", "")
+        form_data["withdraw_type"] = withdraw_type
+        form_data["withdraw_reason"] = reason
+        if not password:
+            errors["password"] = "パスワードを入力してください"
+        elif not db.verify_user_password(user, password):
+            errors["password"] = "パスワードが正しくありません"
+        if not errors:
+            session["withdraw_token"] = _secrets.token_urlsafe()
+            session["withdraw_token_expires_at"] = time.time() + 300
+            session["withdraw_type"] = withdraw_type
+            session["withdraw_reason"] = reason
+            return redirect(url_for("withdraw_confirm"))
+    return render_template("withdraw.html", errors=errors, form=form_data)
+
+
+@app.route("/withdraw/confirm")
+@login_required
+def withdraw_confirm():
+    token = session.get("withdraw_token")
+    expires = session.get("withdraw_token_expires_at", 0)
+    if not token or time.time() > expires:
+        flash("セッションが期限切れです。もう一度お手続きください。", "error")
+        return redirect(url_for("withdraw"))
+    return render_template("withdraw_confirm.html",
+                           withdraw_type=session.get("withdraw_type", "soft"),
+                           withdraw_reason=session.get("withdraw_reason", ""))
+
+
+@app.route("/withdraw/execute", methods=["POST"])
+@login_required
+def withdraw_execute():
+    token = session.pop("withdraw_token", None)
+    expires = session.pop("withdraw_token_expires_at", 0)
+    withdraw_type = session.pop("withdraw_type", "soft")
+    reason = session.pop("withdraw_reason", "")
+    if not token or time.time() > expires:
+        flash("セッションが期限切れです。もう一度お手続きください。", "error")
+        return redirect(url_for("withdraw"))
+    user_id = session["user_id"]
+    user = db.get_user_by_id(user_id)
+    if not user:
+        return redirect(url_for("login"))
+    old_email = user["email"]
+    try:
+        if withdraw_type == "hard":
+            db.hard_delete_user(user_id, reason)
+        else:
+            db.soft_delete_user(user_id, reason)
+    except Exception as e:
+        logger.exception("[withdraw] DB error user_id=%s: %s", user_id, e)
+        flash("退会処理に失敗しました。", "error")
+        return redirect(url_for("withdraw"))
+    try:
+        if withdraw_type == "hard":
+            body = (
+                "<p>退会手続きが完了しました。これまでご利用いただき、ありがとうございました。</p>"
+                "<p>個人情報は削除されました。</p>"
+                "<p>ご不明な点がございましたら bizradarofficial@gmail.com までお問い合わせください。</p>"
+            )
+        else:
+            body = (
+                "<p>退会手続きが完了しました。これまでご利用いただき、ありがとうございました。</p>"
+                "<p>データは退会日から2年間保持されます。同じメールアドレスで再入会される際は、以前の設定がそのまま引き継がれます。</p>"
+                "<p>ご不明な点がございましたら bizradarofficial@gmail.com までお問い合わせください。</p>"
+            )
+        _send_simple_mail(old_email, "【BizRadar】退会手続き完了のお知らせ", body)
+    except Exception as e:
+        logger.error("[withdraw] mail send failed user_id=%s: %s", user_id, e)
+    session.clear()
+    session["withdraw_completed"] = True
+    session["withdraw_completed_type"] = withdraw_type
+    return redirect(url_for("withdraw_complete"))
+
+
+@app.route("/withdraw/complete")
+def withdraw_complete():
+    completed = session.pop("withdraw_completed", False)
+    completed_type = session.pop("withdraw_completed_type", "soft")
+    return render_template("withdraw_complete.html",
+                           completed=completed, completed_type=completed_type)
+
+
+@app.route("/rejoin", methods=["GET", "POST"])
+def rejoin():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        user = db.get_user_by_email(email)
+        if not user or not user.get("deleted_at") or user.get("deletion_type") != "soft":
+            flash("再入会できるアカウントが見つかりません。", "error")
+            return render_template("rejoin.html", email=email)
+        if not db.verify_user_password(user, password):
+            flash("パスワードが正しくありません。", "error")
+            return render_template("rejoin.html", email=email)
+        db.rejoin_user(user["id"])
+        try:
+            _send_simple_mail(email, "【BizRadar】再入会完了のお知らせ",
+                              "<p>再入会が完了しました。以前の設定はそのまま引き継がれています。</p>")
+        except Exception as e:
+            logger.error("[rejoin] mail send failed: %s", e)
+        session.permanent = True
+        session["user_id"] = user["id"]
+        session["email"] = user["email"]
+        session["is_admin"] = user.get("is_admin", False)
+        flash("再入会が完了しました。おかえりなさい。", "success")
+        return redirect(url_for("index"))
+    email = session.pop("rejoin_email", "")
+    return render_template("rejoin.html", email=email)
 
 
 @app.route("/")

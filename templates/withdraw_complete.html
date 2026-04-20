@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 退会完了</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .wrap { width: 100%; max-width: 440px; padding: 0 16px; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 1.8rem; font-weight: 700; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); padding: 32px 28px; text-align: center; }
+    a { color: #3949ab; text-decoration: none; font-weight: 600; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header"><h1>BizRadar</h1></div>
+    <div class="card">
+      <div style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">退会の手続きが完了しました。</div>
+      <div style="font-size:0.85rem;color:#6b7280;line-height:1.7;margin-bottom:20px;">
+        ご利用ありがとうございました。
+        {% if completed and completed_type == 'soft' %}
+        <br>同じメールアドレスで再入会される際は、以前の設定がそのまま引き継がれます。
+        {% elif completed and completed_type == 'hard' %}
+        <br>個人情報は削除されました。
+        {% endif %}
+      </div>
+      <a href="/">トップページへ</a>
+    </div>
+  </div>
+</body>
+</html>
