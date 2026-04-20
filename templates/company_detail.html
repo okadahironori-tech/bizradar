@@ -802,7 +802,8 @@
                style="width:100%; padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; box-sizing:border-box; margin-bottom:8px;">
         <input type="url" name="url" id="site-url-input-detail" placeholder="https://example.com/news" maxlength="500" required
                oninput="checkUrlHint(this, 'url-hint-detail')"
-               style="width:100%; padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; box-sizing:border-box; margin-bottom:8px;">
+               style="width:100%; padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; box-sizing:border-box;">
+        <div style="font-size:0.75rem;color:#9ca3af;margin:4px 0 8px;">2ページ以上設定するとページネーションも取得します</div>
         <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
           <select name="max_pages" style="padding:7px 12px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.88rem;">
             <option value="1">1ページ</option><option value="2">2ページ</option><option value="3">3ページ</option><option value="5">5ページ</option><option value="10">10ページ</option>
@@ -810,7 +811,6 @@
           <button type="submit" class="btn btn-primary">登録</button>
         </div>
       </form>
-      <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px;padding:0 16px;">2ページ以上設定するとページネーションも取得します</div>
       <div id="url-hint-detail" style="padding:0 16px;"></div>
 
     </div>
