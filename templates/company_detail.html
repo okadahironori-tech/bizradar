@@ -857,9 +857,11 @@
 
       <!-- 新規キーワード登録フォーム -->
       <div class="form-section-divider">新規登録</div>
-      <form class="new-form" method="POST" action="/companies/{{ company.id }}/new_keyword">
+      <form method="POST" action="/companies/{{ company.id }}/new_keyword"
+            style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:12px 16px; border-top:1px solid #f0f2f5; background:#f8f9ff;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="keyword" id="kw-input-detail" placeholder="例：豊田佐吉、豊田自動織機　TOB" maxlength="200" required>
+        <input type="text" name="keyword" id="kw-input-detail" placeholder="例：豊田佐吉、豊田自動織機　TOB" maxlength="200" required
+               style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1; min-width:180px;">
         <button type="submit" class="btn btn-primary">登録</button>
       </form>
 
