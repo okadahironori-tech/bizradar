@@ -2236,17 +2236,21 @@ def check_single_site(url: str, site_name: str = "", max_pages: int = 1) -> bool
             print(f"  → 初回記録完了: {url}")
             log["last_checks"][url] = {"timestamp": now_str, "status": "new"}
         elif previous_hashes[url] != new_hash:
-            print(f"  → 変更を検出しました！: {url}")
             old_content  = _normalize_lines(content_store.get(url, ""))
             diff_summary = compute_diff_summary(old_content, content, _debug_url=url) if old_content else []
-            log["last_checks"][url] = {"timestamp": now_str, "status": "changed"}
-            log["change_history"].insert(0, {
-                "timestamp": now_str,
-                "url":       url,
-                "name":      site_name,
-                "diff":      diff_summary,
-            })
-            changed = True
+            if diff_summary:
+                print(f"  → 変更を検出しました！: {url}")
+                log["last_checks"][url] = {"timestamp": now_str, "status": "changed"}
+                log["change_history"].insert(0, {
+                    "timestamp": now_str,
+                    "url":       url,
+                    "name":      site_name,
+                    "diff":      diff_summary,
+                })
+                changed = True
+            else:
+                print(f"  → ハッシュ変更あり・有意な差分なし（ノイズ除外）: {url}")
+                log["last_checks"][url] = {"timestamp": now_str, "status": "ok"}
         else:
             print(f"  → 変更なし")
             log["last_checks"][url] = {"timestamp": now_str, "status": "ok"}
