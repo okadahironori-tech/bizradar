@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 確認メール送信完了</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .login-wrap { width: 100%; max-width: 400px; padding: 0 16px; }
+    .login-header { text-align: center; margin-bottom: 28px; }
+    .login-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a2e; letter-spacing: 0.04em; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); padding: 32px 28px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-header">
+      <h1>BizRadar</h1>
+    </div>
+    <div class="card">
+      <div style="font-size:1.5rem;margin-bottom:16px;">&#9993;</div>
+      <div style="font-size:0.95rem;font-weight:600;margin-bottom:12px;">確認メールを送りました</div>
+      <div style="font-size:0.85rem;color:#6b7280;line-height:1.6;">
+        <strong>{{ email }}</strong> に確認メールを送信しました。<br>
+        メール内のURLから登録を完了してください。<br>
+        <span style="font-size:0.78rem;">（有効期限：24時間）</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

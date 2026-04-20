@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizRadar — 登録内容確認</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 0; }
+    .login-wrap { width: 100%; max-width: 440px; padding: 0 16px; }
+    .login-header { text-align: center; margin-bottom: 28px; }
+    .login-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a2e; letter-spacing: 0.04em; }
+    .login-header p { font-size: 0.82rem; color: #8892b0; margin-top: 4px; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); padding: 32px 28px; }
+    .confirm-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f2f5; font-size: 0.88rem; }
+    .confirm-label { color: #6b7280; font-weight: 600; font-size: 0.82rem; min-width: 100px; }
+    .confirm-value { color: #1a1a2e; text-align: right; word-break: break-all; }
+    .btn-login { width: 100%; padding: 11px; background: #1a1a2e; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 16px; }
+    .btn-login:hover { background: #2d2d4e; }
+    .btn-back { width: 100%; padding: 10px; background: #f3f4f6; color: #4a4a6a; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; margin-top: 8px; text-align: center; text-decoration: none; display: block; }
+    .btn-back:hover { background: #e5e7eb; }
+    {% set plan_labels = {'basic': 'ベーシック', 'business': 'ビジネス', 'pro': 'Pro'} %}
+  </style>
+  <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-header">
+      <h1>BizRadar</h1>
+      <p>登録内容確認</p>
+    </div>
+    <div class="card">
+      <div style="font-size:0.85rem;color:#6b7280;margin-bottom:16px;">以下の内容で登録します。</div>
+      <div class="confirm-row">
+        <span class="confirm-label">メールアドレス</span>
+        <span class="confirm-value">{{ email }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="confirm-label">お名前</span>
+        <span class="confirm-value">{{ form.last_name }} {{ form.first_name }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="confirm-label">ふりがな</span>
+        <span class="confirm-value">{{ form.last_name_kana }} {{ form.first_name_kana }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="confirm-label">電話番号</span>
+        <span class="confirm-value">{{ form.phone }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="confirm-label">会社名</span>
+        <span class="confirm-value">{{ form.company_name }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="confirm-label">業種</span>
+        <span class="confirm-value">{{ form.industry }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="confirm-label">従業員規模</span>
+        <span class="confirm-value">{{ form.company_size }}</span>
+      </div>
+      {% if form.job_type %}
+      <div class="confirm-row">
+        <span class="confirm-label">職種</span>
+        <span class="confirm-value">{{ form.job_type }}</span>
+      </div>
+      {% endif %}
+      {% if form.job_title %}
+      <div class="confirm-row">
+        <span class="confirm-label">役職</span>
+        <span class="confirm-value">{{ form.job_title }}</span>
+      </div>
+      {% endif %}
+      <div class="confirm-row">
+        <span class="confirm-label">パスワード</span>
+        <span class="confirm-value">********</span>
+      </div>
+      <div class="confirm-row" style="border-bottom:none;">
+        <span class="confirm-label">プラン</span>
+        <span class="confirm-value">{{ {'basic':'ベーシック','business':'ビジネス','pro':'Pro'}.get(form.plan, form.plan) }}</span>
+      </div>
+      <form method="POST" action="/register/confirm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-login">登録する</button>
+      </form>
+      <a href="/register/complete?token={{ session.get('reg_token','') }}" class="btn-back">修正する</a>
+    </div>
+  </div>
+</body>
+</html>

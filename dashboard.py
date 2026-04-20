@@ -860,65 +860,146 @@ def login():
     return render_template("login.html", next=next_url)
 
 
+_VALID_INDUSTRIES = [
+    '製造業（自動車・輸送機器）','製造業（機械・設備）','製造業（電気・電子）',
+    '製造業（素材・化学）','製造業（食品・飲料）','製造業（その他）',
+    '建設・不動産','商社・卸売・小売','金融・保険','情報・通信・IT',
+    'メディア・出版・広告','コンサルティング','法律・会計・税務',
+    '医療・福祉・介護','教育・研究','運輸・物流','エネルギー・インフラ',
+    '飲食・宿泊・観光','官公庁・自治体・団体','その他',
+]
+_VALID_COMPANY_SIZES = ['1〜10人','11〜50人','51〜300人','301人以上']
+
+
 @app.route("/register", methods=["GET", "POST"])
-@limiter.limit("3 per hour", methods=["POST"])
+@limiter.limit("5 per hour", methods=["POST"])
 def register():
     error = None
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
+        if not email or "@" not in email:
+            error = "有効なメールアドレスを入力してください"
+        elif db.get_user_by_email(email):
+            error = "このメールアドレスはすでに登録されています"
+        else:
+            token = db.create_register_token(email)
+            base_url = request.host_url.rstrip("/")
+            link = f"{base_url}/register/complete?token={token}"
+            html = (
+                f"<p>以下のURLから登録を完了してください。（有効期限：24時間）</p>"
+                f'<p><a href="{link}">{link}</a></p>'
+            )
+            _send_simple_mail(email, "【BizRadar】メールアドレスの確認", html)
+            return render_template("register_sent.html", email=email)
+    return render_template("register.html", error=error)
+
+
+@app.route("/register/complete", methods=["GET", "POST"])
+def register_complete():
+    token = request.args.get("token", "") or request.form.get("token", "")
+    email = db.validate_register_token(token)
+    if not email:
+        return render_template("register_invalid_token.html"), 400
+
+    error = None
+    form_data = {}
+    if request.method == "POST":
+        form_data = {
+            "last_name": request.form.get("last_name", "").strip()[:50],
+            "first_name": request.form.get("first_name", "").strip()[:50],
+            "last_name_kana": request.form.get("last_name_kana", "").strip()[:50],
+            "first_name_kana": request.form.get("first_name_kana", "").strip()[:50],
+            "phone": request.form.get("phone", "").strip()[:20],
+            "company_name": request.form.get("company_name", "").strip(),
+            "industry": request.form.get("industry", "").strip(),
+            "company_size": request.form.get("company_size", "").strip(),
+            "job_type": request.form.get("job_type", "").strip(),
+            "job_title": request.form.get("job_title", "").strip(),
+            "plan": request.form.get("plan", "basic"),
+        }
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
 
-        plan = request.form.get("plan", "basic")
-        if plan not in ("basic", "business", "pro"):
-            plan = "basic"
-        last_name = request.form.get("last_name", "").strip()[:50]
-        first_name = request.form.get("first_name", "").strip()[:50]
-        last_name_kana = request.form.get("last_name_kana", "").strip()[:50]
-        first_name_kana = request.form.get("first_name_kana", "").strip()[:50]
-        phone = request.form.get("phone", "").strip()[:20]
-        company_name = request.form.get("company_name", "").strip()
-        industry = request.form.get("industry", "").strip()
-        company_size = request.form.get("company_size", "").strip()
-        job_type = request.form.get("job_type", "").strip()
-        job_title = request.form.get("job_title", "").strip()
-
-        if not last_name or not first_name:
+        if not form_data["last_name"] or not form_data["first_name"]:
             error = "お名前を入力してください"
-        elif not last_name_kana or not first_name_kana:
+        elif not form_data["last_name_kana"] or not form_data["first_name_kana"]:
             error = "ふりがなを入力してください"
-        elif not phone:
+        elif not form_data["phone"]:
             error = "電話番号を入力してください"
-        elif not company_name:
+        elif not form_data["company_name"]:
             error = "会社名を入力してください"
-        elif not industry:
+        elif form_data["industry"] not in _VALID_INDUSTRIES:
             error = "業種を選択してください"
-        elif not company_size:
+        elif form_data["company_size"] not in _VALID_COMPANY_SIZES:
             error = "従業員規模を選択してください"
-        elif not email or "@" not in email:
-            error = "有効なメールアドレスを入力してください"
         elif len(password) < 6:
             error = "パスワードは6文字以上で入力してください"
         elif password != confirm:
             error = "パスワードが一致しません"
-        elif db.get_user_by_email(email):
-            error = "このメールアドレスはすでに登録されています"
+        elif form_data["plan"] not in ("basic", "business", "pro"):
+            error = "プランを選択してください"
         else:
-            try:
-                user_id = db.create_user(email, password, plan, last_name, first_name,
-                                          last_name_kana, first_name_kana, phone,
-                                          company_name, industry, company_size,
-                                          job_type, job_title)
-                user = db.get_user_by_id(user_id)
-                session.permanent = True
-                session["user_id"] = user["id"]
-                session["email"] = user["email"]
-                session["is_admin"] = user["is_admin"]
-                flash("アカウントを作成しました", "success")
-                return redirect(url_for("index"))
-            except Exception as e:
-                error = f"登録に失敗しました: {e}"
-    return render_template("register.html", error=error)
+            import bcrypt as _bc
+            session["reg_data"] = form_data
+            session["reg_pw_hash"] = _bc.hashpw(password.encode(), _bc.gensalt()).decode()
+            session["reg_token"] = token
+            return redirect(url_for("register_confirm"))
+
+    return render_template("register_complete.html", email=email, token=token,
+                           error=error, form=form_data)
+
+
+@app.route("/register/confirm", methods=["GET", "POST"])
+def register_confirm():
+    form_data = session.get("reg_data")
+    pw_hash = session.get("reg_pw_hash")
+    token = session.get("reg_token", "")
+    if not form_data or not pw_hash or not token:
+        flash("入力情報が見つかりません。最初からやり直してください。", "error")
+        return redirect(url_for("register"))
+
+    email = db.validate_register_token(token)
+    if not email:
+        return render_template("register_invalid_token.html"), 400
+
+    if request.method == "POST":
+        if db.get_user_by_email(email):
+            flash("このメールアドレスはすでに登録されています", "error")
+            return redirect(url_for("register"))
+        try:
+            plan = form_data.get("plan", "basic")
+            with db._conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO users (email, password_hash, salt, is_admin, plan, "
+                        "last_name, first_name, last_name_kana, first_name_kana, "
+                        "phone, company_name, industry, company_size, job_type, job_title) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        (email, pw_hash, "",
+                         bool(os.environ.get("ADMIN_EMAIL", "").lower().strip() == email),
+                         plan, form_data.get("last_name", ""), form_data.get("first_name", ""),
+                         form_data.get("last_name_kana", ""), form_data.get("first_name_kana", ""),
+                         form_data.get("phone", ""), form_data.get("company_name", ""),
+                         form_data.get("industry", ""), form_data.get("company_size", ""),
+                         form_data.get("job_type", ""), form_data.get("job_title", "")),
+                    )
+            db.consume_register_token(token)
+            session.pop("reg_data", None)
+            session.pop("reg_pw_hash", None)
+            session.pop("reg_token", None)
+            html = (
+                '<p>ご登録ありがとうございます。以下のURLからログインしてください。</p>'
+                '<p><a href="https://bizradar-6h9o.onrender.com/login">'
+                'https://bizradar-6h9o.onrender.com/login</a></p>'
+            )
+            _send_simple_mail(email, "【BizRadar】登録が完了しました", html)
+            flash("アカウントを作成しました。ログインしてください。", "success")
+            return redirect(url_for("login"))
+        except Exception as e:
+            flash(f"登録に失敗しました: {e}", "error")
+            return redirect(url_for("register"))
+
+    return render_template("register_confirm.html", email=email, form=form_data)
 
 
 @app.route("/logout", methods=["POST"])

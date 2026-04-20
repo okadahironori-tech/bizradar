@@ -6,128 +6,22 @@
   <title>BizRadar — アカウント登録</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f0f2f5;
-      color: #1a1a2e;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .login-wrap {
-      width: 100%;
-      max-width: 400px;
-      padding: 0 16px;
-    }
-
-    .login-header {
-      text-align: center;
-      margin-bottom: 28px;
-    }
-    .login-header h1 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #1a1a2e;
-      letter-spacing: 0.04em;
-    }
-    .login-header p {
-      font-size: 0.82rem;
-      color: #8892b0;
-      margin-top: 4px;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
-      padding: 32px 28px;
-    }
-
-    .form-group {
-      margin-bottom: 18px;
-    }
-    .form-group label {
-      display: block;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #4a4a6a;
-      margin-bottom: 6px;
-    }
-    .form-group input {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1.5px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.15s;
-      color: #1a1a2e;
-    }
-    .form-group input:focus {
-      border-color: #3949ab;
-    }
-
-    .btn-login {
-      width: 100%;
-      padding: 11px;
-      background: #1a1a2e;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 6px;
-      transition: background 0.15s;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .login-wrap { width: 100%; max-width: 400px; padding: 0 16px; }
+    .login-header { text-align: center; margin-bottom: 28px; }
+    .login-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a2e; letter-spacing: 0.04em; }
+    .login-header p { font-size: 0.82rem; color: #8892b0; margin-top: 4px; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); padding: 32px 28px; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 0.82rem; font-weight: 600; color: #4a4a6a; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; outline: none; color: #1a1a2e; }
+    .form-group input:focus { border-color: #3949ab; }
+    .btn-login { width: 100%; padding: 11px; background: #1a1a2e; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 6px; }
     .btn-login:hover { background: #2d2d4e; }
-
-    .error {
-      background: #fef2f2;
-      color: #991b1b;
-      border: 1px solid #fca5a5;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 0.85rem;
-      margin-bottom: 18px;
-    }
-
-    .login-link {
-      text-align: center;
-      margin-top: 16px;
-      font-size: 0.85rem;
-      color: #6b7280;
-    }
-    .login-link a {
-      color: #3949ab;
-      text-decoration: none;
-      font-weight: 600;
-    }
+    .error { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 18px; }
+    .login-link { text-align: center; margin-top: 16px; font-size: 0.85rem; color: #6b7280; }
+    .login-link a { color: #3949ab; text-decoration: none; font-weight: 600; }
     .login-link a:hover { text-decoration: underline; }
-
-    .plan-options { display: flex; flex-direction: column; gap: 8px; }
-    .plan-option {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 10px 12px;
-      border: 1.5px solid #d1d5db;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .plan-option:hover { border-color: #3949ab; }
-    .plan-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; }
-    .plan-option input[type="radio"]:checked + .plan-body .plan-name { color: #3949ab; }
-    .plan-option:has(input:checked) { border-color: #3949ab; background: #f5f7ff; }
-    .plan-body { display: flex; flex-direction: column; gap: 2px; }
-    .plan-name { font-size: 0.92rem; font-weight: 700; color: #1a1a2e; }
-    .plan-price { font-size: 0.82rem; color: #4a4a6a; }
-    .plan-desc { font-size: 0.76rem; color: #6b7280; line-height: 1.4; }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -144,146 +38,19 @@
       <form method="POST" action="/register">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
-          <label>お名前 <span style="color:#dc2626">*</span></label>
-          <div style="display:flex;gap:8px;">
-            <input type="text" name="last_name" maxlength="50" required
-                   placeholder="山田" autocomplete="family-name"
-                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
-            <input type="text" name="first_name" maxlength="50" required
-                   placeholder="太郎" autocomplete="given-name"
-                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>ふりがな <span style="color:#dc2626">*</span></label>
-          <div style="display:flex;gap:8px;">
-            <input type="text" name="last_name_kana" maxlength="50" required
-                   placeholder="やまだ"
-                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
-            <input type="text" name="first_name_kana" maxlength="50" required
-                   placeholder="たろう"
-                   style="flex:1;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>電話番号 <span style="color:#dc2626">*</span></label>
-          <input type="tel" name="phone" maxlength="20" required placeholder="090-0000-0000">
-        </div>
-        <div class="form-group">
-          <label for="email">メールアドレス <span style="color:#dc2626">*</span></label>
+          <label for="email">メールアドレス</label>
           <input type="email" id="email" name="email" autocomplete="email" autofocus required>
         </div>
-        <div class="form-group">
-          <label for="password">パスワード（6文字以上）</label>
-          <div style="position:relative;">
-            <input type="password" id="password" name="password" autocomplete="new-password" required>
-            <button type="button" onclick="togglePassword('password')" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#6b7280; font-size:0.85rem; padding:4px;">
-              表示
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="confirm_password">パスワード（確認）</label>
-          <div style="position:relative;">
-            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
-            <button type="button" onclick="togglePassword('confirm_password')" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#6b7280; font-size:0.85rem; padding:4px;">
-              表示
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>会社名 <span style="color:#dc2626">*</span></label>
-          <input type="text" name="company_name" maxlength="200" required placeholder="例：トヨタ自動車株式会社">
-        </div>
-        <div class="form-group">
-          <label>業種 <span style="color:#dc2626">*</span></label>
-          <select name="industry" required style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
-            <option value="">選択してください</option>
-            {% for v in ['製造業（自動車・輸送機器）','製造業（機械・設備）','製造業（電気・電子）','製造業（素材・化学）','製造業（食品・飲料）','製造業（その他）','建設・不動産','商社・卸売・小売','金融・保険','情報・通信・IT','メディア・出版・広告','コンサルティング','法律・会計・税務','医療・福祉・介護','教育・研究','運輸・物流','エネルギー・インフラ','飲食・宿泊・観光','官公庁・自治体・団体','その他'] %}
-            <option value="{{ v }}">{{ v }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>従業員規模 <span style="color:#dc2626">*</span></label>
-          <select name="company_size" required style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
-            <option value="">選択してください</option>
-            {% for v in ['1〜10人','11〜50人','51〜300人','301人以上'] %}
-            <option value="{{ v }}">{{ v }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>職種</label>
-          <select name="job_type" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
-            <option value="">選択してください</option>
-            {% for v in ['経営・経営企画','営業・販売','調達・購買','製造・生産管理','研究・開発・設計','財務・経理','人事・総務','広報・マーケティング','情報システム・IT','コンサルタント','その他'] %}
-            <option value="{{ v }}">{{ v }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>役職</label>
-          <select name="job_title" style="width:100%;padding:10px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.95rem;color:#1a1a2e;background:#fff;">
-            <option value="">選択してください</option>
-            {% for v in ['代表取締役・社長','取締役・役員','部長','課長','係長・主任','一般社員・担当','経営者・個人事業主','その他'] %}
-            <option value="{{ v }}">{{ v }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>プラン</label>
-          <div class="plan-options">
-            <label class="plan-option">
-              <input type="radio" name="plan" value="basic" checked>
-              <span class="plan-body">
-                <span class="plan-name">ベーシック</span>
-                <span class="plan-price">980円/月</span>
-                <span class="plan-desc">企業5社・キーワード15・メール通知・重要アラート・YouTubeチャンネルモニタリング・AIフィルター設定（β版）</span>
-              </span>
-            </label>
-            <label class="plan-option">
-              <input type="radio" name="plan" value="business">
-              <span class="plan-body">
-                <span class="plan-name">ビジネス</span>
-                <span class="plan-price">2,980円/月</span>
-                <span class="plan-desc">企業30社・キーワード50・メール通知・重要アラート・YouTubeチャンネルモニタリング・AIフィルター設定（β版）・重複記事グルーピング ※準備中</span>
-              </span>
-            </label>
-            <label class="plan-option">
-              <input type="radio" name="plan" value="pro">
-              <span class="plan-body">
-                <span class="plan-name">Pro</span>
-                <span class="plan-price">9,800円/月</span>
-                <span class="plan-desc">企業100社・キーワード150・TDnet適時開示・メール通知・Slack/LINE通知（TDnet適時開示のみ）・YouTubeチャンネルモニタリング・AIフィルター設定（β版）・AIによる機能強化（重複グルーピング・重要アラート精度・自然言語検索・AI設定提案）※準備中</span>
-              </span>
-            </label>
-          </div>
-        </div>
-        <button type="submit" class="btn-login">アカウントを作成</button>
+        <button type="submit" class="btn-login">確認メールを送信</button>
       </form>
-      <p class="login-link" style="margin-top:18px;">
-        すでにアカウントをお持ちの方は <a href="/login">ログイン</a>
-      </p>
     </div>
-    <p style="text-align:center; margin-top:20px; font-size:0.78rem; color:#9ca3af;">
-      <a href="/terms" style="color:#9ca3af; text-decoration:none; margin:0 6px;">利用規約</a>
-      <span style="color:#d1d5db;">|</span>
-      <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 6px;">プライバシーポリシー</a>
-    </p>
+    <div class="login-link">
+      既にアカウントをお持ちの方は <a href="/login">ログイン</a>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:0.78rem;color:#9ca3af;">
+      <a href="/terms" style="color:#9ca3af;text-decoration:none;">利用規約</a> ・
+      <a href="/privacy" style="color:#9ca3af;text-decoration:none;">プライバシーポリシー</a>
+    </div>
   </div>
-<script>
-function togglePassword(inputId) {
-  const input = document.getElementById(inputId);
-  const btn = event.currentTarget;
-  if (input.type === 'password') {
-    input.type = 'text';
-    btn.textContent = '隠す';
-  } else {
-    input.type = 'password';
-    btn.textContent = '表示';
-  }
-}
-</script>
 </body>
 </html>

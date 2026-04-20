@@ -172,6 +172,12 @@ def init_db():
                     expires_at TIMESTAMP NOT NULL,
                     used_at    TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS register_tokens (
+                    token      VARCHAR(64) PRIMARY KEY,
+                    email      TEXT NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    used_at    TIMESTAMPTZ
+                );
                 CREATE TABLE IF NOT EXISTS tdnet_disclosures (
                     id            SERIAL PRIMARY KEY,
                     document_id   VARCHAR(20) NOT NULL UNIQUE,
@@ -2771,6 +2777,45 @@ def consume_magic_token(token: str):
                 (token_id,),
             )
             return user_id
+
+
+def create_register_token(email: str, ttl_hours: int = 24) -> str:
+    import secrets
+    token = secrets.token_urlsafe(32)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM register_tokens WHERE email = %s AND used_at IS NULL",
+                (email.lower(),),
+            )
+            cur.execute(
+                "INSERT INTO register_tokens (token, email, expires_at) "
+                "VALUES (%s, %s, NOW() + INTERVAL '%s hours')",
+                (token, email.lower(), ttl_hours),
+            )
+    return token
+
+
+def validate_register_token(token: str) -> str | None:
+    """有効な登録トークンのemailを返す。無効・期限切れならNone。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT email FROM register_tokens "
+                "WHERE token = %s AND used_at IS NULL AND expires_at > NOW()",
+                (token,),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def consume_register_token(token: str):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE register_tokens SET used_at = NOW() WHERE token = %s",
+                (token,),
+            )
 
 
 # ============================================================
