@@ -294,9 +294,17 @@
 
 <!-- 企業追加モーダル -->
 <div class="modal-overlay" id="add-company-modal" onclick="closeAddCompanyModalOnOverlay(event)">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:600px;">
     <button class="modal-close" onclick="closeAddCompanyModal()" aria-label="閉じる">×</button>
     <div class="modal-title">企業を追加</div>
+    <div style="display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:16px;">
+      <button type="button" class="btn" onclick="switchAddTab('single')" id="tab-single" style="border-radius:0;border:none;border-bottom:2px solid #3949ab;margin-bottom:-2px;padding:8px 16px;font-size:0.82rem;font-weight:600;color:#3949ab;background:none;cursor:pointer;">1社ずつ</button>
+      <button type="button" class="btn" onclick="switchAddTab('text')" id="tab-text" style="border-radius:0;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;padding:8px 16px;font-size:0.82rem;font-weight:600;color:#9ca3af;background:none;cursor:pointer;">テキスト一括</button>
+      <button type="button" class="btn" onclick="switchAddTab('csv')" id="tab-csv" style="border-radius:0;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;padding:8px 16px;font-size:0.82rem;font-weight:600;color:#9ca3af;background:none;cursor:pointer;">CSV</button>
+    </div>
+
+    <!-- タブ1: 1社ずつ -->
+    <div id="panel-single">
     <form method="POST" action="/companies/add" onsubmit="return confirmAddCompany(event)">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
@@ -333,34 +341,220 @@
         <button type="submit" class="btn btn-primary">追加</button>
         <button type="button" class="btn btn-ghost" onclick="closeAddCompanyModal()">キャンセル</button>
       </div>
-      <script>
-      (function() {
-        const nameEl = document.getElementById('company-name-input');
-        if (!nameEl) return;
-        nameEl.addEventListener('change', function() {
-          const name = this.value.trim();
-          if (!name) return;
-          fetch('/api/company_lookup?name=' + encodeURIComponent(name))
-            .then(r => r.json())
-            .then(data => {
-              if (data.securities_code) {
-                const codeEl = document.getElementById('securities-code-input');
-                const kanaEl = document.getElementById('kana-input');
-                if (codeEl && !codeEl.value) codeEl.value = data.securities_code;
-                if (kanaEl && !kanaEl.value) kanaEl.value = data.company_name_kana || '';
-              }
-              if (data.website_url) {
-                const urlEl = document.getElementById('website-url-input');
-                if (urlEl && !urlEl.value) urlEl.value = data.website_url;
-              }
-            })
-            .catch(() => {});
-        });
-      })();
-      </script>
     </form>
+    <script>
+    (function() {
+      const nameEl = document.getElementById('company-name-input');
+      if (!nameEl) return;
+      nameEl.addEventListener('change', function() {
+        const name = this.value.trim();
+        if (!name) return;
+        fetch('/api/company_lookup?name=' + encodeURIComponent(name))
+          .then(r => r.json())
+          .then(data => {
+            if (data.securities_code) {
+              const codeEl = document.getElementById('securities-code-input');
+              const kanaEl = document.getElementById('kana-input');
+              if (codeEl && !codeEl.value) codeEl.value = data.securities_code;
+              if (kanaEl && !kanaEl.value) kanaEl.value = data.company_name_kana || '';
+            }
+            if (data.website_url) {
+              const urlEl = document.getElementById('website-url-input');
+              if (urlEl && !urlEl.value) urlEl.value = data.website_url;
+            }
+          })
+          .catch(() => {});
+      });
+    })();
+    </script>
+    </div>
+
+    <!-- タブ2: テキスト一括 -->
+    <div id="panel-text" style="display:none;">
+      <div style="font-size:0.82rem;color:#6b7280;margin-bottom:10px;">企業名を1行に1社ずつ入力してください</div>
+      <textarea id="bulk-text-input" style="width:100%;min-height:120px;padding:10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.88rem;font-family:inherit;resize:vertical;" placeholder="トヨタ自動車&#10;ソニーグループ&#10;極洋"></textarea>
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;margin:10px 0;cursor:pointer;">
+        <input type="checkbox" id="bulk-text-kw" checked> 企業名をキーワードとして登録する
+      </label>
+      <div id="bulk-text-error" style="color:#dc2626;font-size:0.82rem;display:none;margin-bottom:8px;"></div>
+      <div id="bulk-text-preview" style="display:none;margin-top:12px;">
+        <div style="font-size:0.82rem;font-weight:600;margin-bottom:6px;">確認</div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+            <thead><tr style="background:#f8f9fa;"><th style="padding:6px 8px;text-align:left;">企業名</th><th style="padding:6px 8px;text-align:left;">かな</th><th style="padding:6px 8px;text-align:left;">証券コード</th><th style="padding:6px 8px;text-align:left;">URL</th></tr></thead>
+            <tbody id="bulk-text-tbody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px;">
+          <button type="button" class="btn btn-primary" onclick="submitBulk('text')">登録する</button>
+          <button type="button" class="btn btn-ghost" onclick="closeAddCompanyModal()">キャンセル</button>
+        </div>
+      </div>
+      <div id="bulk-text-check-btn" style="margin-top:10px;">
+        <button type="button" class="btn btn-primary" onclick="checkBulkText()">候補を確認する</button>
+      </div>
+    </div>
+
+    <!-- タブ3: CSV -->
+    <div id="panel-csv" style="display:none;">
+      <div style="font-size:0.82rem;color:#6b7280;margin-bottom:10px;line-height:1.6;">
+        CSVフォ��マット（UTF-8）:<br>
+        <code style="font-size:0.78rem;background:#f3f4f6;padding:2px 6px;border-radius:4px;">企業名,企業名(かな),証券コード,WebサイトURL,メモ</code><br>
+        1行目はヘッダーとして読み飛ばします。必須項目は企業名のみです。
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv" style="font-size:0.85rem;margin-bottom:8px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;margin:8px 0;cursor:pointer;">
+        <input type="checkbox" id="bulk-csv-kw" checked> 企業名をキーワードとして登録する
+      </label>
+      <div id="bulk-csv-error" style="color:#dc2626;font-size:0.82rem;display:none;margin-bottom:8px;"></div>
+      <div id="bulk-csv-preview" style="display:none;margin-top:12px;">
+        <div style="font-size:0.82rem;font-weight:600;margin-bottom:6px;">確認</div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+            <thead><tr style="background:#f8f9fa;"><th style="padding:6px 8px;text-align:left;">企業名</th><th style="padding:6px 8px;text-align:left;">かな</th><th style="padding:6px 8px;text-align:left;">証券コード</th><th style="padding:6px 8px;text-align:left;">URL</th><th style="padding:6px 8px;text-align:left;">メモ</th></tr></thead>
+            <tbody id="bulk-csv-tbody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px;">
+          <button type="button" class="btn btn-primary" onclick="submitBulk('csv')">登録する</button>
+          <button type="button" class="btn btn-ghost" onclick="closeAddCompanyModal()">キャンセル</button>
+        </div>
+      </div>
+      <div id="bulk-csv-check-btn" style="margin-top:10px;">
+        <button type="button" class="btn btn-primary" onclick="checkBulkCsv()">内容を確認する</button>
+      </div>
+    </div>
+
   </div>
 </div>
+
+<script>
+function switchAddTab(tab) {
+  ['single','text','csv'].forEach(function(t) {
+    document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
+    var btn = document.getElementById('tab-' + t);
+    btn.style.borderBottomColor = t === tab ? '#3949ab' : 'transparent';
+    btn.style.color = t === tab ? '#3949ab' : '#9ca3af';
+  });
+}
+function _csrfVal() {
+  var el = document.querySelector('#add-company-modal input[name="csrf_token"]');
+  return el ? el.value : '';
+}
+
+async function checkBulkText() {
+  var err = document.getElementById('bulk-text-error');
+  var lines = document.getElementById('bulk-text-input').value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  var seen = {};
+  var unique = [];
+  lines.forEach(function(n) { if (!seen[n]) { seen[n] = true; unique.push(n); } });
+  if (!unique.length) { err.textContent = '企業名を入力してください'; err.style.display = ''; return; }
+  err.style.display = 'none';
+  var tbody = document.getElementById('bulk-text-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" style="padding:10px;text-align:center;color:#9ca3af;">検索中...</td></tr>';
+  document.getElementById('bulk-text-preview').style.display = '';
+  document.getElementById('bulk-text-check-btn').style.display = 'none';
+  var rows = [];
+  for (var i = 0; i < unique.length; i++) {
+    var name = unique[i];
+    var kana = '', code = '', url = '';
+    try {
+      var resp = await fetch('/api/company_lookup?name=' + encodeURIComponent(name));
+      var data = await resp.json();
+      if (data.securities_code) code = data.securities_code;
+      if (data.company_name_kana) kana = data.company_name_kana;
+      if (data.website_url) url = data.website_url;
+    } catch(e) {}
+    rows.push({name:name, kana:kana, code:code, url:url});
+  }
+  tbody.innerHTML = '';
+  rows.forEach(function(r, idx) {
+    var tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid #f0f2f5';
+    tr.innerHTML =
+      '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="name" value="'+_esc(r.name)+'" style="width:100%;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>'+
+      '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="kana" value="'+_esc(r.kana)+'" style="width:100%;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">'+(r.kana?'':'<span style="color:#e53935;font-size:0.72rem;">未マッチ</span>')+'</td>'+
+      '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="code" value="'+_esc(r.code)+'" style="width:80px;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>'+
+      '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="url" value="'+_esc(r.url)+'" style="width:100%;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>';
+    tbody.appendChild(tr);
+  });
+  window._bulkTextRows = rows;
+}
+function _esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function checkBulkCsv() {
+  var err = document.getElementById('bulk-csv-error');
+  var file = document.getElementById('csv-file-input').files[0];
+  if (!file) { err.textContent = 'ファイルを選択してください'; err.style.display = ''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var lines = e.target.result.split('\n');
+    var rows = [];
+    var seen = {};
+    for (var i = 1; i < lines.length; i++) {
+      var cols = lines[i].split(',').map(function(c){return c.trim().replace(/^"|"$/g,'');});
+      var name = (cols[0]||'').trim();
+      if (!name || seen[name]) continue;
+      seen[name] = true;
+      rows.push({name:name, kana:cols[1]||'', code:cols[2]||'', url:cols[3]||'', memo:cols[4]||''});
+    }
+    if (!rows.length) { err.textContent = '有効な行がありません'; err.style.display = ''; return; }
+    err.style.display = 'none';
+    var tbody = document.getElementById('bulk-csv-tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(r, idx) {
+      var tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #f0f2f5';
+      tr.innerHTML =
+        '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="name" value="'+_esc(r.name)+'" style="width:100%;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>'+
+        '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="kana" value="'+_esc(r.kana)+'" style="width:100%;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>'+
+        '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="code" value="'+_esc(r.code)+'" style="width:80px;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>'+
+        '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="url" value="'+_esc(r.url)+'" style="width:100%;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>'+
+        '<td style="padding:4px 6px;"><input type="text" data-idx="'+idx+'" data-field="memo" value="'+_esc(r.memo)+'" style="width:100%;padding:4px;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;"></td>';
+      tbody.appendChild(tr);
+    });
+    window._bulkCsvRows = rows;
+    document.getElementById('bulk-csv-preview').style.display = '';
+    document.getElementById('bulk-csv-check-btn').style.display = 'none';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function submitBulk(mode) {
+  var rows = mode === 'text' ? (window._bulkTextRows || []) : (window._bulkCsvRows || []);
+  var tbody = document.getElementById(mode === 'text' ? 'bulk-text-tbody' : 'bulk-csv-tbody');
+  var inputs = tbody.querySelectorAll('input[data-idx]');
+  inputs.forEach(function(inp) {
+    var idx = parseInt(inp.dataset.idx);
+    var field = inp.dataset.field;
+    if (rows[idx]) {
+      if (field === 'name') rows[idx].name = inp.value.trim();
+      if (field === 'kana') rows[idx].kana = inp.value.trim();
+      if (field === 'code') rows[idx].code = inp.value.trim();
+      if (field === 'url') rows[idx].url = inp.value.trim();
+      if (field === 'memo') rows[idx].memo = inp.value.trim();
+    }
+  });
+  var kwCheck = mode === 'text' ? document.getElementById('bulk-text-kw').checked : document.getElementById('bulk-csv-kw').checked;
+  var payload = {
+    companies: rows.filter(function(r){return r.name;}).map(function(r){
+      return {name:r.name, name_kana:r.kana, securities_code:r.code, website_url:r.url, memo:r.memo||''};
+    }),
+    register_as_keywords: kwCheck
+  };
+  fetch('/companies/add_bulk', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': _csrfVal()},
+    credentials: 'same-origin',
+    body: JSON.stringify(payload)
+  }).then(function(r){return r.json();}).then(function(d) {
+    var msg = d.success_count + '社を登録しました';
+    if (d.failed_count > 0) msg += '（' + d.failed_count + '社は登録できませんでした: ' + d.failed_names.join(', ') + '）';
+    alert(msg);
+    if (d.success_count > 0) location.href = '/company';
+  }).catch(function(e) { alert('エラー: ' + e); });
+}
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>

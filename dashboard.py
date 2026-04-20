@@ -4337,6 +4337,59 @@ def add_company():
     return redirect(url_for("company_list"))
 
 
+@app.route("/companies/add_bulk", methods=["POST"])
+@login_required
+def add_company_bulk():
+    user_id = session["user_id"]
+    data = request.get_json(silent=True) or {}
+    companies = data.get("companies", [])
+    register_kw = data.get("register_as_keywords", False)
+    if not companies:
+        return jsonify({"success_count": 0, "failed_count": 0, "failed_names": []})
+    existing = db.load_companies(user_id)
+    existing_domains = set()
+    for c in existing:
+        d = _extract_domain(c.get("website_url", "") or "")
+        if d:
+            existing_domains.add(d)
+    existing_names = {c["name"] for c in existing}
+    success_count = 0
+    failed_names = []
+    for item in companies:
+        name = (item.get("name") or "").strip()
+        if not name:
+            continue
+        if name in existing_names:
+            failed_names.append(name)
+            continue
+        name_kana = (item.get("name_kana") or "").strip()
+        website_url = (item.get("website_url") or "").strip()
+        memo = (item.get("memo") or "").strip()
+        securities_code = (item.get("securities_code") or "").strip()
+        if website_url:
+            d = _extract_domain(website_url)
+            if d and d in existing_domains:
+                failed_names.append(name)
+                continue
+        try:
+            company_id = db.create_company(user_id, name, name_kana, website_url, memo,
+                                           securities_code=securities_code)
+            if register_kw:
+                created = db.add_keyword_if_not_exists(user_id, name)
+                if created:
+                    db.set_keyword_company(user_id, name, company_id)
+            existing_names.add(name)
+            if website_url:
+                d = _extract_domain(website_url)
+                if d:
+                    existing_domains.add(d)
+            success_count += 1
+        except Exception:
+            failed_names.append(name)
+    return jsonify({"success_count": success_count, "failed_count": len(failed_names),
+                    "failed_names": failed_names})
+
+
 @app.route("/companies/<int:company_id>")
 @login_required
 def company_detail(company_id):
