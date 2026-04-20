@@ -286,20 +286,20 @@
       <form class="settings-panel" method="POST" action="/settings/filters" style="flex-direction:column; align-items:flex-start; gap:16px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
-          <div style="font-size:1rem; font-weight:700; color:#4a4a6a; margin-bottom:4px;">スポーツ記事フィルター</div>
+          <div style="font-size:0.8rem; font-weight:600; color:#6b7280; margin-bottom:4px;">スポーツ記事フィルター</div>
           <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:10px;">試合結果・選手情報などのスポーツ関連記事の扱いを選択できます</div>
           <div style="display:flex; flex-direction:column; gap:10px;">
-            <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
               <input type="radio" name="sports_filter" value="off" {% if sports_filter == 'off' %}checked{% endif %}
                      style="accent-color:#3949ab;">
               <span>フィルターなし</span>
             </label>
-            <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
               <input type="radio" name="sports_filter" value="low" {% if sports_filter != 'off' and sports_filter != 'hide' %}checked{% endif %}
                      style="accent-color:#3949ab;">
               <span>重要度を下げる</span>
             </label>
-            <label style="display:flex; align-items:flex-start; gap:8px; font-size:0.82rem; cursor:pointer;">
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:0.88rem; cursor:pointer;">
               <input type="radio" name="sports_filter" value="hide" {% if sports_filter == 'hide' %}checked{% endif %}
                      style="accent-color:#3949ab; margin-top:3px;">
               <div>
@@ -311,20 +311,20 @@
         </div>
         <hr style="border:none; border-top:1px solid #f0f2f5; width:100%; margin:4px 0;">
         <div>
-          <div style="font-size:1rem; font-weight:700; color:#4a4a6a; margin-bottom:4px;">エンタメ・芸能記事フィルター</div>
+          <div style="font-size:0.8rem; font-weight:600; color:#6b7280; margin-bottom:4px;">エンタメ・芸能記事フィルター</div>
           <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:10px;">芸能人・エンタメイベントなどの記事の扱いを選択できます</div>
           <div style="display:flex; flex-direction:column; gap:10px;">
-            <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
               <input type="radio" name="entertainment_filter" value="off" {% if entertainment_filter == 'off' %}checked{% endif %}
                      style="accent-color:#3949ab;">
               <span>フィルターなし</span>
             </label>
-            <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.88rem; cursor:pointer;">
               <input type="radio" name="entertainment_filter" value="low" {% if entertainment_filter != 'off' and entertainment_filter != 'hide' %}checked{% endif %}
                      style="accent-color:#3949ab;">
               <span>重要度を下げる</span>
             </label>
-            <label style="display:flex; align-items:flex-start; gap:8px; font-size:0.82rem; cursor:pointer;">
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:0.88rem; cursor:pointer;">
               <input type="radio" name="entertainment_filter" value="hide" {% if entertainment_filter == 'hide' %}checked{% endif %}
                      style="accent-color:#3949ab; margin-top:3px;">
               <div>
