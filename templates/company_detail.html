@@ -1004,9 +1004,9 @@
         <div id="yt-add-form" style="{% if youtube_channels | length >= 5 %}display:none;{% endif %}">
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
             <input type="text" id="yt-ch-id-input" placeholder="例：UCxxxxxxxxxxxxxxxxxxxxxx" maxlength="100"
-                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; min-width:180px;">
+                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; min-width:180px; flex:1;">
             <input type="text" id="yt-ch-label-input" placeholder="ラベル（任意）" maxlength="50"
-                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px;">
+                   style="padding:7px 12px; font-size:0.88rem; border:1.5px solid #d1d5db; border-radius:8px; flex:1;">
             <button type="button" class="btn btn-primary" onclick="addYtChannel()">追加</button>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px;">
