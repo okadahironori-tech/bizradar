@@ -283,7 +283,7 @@
   <section>
     <div class="section-title">フィルター設定</div>
     <div class="card">
-      <form class="settings-panel" method="POST" action="/settings/filters" style="flex-direction:column; align-items:flex-start; gap:16px;">
+      <form method="POST" action="/settings/filters" style="display:flex; flex-direction:column; align-items:flex-start; gap:16px; padding:16px 20px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
           <div style="font-size:0.82rem; font-weight:600; color:#6b7280; margin-bottom:4px;">スポーツ記事フィルター</div>
