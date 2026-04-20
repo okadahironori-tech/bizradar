@@ -635,7 +635,7 @@ def _run_migrations():
             if sf_row is None:
                 cur.execute(
                     "ALTER TABLE users ADD COLUMN sports_filter "
-                    "VARCHAR(10) NOT NULL DEFAULT 'low';"
+                    "VARCHAR(10) NOT NULL DEFAULT 'off';"
                 )
             elif sf_row[0] == 'boolean':
                 cur.execute(
@@ -657,6 +657,9 @@ def _run_migrations():
                 "UPDATE users SET sports_filter = 'low' "
                 "WHERE sports_filter IS NULL;"
             )
+            # sports_filter / entertainment_filter: 新規ユーザーのデフォルトを off に変更
+            cur.execute("ALTER TABLE users ALTER COLUMN sports_filter SET DEFAULT 'off';")
+            cur.execute("ALTER TABLE users ALTER COLUMN entertainment_filter SET DEFAULT 'off';")
             # articles: スポーツ記事フラグ
             cur.execute(
                 "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
@@ -665,7 +668,7 @@ def _run_migrations():
             # users: エンタメ・芸能記事フィルター
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
-                "entertainment_filter VARCHAR(10) NOT NULL DEFAULT 'low';"
+                "entertainment_filter VARCHAR(10) NOT NULL DEFAULT 'off';"
             )
             cur.execute(
                 "UPDATE users SET entertainment_filter = 'low' "

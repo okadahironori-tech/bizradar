@@ -281,7 +281,7 @@
 
   <!-- ── フィルター設定 ── -->
   <section>
-    <div class="section-title">フィルター設定</div>
+    <div class="section-title">フィルター設定（β版）</div>
     <div class="card">
       <form method="POST" action="/settings/filters" style="display:flex; flex-direction:column; align-items:flex-start; gap:16px; padding:16px 20px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -303,8 +303,8 @@
               <input type="radio" name="sports_filter" value="hide" {% if sports_filter == 'hide' %}checked{% endif %}
                      style="accent-color:#3949ab; margin-top:3px;">
               <div>
-                <span>非表示にする</span><span style="font-size:0.7rem; color:#3949ab; font-weight:600; margin-left:4px;">β</span>
-                <div style="font-size:0.72rem; color:#9ca3af; margin-top:2px; line-height:1.5;">β版機能です。AIの判定精度により、スポーツ以外の記事が非表示になる場合があります。ご了承のうえご利用ください。</div>
+                <span>非表示にする</span>
+                <div style="font-size:0.72rem; color:#9ca3af; margin-top:2px; line-height:1.5;">AIの判定精度により、スポーツ以外の記事が非表示になる場合があります。ご了承のうえご利用ください。</div>
               </div>
             </label>
           </div>
@@ -328,8 +328,8 @@
               <input type="radio" name="entertainment_filter" value="hide" {% if entertainment_filter == 'hide' %}checked{% endif %}
                      style="accent-color:#3949ab; margin-top:3px;">
               <div>
-                <span>非表示にする</span><span style="font-size:0.7rem; color:#3949ab; font-weight:600; margin-left:4px;">β</span>
-                <div style="font-size:0.72rem; color:#9ca3af; margin-top:2px; line-height:1.5;">β版機能です。AIの判定精度により、エンタメ以外の記事が非表示になる場合があります。ご了承のうえご利用ください。</div>
+                <span>非表示にする</span>
+                <div style="font-size:0.72rem; color:#9ca3af; margin-top:2px; line-height:1.5;">AIの判定精度により、エンタメ芸能以外の記事が非表示になる場合があります。ご了承のうえご利用ください。</div>
               </div>
             </label>
           </div>
