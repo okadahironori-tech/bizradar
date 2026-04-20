@@ -901,8 +901,8 @@ def register_complete():
     if not email:
         return render_template("register_invalid_token.html"), 400
 
-    error = None
-    form_data = {}
+    errors = {}
+    form_data = session.get("reg_data", {}) if request.method == "GET" else {}
     if request.method == "POST":
         form_data = {
             "last_name": request.form.get("last_name", "").strip()[:50],
@@ -920,25 +920,32 @@ def register_complete():
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
 
-        if not form_data["last_name"] or not form_data["first_name"]:
-            error = "お名前を入力してください"
-        elif not form_data["last_name_kana"] or not form_data["first_name_kana"]:
-            error = "ふりがなを入力してください"
-        elif not form_data["phone"]:
-            error = "電話番号を入力してください"
-        elif not form_data["company_name"]:
-            error = "会社名を入力してください"
-        elif form_data["industry"] not in _VALID_INDUSTRIES:
-            error = "業種を選択してください"
-        elif form_data["company_size"] not in _VALID_COMPANY_SIZES:
-            error = "従業員規模を選択してください"
+        if not form_data["last_name"]:
+            errors["last_name"] = "未記入です"
+        if not form_data["first_name"]:
+            errors["first_name"] = "未記入です"
+        if not form_data["last_name_kana"]:
+            errors["last_name_kana"] = "未記入です"
+        if not form_data["first_name_kana"]:
+            errors["first_name_kana"] = "未記入です"
+        if not form_data["phone"]:
+            errors["phone"] = "未記入です"
+        if not form_data["company_name"]:
+            errors["company_name"] = "未記入です"
+        if form_data["industry"] not in _VALID_INDUSTRIES:
+            errors["industry"] = "未選択です"
+        if form_data["company_size"] not in _VALID_COMPANY_SIZES:
+            errors["company_size"] = "未選択です"
+        if not password:
+            errors["password"] = "未記入です"
         elif len(password) < 6:
-            error = "パスワードは6文字以上で入力してください"
-        elif password != confirm:
-            error = "パスワードが一致しません"
-        elif form_data["plan"] not in ("basic", "business", "pro"):
-            error = "プランを選択してください"
-        else:
+            errors["password"] = "6文字以上で入力してください"
+        if password and confirm != password:
+            errors["confirm_password"] = "パスワードが一致しません"
+        if form_data["plan"] not in ("basic", "business", "pro"):
+            errors["plan"] = "未選択です"
+
+        if not errors:
             import bcrypt as _bc
             session["reg_data"] = form_data
             session["reg_pw_hash"] = _bc.hashpw(password.encode(), _bc.gensalt()).decode()
@@ -946,7 +953,7 @@ def register_complete():
             return redirect(url_for("register_confirm"))
 
     return render_template("register_complete.html", email=email, token=token,
-                           error=error, form=form_data)
+                           errors=errors, form=form_data)
 
 
 @app.route("/register/confirm", methods=["GET", "POST"])

@@ -30,6 +30,7 @@
     .plan-price { font-size: 0.82rem; color: #4a4a6a; }
     .plan-desc { font-size: 0.76rem; color: #6b7280; line-height: 1.4; }
     .req { color: #dc2626; }
+    .field-error { color: #dc2626; font-size: 0.78rem; margin-top: 4px; }
   </style>
   <link rel="stylesheet" href="/static/base.css">
 </head>
@@ -43,8 +44,8 @@
       <div style="font-size:0.85rem;color:#6b7280;margin-bottom:18px;">
         メールアドレス: <strong style="color:#1a1a2e;">{{ email }}</strong>
       </div>
-      {% if error %}
-      <div class="error">{{ error }}</div>
+      {% if errors %}
+      <div class="error">入力内容にエラーがあります。各項目を確認してください。</div>
       {% endif %}
       <form method="POST" action="/register/complete?token={{ token }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -52,42 +53,50 @@
         <div class="form-group">
           <label>お名前 <span class="req">*</span></label>
           <div style="display:flex;gap:8px;">
-            <input type="text" name="last_name" maxlength="50" required placeholder="山田" value="{{ form.get('last_name','') }}">
-            <input type="text" name="first_name" maxlength="50" required placeholder="太郎" value="{{ form.get('first_name','') }}">
+            <input type="text" name="last_name" maxlength="50" placeholder="山田" value="{{ form.get('last_name','') }}">
+            <input type="text" name="first_name" maxlength="50" placeholder="太郎" value="{{ form.get('first_name','') }}">
           </div>
+          {% if errors.get('last_name') %}<div class="field-error">姓: {{ errors.last_name }}</div>{% endif %}
+          {% if errors.get('first_name') %}<div class="field-error">名: {{ errors.first_name }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>ふりがな <span class="req">*</span></label>
           <div style="display:flex;gap:8px;">
-            <input type="text" name="last_name_kana" maxlength="50" required placeholder="やまだ" value="{{ form.get('last_name_kana','') }}">
-            <input type="text" name="first_name_kana" maxlength="50" required placeholder="たろう" value="{{ form.get('first_name_kana','') }}">
+            <input type="text" name="last_name_kana" maxlength="50" placeholder="やまだ" value="{{ form.get('last_name_kana','') }}">
+            <input type="text" name="first_name_kana" maxlength="50" placeholder="たろう" value="{{ form.get('first_name_kana','') }}">
           </div>
+          {% if errors.get('last_name_kana') %}<div class="field-error">姓: {{ errors.last_name_kana }}</div>{% endif %}
+          {% if errors.get('first_name_kana') %}<div class="field-error">名: {{ errors.first_name_kana }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>電話番号 <span class="req">*</span></label>
-          <input type="tel" name="phone" maxlength="20" required placeholder="090-0000-0000" value="{{ form.get('phone','') }}">
+          <input type="tel" name="phone" maxlength="20" placeholder="090-0000-0000" value="{{ form.get('phone','') }}">
+          {% if errors.get('phone') %}<div class="field-error">{{ errors.phone }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>会社名 <span class="req">*</span></label>
-          <input type="text" name="company_name" maxlength="200" required placeholder="例：トヨタ自動車株式会社" value="{{ form.get('company_name','') }}">
+          <input type="text" name="company_name" maxlength="200" placeholder="例：トヨタ自動車株式会社" value="{{ form.get('company_name','') }}">
+          {% if errors.get('company_name') %}<div class="field-error">{{ errors.company_name }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>業種 <span class="req">*</span></label>
-          <select name="industry" required>
+          <select name="industry">
             <option value="">選択してください</option>
             {% for v in ['製造業（自動車・輸送機器）','製造業（機械・設備）','製造業（電気・電子）','製造業（素材・化学）','製造業（食品・飲料）','製造業（その他）','建設・不動産','商社・卸売・小売','金融・保険','情報・通信・IT','メディア・出版・広告','コンサルティング','法律・会計・税務','医療・福祉・介護','教育・研究','運輸・物流','エネルギー・インフラ','飲食・宿泊・観光','官公庁・自治体・団体','その他'] %}
             <option value="{{ v }}" {% if form.get('industry') == v %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
+          {% if errors.get('industry') %}<div class="field-error">{{ errors.industry }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>従業員規模 <span class="req">*</span></label>
-          <select name="company_size" required>
+          <select name="company_size">
             <option value="">選択してください</option>
             {% for v in ['1〜10人','11〜50人','51〜300人','301人以上'] %}
             <option value="{{ v }}" {% if form.get('company_size') == v %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
+          {% if errors.get('company_size') %}<div class="field-error">{{ errors.company_size }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>職種</label>
@@ -109,11 +118,13 @@
         </div>
         <div class="form-group">
           <label>パスワード（6文字以上） <span class="req">*</span></label>
-          <input type="password" name="password" required minlength="6">
+          <input type="password" name="password" minlength="6">
+          {% if errors.get('password') %}<div class="field-error">{{ errors.password }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>パスワード（確認） <span class="req">*</span></label>
-          <input type="password" name="confirm_password" required>
+          <input type="password" name="confirm_password">
+          {% if errors.get('confirm_password') %}<div class="field-error">{{ errors.confirm_password }}</div>{% endif %}
         </div>
         <div class="form-group">
           <label>プラン <span class="req">*</span></label>
