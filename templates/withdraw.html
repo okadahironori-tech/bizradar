@@ -70,7 +70,10 @@
         </div>
         <div class="form-group">
           <label>パスワード（本人確認）</label>
-          <input type="password" name="password" required>
+          <div style="position:relative;">
+            <input type="password" name="password" required style="padding-right:50px;">
+            <button type="button" onclick="togglePwVis(this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#3949ab; cursor:pointer; font-size:0.8rem;">表示</button>
+          </div>
           {% if errors.get('password') %}<div class="field-error">{{ errors.password }}</div>{% endif %}
         </div>
         <div class="btn-row">
@@ -80,5 +83,12 @@
       </form>
     </div>
   </div>
+<script>
+function togglePwVis(btn) {
+  var input = btn.parentElement.querySelector('input');
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '非表示'; }
+  else { input.type = 'password'; btn.textContent = '表示'; }
+}
+</script>
 </body>
 </html>
