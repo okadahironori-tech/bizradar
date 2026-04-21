@@ -86,15 +86,6 @@
     .article-source { font-size: 0.72rem; color: #9ca3af; display: flex; flex-direction: column; align-items: flex-start; }
     .article-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .article-read-mark { font-size: 0.78rem; color: #059669; font-weight: 700; }
-    .article-dup-label {
-      margin-top: 8px;
-      padding: 4px 8px;
-      background: #f5f5f5;
-      color: #6b7280;
-      font-size: 0.72rem;
-      border-radius: 4px;
-      display: inline-block;
-    }
     .btn-check-done { font-size: 0.72rem; background: #3949ab; color: #fff; border: 1px solid #3949ab; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .btn-check-done:hover { background: #2d3a8c; border-color: #2d3a8c; }
     .btn-unread { font-size: 0.72rem; background: #f3f4f6; color: #666; border: 1px solid #999; border-radius: 5px; padding: 3px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
@@ -420,9 +411,6 @@
                 {% endfor %}
               </div>
             </details>
-            {% endif %}
-            {% if article.duplicate_count and article.duplicate_count > 0 and not article.grouped_siblings %}
-            <div class="article-dup-label">他{{ article.duplicate_count }}件が同じニュースを配信</div>
             {% endif %}
             <div class="article-card-bottom">
               <span class="article-source">
