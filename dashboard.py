@@ -123,13 +123,6 @@ def _group_syndicated_articles(articles: list) -> list:
     from collections import defaultdict
     from datetime import datetime, timedelta
 
-    input_count = len(articles)
-    logger.info("[SYNDICATE_DEBUG] input_count=%d", input_count)
-    for a in articles[:10]:
-        logger.info("[SYNDICATE_DEBUG] sample: kw=%s src=%s pub=%s title=%s",
-                     a.get("keyword", "")[:20], a.get("source", "")[:20],
-                     a.get("published", ""), (a.get("title", "") or "")[:50])
-
     groups = defaultdict(list)
     standalone = []
     for a in articles:
@@ -170,9 +163,7 @@ def _group_syndicated_articles(articles: list) -> list:
                     a["is_group_representative"] = True
                 result.extend(members)
                 continue
-        except (ValueError, TypeError) as e:
-            logger.warning("[SYNDICATE_DEBUG] date parse fail: min=%s max=%s err=%s ids=%s",
-                           min_pub, max_pub, e, [a.get("id") for a in members])
+        except (ValueError, TypeError):
             for a in members:
                 a["group_size"] = 1
                 a["grouped_siblings"] = []
@@ -196,12 +187,6 @@ def _group_syndicated_articles(articles: list) -> list:
         a["grouped_siblings"] = []
         a["is_group_representative"] = True
     result.extend(standalone)
-
-    grouped_reps = sum(1 for a in result if a.get("grouped_siblings"))
-    absorbed = input_count - len(result)
-    hashable = input_count - len(standalone)
-    logger.info("[SYNDICATE_DEBUG] output: total=%d hashable=%d grouped_reps=%d absorbed=%d standalone=%d",
-                 len(result), hashable, grouped_reps, absorbed, len(standalone))
 
     return result
 
