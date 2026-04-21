@@ -3009,6 +3009,7 @@ def load_active_companies_today(user_id: int) -> list:
                     changes_map[cid].append({"timestamp": hhmm})
 
             # ── 3. 企業ごとの本日ニュース記事数を取得 ──
+            # 代表記事かつ除外ソース除外後の更新件数（既読含む）
             cur.execute(
                 """
                 SELECT k.company_id, COUNT(*) AS cnt
@@ -3017,6 +3018,11 @@ def load_active_companies_today(user_id: int) -> list:
                 WHERE k.user_id = %s
                   AND k.company_id = ANY(%s)
                   AND a.found_at >= %s
+                  AND a.is_representative = TRUE
+                  AND NOT EXISTS (
+                    SELECT 1 FROM excluded_sources es
+                    WHERE es.user_id = a.user_id AND es.source_name = a.source
+                  )
                 GROUP BY k.company_id
                 """,
                 (user_id, company_ids, utc_midnight_str),
@@ -3099,6 +3105,7 @@ def load_active_companies_since(user_id: int, since_dt) -> list:
                     hhmm = ts[11:16] if len(ts) >= 16 else ts
                     changes_map[cid].append({"timestamp": hhmm})
 
+            # 代表記事かつ除外ソース除外後の更新件数（既読含む）
             cur.execute(
                 """
                 SELECT k.company_id, COUNT(*) AS cnt
@@ -3107,6 +3114,11 @@ def load_active_companies_since(user_id: int, since_dt) -> list:
                 WHERE k.user_id = %s
                   AND k.company_id = ANY(%s)
                   AND a.found_at >= %s
+                  AND a.is_representative = TRUE
+                  AND NOT EXISTS (
+                    SELECT 1 FROM excluded_sources es
+                    WHERE es.user_id = a.user_id AND es.source_name = a.source
+                  )
                 GROUP BY k.company_id
                 """,
                 (user_id, company_ids, since_utc_str),
