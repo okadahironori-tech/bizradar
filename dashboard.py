@@ -123,6 +123,13 @@ def _group_syndicated_articles(articles: list) -> list:
     from collections import defaultdict
     from datetime import datetime, timedelta
 
+    input_count = len(articles)
+    logger.info("[SYNDICATE_DEBUG] input_count=%d", input_count)
+    for a in articles[:10]:
+        logger.info("[SYNDICATE_DEBUG] sample: kw=%s src=%s pub=%s title=%s",
+                     a.get("keyword", "")[:20], a.get("source", "")[:20],
+                     a.get("published", ""), (a.get("title", "") or "")[:50])
+
     groups = defaultdict(list)
     standalone = []
     for a in articles:
@@ -163,7 +170,9 @@ def _group_syndicated_articles(articles: list) -> list:
                     a["is_group_representative"] = True
                 result.extend(members)
                 continue
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.warning("[SYNDICATE_DEBUG] date parse fail: min=%s max=%s err=%s ids=%s",
+                           min_pub, max_pub, e, [a.get("id") for a in members])
             for a in members:
                 a["group_size"] = 1
                 a["grouped_siblings"] = []
@@ -187,6 +196,12 @@ def _group_syndicated_articles(articles: list) -> list:
         a["grouped_siblings"] = []
         a["is_group_representative"] = True
     result.extend(standalone)
+
+    grouped_reps = sum(1 for a in result if a.get("grouped_siblings"))
+    absorbed = input_count - len(result)
+    hashable = input_count - len(standalone)
+    logger.info("[SYNDICATE_DEBUG] output: total=%d hashable=%d grouped_reps=%d absorbed=%d standalone=%d",
+                 len(result), hashable, grouped_reps, absorbed, len(standalone))
 
     return result
 
@@ -285,14 +300,20 @@ def _deduplicate_articles(articles, threshold=0.80):
         published = art.get("published", "") or ""
         return (is_yahoo, published)
 
+    # 転載グルーピング済み代表記事はdedup対象外（そのまま残す）
+    grouped_rep_indices = set()
     by_kw = defaultdict(list)
     for idx, art in enumerate(articles):
+        if art.get("grouped_siblings"):
+            grouped_rep_indices.add(idx)
         by_kw[art.get("keyword", "")].append(idx)
 
-    keep = set()
+    keep = set(grouped_rep_indices)
     for kw, indices in by_kw.items():
-        group = sorted([(idx, articles[idx]) for idx in indices], key=lambda x: _sort_key(x[1]))
-        # グループ内で正規化タイトルを事前計算（N² 比較中の再計算を回避）
+        dedup_indices = [i for i in indices if i not in grouped_rep_indices]
+        if not dedup_indices:
+            continue
+        group = sorted([(idx, articles[idx]) for idx in dedup_indices], key=lambda x: _sort_key(x[1]))
         normalized = {
             idx: _normalize_title_for_dedup(art.get("title", "") or "")
             for idx, art in group
@@ -1330,9 +1351,9 @@ def index():
 
     articles_data = db.load_articles_data(user_id, hide_sports=_hide_sports, hide_entertainment=_hide_ent)
     all_articles  = articles_data.get("articles", [])
-    # 重複排除（同一キーワード内でタイトル類似度が高い記事はYahoo優先で1件に集約）
-    all_articles  = _deduplicate_articles(all_articles)
+    # 転載グルーピング → ファジー重複排除（グルーピング済み代表はdedup対象外）
     all_articles  = _group_syndicated_articles(all_articles)
+    all_articles  = _deduplicate_articles(all_articles)
     _fb_ids = db.load_feedback_article_ids(user_id)
     for a in all_articles:
         a["has_feedback"] = bool(a.get("id") in _fb_ids)
@@ -2833,11 +2854,11 @@ def news():
     _flag_articles_alert(user_id, raw_articles)
     for a in raw_articles:
         a["published"] = a.get("published", "")
-    deduped_articles = _deduplicate_articles(raw_articles)
-    grouped_articles = _group_syndicated_articles(deduped_articles)
-    alert_count = sum(1 for a in grouped_articles
+    grouped_articles = _group_syndicated_articles(raw_articles)
+    deduped_articles = _deduplicate_articles(grouped_articles)
+    alert_count = sum(1 for a in deduped_articles
                       if (a.get("is_alert") or a.get("importance") == "high") and not a.get("is_read"))
-    all_articles = grouped_articles
+    all_articles = deduped_articles
     _fb_ids = db.load_feedback_article_ids(user_id)
     for a in all_articles:
         a["has_feedback"] = bool(a.get("id") in _fb_ids)
