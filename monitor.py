@@ -1173,7 +1173,7 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
                 'vertical-align:middle">重要</span>'
             ) if is_alert_art else ""
             row_bg = 'background:#fff5f5;' if is_alert_art else ''
-            rows += (
+            row_html = (
                 f'<tr style="{row_bg}">'
                 f'<td style="padding:8px 4px;vertical-align:top">'
                 f'<div style="font-weight:600">{alert_badge}{title_esc}</div>'
@@ -1181,9 +1181,12 @@ def send_digest_email(user_email: str, articles_by_keyword: dict, alert_kws: set
                 f'<div style="margin-top:4px">'
                 f'<a href="{url_esc}" style="color:#2563eb;text-decoration:none">記事を読む →</a>'
                 f'</div>'
-                f'</td>'
-                f'</tr>'
             )
+            gs = a.get("group_size", 1)
+            if gs and gs >= 2:
+                row_html += f'<div style="font-size:0.78em;color:#9ca3af;margin-top:2px">他 {gs - 1} 媒体が同記事を配信</div>'
+            row_html += f'</td></tr>'
+            rows += row_html
         sections_html += (
             f'<div style="margin-bottom:24px">'
             f'<div style="background:#e3f2fd;color:#1565c0;font-weight:700;'
@@ -1244,12 +1247,17 @@ def send_digest_for_user(user_id: int):
         print(f"[ダイジェスト] user_id={user_id} 未通知記事なし")
         return
 
-    # キーワードごとにグループ化（notify_enabled=True のみ）
+    # 転載記事グルーピング
+    try:
+        from dashboard import _group_syndicated_articles
+        unnotified = _group_syndicated_articles([a for a in unnotified if a.get("notify_enabled", True)])
+    except Exception:
+        unnotified = [a for a in unnotified if a.get("notify_enabled", True)]
+
+    # キーワードごとにグループ化
     articles_by_keyword: dict = {}
     seen_titles: set = set()
     for a in unnotified:
-        if not a.get("notify_enabled", True):
-            continue
         kw = a.get("keyword", "")
         title = a.get("title", "")
         key = f"{kw}::{title}"

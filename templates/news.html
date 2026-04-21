@@ -409,7 +409,16 @@
             {% if article.summary %}
             <div class="article-summary">{{ article.summary }}</div>
             {% endif %}
-            {% if article.duplicate_count and article.duplicate_count > 0 %}
+            {% if article.grouped_siblings and article.grouped_siblings | length > 0 %}
+            <details style="margin-top:6px;">
+              <summary style="font-size:0.72rem;color:#6b7280;cursor:pointer;">他{{ article.grouped_siblings | length }}媒体が配信</summary>
+              <div style="margin-top:4px;padding:4px 8px;background:#f8f9fa;border-radius:4px;font-size:0.75rem;">
+                {% for sib in article.grouped_siblings %}
+                <div style="margin:2px 0;"><a href="{{ sib.url }}" target="_blank" rel="noopener" style="color:#3949ab;text-decoration:none;">{{ sib.source or '不明' }}</a></div>
+                {% endfor %}
+              </div>
+            </details>
+            {% elif article.duplicate_count and article.duplicate_count > 0 %}
             <div class="article-dup-label">他{{ article.duplicate_count }}件が同じニュースを配信</div>
             {% endif %}
             <div class="article-card-bottom">

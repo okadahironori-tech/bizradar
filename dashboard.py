@@ -77,6 +77,120 @@ def _extract_domain(url: str) -> str:
         return ""
 
 
+def normalize_news_title(title: str) -> tuple:
+    """転載記事グルーピング用のタイトル正規化。
+    戻り値: (正規化後タイトル, 空文字フォールバック発生フラグ)"""
+    if not title or not title.strip():
+        return (title or "").strip(), True
+    s = unicodedata.normalize("NFKC", title)
+    for _ in range(5):
+        prev = s
+        s = re.sub(r'\s*[（(][^）)]{1,30}[）)]\s*$', '', s)
+        for sep in [' | ', ' ｜ ', ' - ', ' – ', '｜', '|']:
+            idx = s.rfind(sep)
+            if idx < 0:
+                continue
+            tail = s[idx + len(sep):]
+            if len(tail.strip()) > 30:
+                continue
+            candidate = s[:idx]
+            if len(candidate.strip()) < 10:
+                continue
+            s = candidate
+            break
+        if s == prev:
+            break
+    s = s.strip()
+    if not s:
+        return title.strip(), True
+    return s, False
+
+
+def _normalize_title_hash(title: str) -> tuple:
+    """正規化タイトルの SHA1 ハッシュ(16文字)を返す。
+    戻り値: (hash_str, skip_grouping: bool)"""
+    import hashlib
+    norm, fallback = normalize_news_title(title)
+    if fallback:
+        return "", True
+    h = hashlib.sha1(norm.encode("utf-8")).hexdigest()[:16]
+    return h, False
+
+
+def _group_syndicated_articles(articles: list) -> list:
+    """転載記事をグルーピングし、代表記事のみのリストを返す。
+    各代表記事に group_size, grouped_siblings, is_group_representative を付与。"""
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+
+    groups = defaultdict(list)
+    standalone = []
+    for a in articles:
+        pub = (a.get("published") or "").lstrip("~").strip()
+        if not pub:
+            standalone.append(a)
+            continue
+        title_hash, skip = _normalize_title_hash(a.get("title", ""))
+        if skip or not title_hash:
+            standalone.append(a)
+            continue
+        key = (a.get("keyword", ""), title_hash)
+        groups[key].append(a)
+
+    result = []
+    for key, members in groups.items():
+        if len(members) < 2:
+            for a in members:
+                a["group_size"] = 1
+                a["grouped_siblings"] = []
+                a["is_group_representative"] = True
+            result.extend(members)
+            continue
+        members.sort(key=lambda a: (
+            (a.get("published") or "").lstrip("~").strip(),
+            (a.get("source") or "") or "\uffff",
+            a.get("id", 0),
+        ))
+        pub_vals = [(a.get("published") or "").lstrip("~").strip() for a in members]
+        min_pub, max_pub = pub_vals[0], pub_vals[-1]
+        try:
+            dt_min = datetime.strptime(min_pub[:16], "%Y-%m-%d %H:%M")
+            dt_max = datetime.strptime(max_pub[:16], "%Y-%m-%d %H:%M")
+            if (dt_max - dt_min) > timedelta(hours=24):
+                for a in members:
+                    a["group_size"] = 1
+                    a["grouped_siblings"] = []
+                    a["is_group_representative"] = True
+                result.extend(members)
+                continue
+        except (ValueError, TypeError):
+            for a in members:
+                a["group_size"] = 1
+                a["grouped_siblings"] = []
+                a["is_group_representative"] = True
+            result.extend(members)
+            continue
+        rep = members[0]
+        siblings = [{"source": a.get("source", ""), "url": a.get("url", ""),
+                      "title": a.get("title", "")}
+                     for a in members[1:]]
+        any_alert = any(a.get("is_alert") or a.get("importance") == "high" for a in members)
+        if any_alert:
+            rep["is_alert"] = True
+        rep["group_size"] = len(members)
+        rep["grouped_siblings"] = siblings
+        rep["is_group_representative"] = True
+        result.append(rep)
+
+    for a in standalone:
+        a["group_size"] = 1
+        a["grouped_siblings"] = []
+        a["is_group_representative"] = True
+    result.extend(standalone)
+
+    return result
+
+
 def _normalize_title_for_dedup(title: str) -> str:
     """重複判定専用のタイトル正規化（DB保存や表示には一切影響しない）。
 
@@ -1218,6 +1332,7 @@ def index():
     all_articles  = articles_data.get("articles", [])
     # 重複排除（同一キーワード内でタイトル類似度が高い記事はYahoo優先で1件に集約）
     all_articles  = _deduplicate_articles(all_articles)
+    all_articles  = _group_syndicated_articles(all_articles)
     _fb_ids = db.load_feedback_article_ids(user_id)
     for a in all_articles:
         a["has_feedback"] = bool(a.get("id") in _fb_ids)
@@ -2719,9 +2834,10 @@ def news():
     for a in raw_articles:
         a["published"] = a.get("published", "")
     deduped_articles = _deduplicate_articles(raw_articles)
-    alert_count = sum(1 for a in deduped_articles
+    grouped_articles = _group_syndicated_articles(deduped_articles)
+    alert_count = sum(1 for a in grouped_articles
                       if (a.get("is_alert") or a.get("importance") == "high") and not a.get("is_read"))
-    all_articles = deduped_articles
+    all_articles = grouped_articles
     _fb_ids = db.load_feedback_article_ids(user_id)
     for a in all_articles:
         a["has_feedback"] = bool(a.get("id") in _fb_ids)
