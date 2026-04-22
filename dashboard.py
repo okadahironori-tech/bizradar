@@ -1118,7 +1118,7 @@ def register_confirm():
             return redirect(url_for("register"))
         try:
             plan = form_data.get("plan", "basic")
-            if plan == "basic" and db.is_email_blocked_for_trial(email):
+            if db.is_email_blocked_for_trial(email):
                 flash("無料体験は1回限りです。有料プランでご登録ください。", "error")
                 return redirect(url_for("register"))
             with db._conn() as conn:
@@ -1130,7 +1130,7 @@ def register_confirm():
                         "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                         (email, pw_hash, "",
                          bool(os.environ.get("ADMIN_EMAIL", "").lower().strip() == email),
-                         plan, plan == "basic",
+                         plan, True,
                          form_data.get("last_name", ""), form_data.get("first_name", ""),
                          form_data.get("last_name_kana", ""), form_data.get("first_name_kana", ""),
                          form_data.get("phone", ""), form_data.get("company_name", ""),
