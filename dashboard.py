@@ -1205,6 +1205,16 @@ def withdraw_confirm():
                            withdraw_reason=session.get("withdraw_reason", ""))
 
 
+@app.route("/withdraw/cancel")
+@login_required
+def withdraw_cancel():
+    session.pop("withdraw_token", None)
+    session.pop("withdraw_token_expires_at", None)
+    session.pop("withdraw_type", None)
+    session.pop("withdraw_reason", None)
+    return redirect(url_for("settings"))
+
+
 @app.route("/withdraw/execute", methods=["POST"])
 @login_required
 def withdraw_execute():
