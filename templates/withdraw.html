@@ -37,6 +37,11 @@
   <div class="wrap">
     <div class="header"><h1>BizRadar</h1></div>
     <div class="card">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div style="padding:10px 14px;border-radius:8px;font-size:0.85rem;margin-bottom:16px;{% if category == 'error' %}background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;{% else %}background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;{% endif %}">{{ message }}</div>
+      {% endfor %}
+      {% endwith %}
       <h2 style="font-size:1.1rem;margin-bottom:16px;">退会手続き</h2>
       <div class="notice">
         退会すると、ニュース収集・サイト監視・メール通知等の全機能が停止します。<br>

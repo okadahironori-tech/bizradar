@@ -1130,7 +1130,7 @@ def hard_delete_user(user_id: int, reason: str = ""):
                 "UPDATE users SET deleted_at = NOW(), deletion_type = 'hard', "
                 "withdrawal_reason = %s, "
                 "email = %s, password_hash = %s, "
-                "last_name = NULL, first_name = NULL, "
+                "last_name = '', first_name = '', "
                 "last_name_kana = NULL, first_name_kana = NULL, "
                 "phone = NULL, company_name = NULL, "
                 "industry = NULL, company_size = NULL, "
