@@ -1225,6 +1225,7 @@ def withdraw_execute():
             db.hard_delete_user(user_id, reason)
         else:
             db.soft_delete_user(user_id, reason)
+        db.invalidate_email_change_tokens_for_user(user_id)
     except Exception as e:
         logger.exception("[withdraw] DB error user_id=%s: %s", user_id, e)
         flash("退会処理に失敗しました。", "error")
@@ -2755,6 +2756,20 @@ def change_password():
     return redirect(url_for("settings"))
 
 
+def mask_email(email: str) -> str:
+    """メールアドレスをマスク表記する。b***@e***.com"""
+    if not email or "@" not in email:
+        return "***@***.***"
+    local, domain = email.rsplit("@", 1)
+    masked_local = (local[0] if local else "") + "***"
+    parts = domain.rsplit(".", 1)
+    if len(parts) == 2:
+        masked_domain = (parts[0][0] if parts[0] else "") + "***." + parts[1]
+    else:
+        masked_domain = (domain[0] if domain else "") + "***"
+    return f"{masked_local}@{masked_domain}"
+
+
 @app.route("/settings/change_email", methods=["GET", "POST"])
 @login_required
 def change_email():
@@ -2771,42 +2786,96 @@ def change_email():
             return render_template("change_email.html", current_email=current_email,
                                    user_email=session.get("email", ""),
                                    is_admin=session.get("is_admin", False))
-
         if new_email == current_email.lower():
             flash("現在のメールアドレスと同じです", "error")
             return render_template("change_email.html", current_email=current_email,
                                    user_email=session.get("email", ""),
                                    is_admin=session.get("is_admin", False))
-
-        existing = db.get_user_by_email(new_email)
-        if existing and existing.get("id") != user_id:
+        if not db.is_email_available(new_email, exclude_user_id=user_id):
             flash("このメールアドレスは既に使用されています", "error")
             return render_template("change_email.html", current_email=current_email,
                                    user_email=session.get("email", ""),
                                    is_admin=session.get("is_admin", False))
-
         if not user or not db.verify_user_password(user, password):
             flash("パスワードが正しくありません", "error")
             return render_template("change_email.html", current_email=current_email,
                                    user_email=session.get("email", ""),
                                    is_admin=session.get("is_admin", False))
 
+        token = db.create_email_change_token(user_id, new_email)
+        base_url = request.host_url.rstrip("/")
+        confirm_link = f"{base_url}/settings/change_email/confirm/{token}"
+        _send_simple_mail(
+            new_email,
+            "【BizRadar】メールアドレス変更の確認",
+            f"<p>以下のURLをクリックしてメールアドレスの変更を完了してください。（有効期限：24時間）</p>"
+            f'<p><a href="{confirm_link}">{confirm_link}</a></p>',
+        )
+        masked = mask_email(new_email)
         try:
-            db.update_user_email(user_id, new_email)
+            _send_simple_mail(
+                current_email,
+                "【BizRadar】メールアドレス変更リクエストを受け付けました",
+                f"<p>メールアドレスの変更リクエストを受け付けました。</p>"
+                f"<p>変更先: {masked}</p>"
+                f"<p>この操作に心当たりがない場合は、ただちにパスワードを変更し、"
+                f"bizradarofficial@gmail.com までご連絡ください。</p>",
+            )
         except Exception as e:
-            logger.error("[change_email] update failed: %s", e)
-            flash("メールアドレスの変更に失敗しました", "error")
-            return render_template("change_email.html", current_email=current_email,
-                                   user_email=session.get("email", ""),
-                                   is_admin=session.get("is_admin", False))
+            logger.error("[change_email] notification to old email failed: %s", e)
 
-        session["email"] = new_email
-        flash("メールアドレスを変更しました", "success")
-        return redirect(url_for("settings"))
+        return render_template("change_email_sent.html",
+                               new_email_masked=masked,
+                               user_email=session.get("email", ""),
+                               is_admin=session.get("is_admin", False))
 
     return render_template("change_email.html", current_email=current_email,
                            user_email=session.get("email", ""),
                            is_admin=session.get("is_admin", False))
+
+
+@app.route("/settings/change_email/confirm/<token>")
+def change_email_confirm(token):
+    info = db.validate_email_change_token(token)
+    if not info:
+        return render_template("change_email_token_error.html"), 400
+
+    user_id = info["user_id"]
+    new_email = info["new_email"]
+
+    if not db.is_email_available(new_email, exclude_user_id=user_id):
+        flash("このメールアドレスは既に別のユーザーに使用されています。変更を中止しました。", "error")
+        return render_template("change_email_token_error.html"), 409
+
+    user = db.get_user_by_id(user_id)
+    old_email = user["email"] if user else ""
+    try:
+        db.update_user_email(user_id, new_email)
+    except Exception as e:
+        logger.error("[change_email_confirm] IntegrityError or update fail: %s", e)
+        flash("メールアドレスの変更に失敗しました。再度お試しください。", "error")
+        return render_template("change_email_token_error.html"), 500
+
+    db.consume_email_change_token(token)
+
+    if session.get("user_id") == user_id:
+        session["email"] = new_email
+
+    try:
+        _send_simple_mail(new_email, "【BizRadar】メールアドレスの変更が完了しました",
+                          "<p>メールアドレスが変更されました。今後はこのアドレスでログインしてください。</p>")
+    except Exception as e:
+        logger.error("[change_email_confirm] new email notify failed: %s", e)
+    try:
+        _send_simple_mail(old_email, "【BizRadar】メールアドレスが変更されました",
+                          "<p>メールアドレスが変更されました。</p>"
+                          "<p>この変更に心当たりがない場合は bizradarofficial@gmail.com までご連絡ください。</p>")
+    except Exception as e:
+        logger.error("[change_email_confirm] old email notify failed: %s", e)
+
+    need_relogin = session.get("user_id") != user_id
+    return render_template("change_email_confirmed.html", new_email=new_email,
+                           need_relogin=need_relogin)
 
 
 @app.route("/set_interval", methods=["POST"])

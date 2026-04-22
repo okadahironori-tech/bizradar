@@ -178,6 +178,16 @@ def init_db():
                     expires_at TIMESTAMPTZ NOT NULL,
                     used_at    TIMESTAMPTZ
                 );
+                CREATE TABLE IF NOT EXISTS email_change_tokens (
+                    token      VARCHAR(64) PRIMARY KEY,
+                    user_id    INTEGER NOT NULL REFERENCES users(id),
+                    new_email  VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    used_at    TIMESTAMPTZ
+                );
+                CREATE INDEX IF NOT EXISTS idx_email_change_user ON email_change_tokens(user_id);
+                CREATE INDEX IF NOT EXISTS idx_email_change_exp ON email_change_tokens(expires_at);
                 CREATE TABLE IF NOT EXISTS tdnet_disclosures (
                     id            SERIAL PRIMARY KEY,
                     document_id   VARCHAR(20) NOT NULL UNIQUE,
@@ -2885,6 +2895,71 @@ def consume_register_token(token: str):
                 "UPDATE register_tokens SET used_at = NOW() WHERE token = %s",
                 (token,),
             )
+
+
+def create_email_change_token(user_id: int, new_email: str, ttl_hours: int = 24) -> str:
+    import secrets
+    token = secrets.token_urlsafe(32)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE email_change_tokens SET used_at = NOW() "
+                "WHERE user_id = %s AND used_at IS NULL",
+                (user_id,),
+            )
+            cur.execute(
+                "INSERT INTO email_change_tokens (token, user_id, new_email, expires_at) "
+                "VALUES (%s, %s, %s, NOW() + INTERVAL '%s hours')",
+                (token, user_id, new_email.lower(), ttl_hours),
+            )
+    return token
+
+
+def validate_email_change_token(token: str) -> dict | None:
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id, new_email FROM email_change_tokens "
+                "WHERE token = %s AND used_at IS NULL AND expires_at > NOW()",
+                (token,),
+            )
+            row = cur.fetchone()
+            return {"user_id": row[0], "new_email": row[1]} if row else None
+
+
+def consume_email_change_token(token: str):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE email_change_tokens SET used_at = NOW() WHERE token = %s",
+                (token,),
+            )
+
+
+def invalidate_email_change_tokens_for_user(user_id: int):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE email_change_tokens SET used_at = NOW() "
+                "WHERE user_id = %s AND used_at IS NULL",
+                (user_id,),
+            )
+
+
+def is_email_available(email: str, exclude_user_id: int | None = None) -> bool:
+    """メールアドレスが使用可能か。hard削除ユーザーは除外。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            sql = (
+                "SELECT id FROM users WHERE email = %s "
+                "AND (deletion_type IS NULL OR deletion_type != 'hard')"
+            )
+            params = [email.lower()]
+            if exclude_user_id:
+                sql += " AND id != %s"
+                params.append(exclude_user_id)
+            cur.execute(sql, params)
+            return cur.fetchone() is None
 
 
 # ============================================================
