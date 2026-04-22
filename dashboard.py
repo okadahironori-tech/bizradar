@@ -1118,16 +1118,20 @@ def register_confirm():
             return redirect(url_for("register"))
         try:
             plan = form_data.get("plan", "basic")
+            if plan == "basic" and db.is_email_blocked_for_trial(email):
+                flash("無料体験は1回限りです。有料プランでご登録ください。", "error")
+                return redirect(url_for("register"))
             with db._conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "INSERT INTO users (email, password_hash, salt, is_admin, plan, "
+                        "INSERT INTO users (email, password_hash, salt, is_admin, plan, trial_used, "
                         "last_name, first_name, last_name_kana, first_name_kana, "
                         "phone, company_name, industry, company_size, job_type, job_title) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                         (email, pw_hash, "",
                          bool(os.environ.get("ADMIN_EMAIL", "").lower().strip() == email),
-                         plan, form_data.get("last_name", ""), form_data.get("first_name", ""),
+                         plan, plan == "basic",
+                         form_data.get("last_name", ""), form_data.get("first_name", ""),
                          form_data.get("last_name_kana", ""), form_data.get("first_name_kana", ""),
                          form_data.get("phone", ""), form_data.get("company_name", ""),
                          form_data.get("industry", ""), form_data.get("company_size", ""),

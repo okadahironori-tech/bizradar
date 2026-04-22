@@ -704,6 +704,16 @@ def _run_migrations():
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;")
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_type VARCHAR(10);")
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawal_reason TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_used BOOLEAN NOT NULL DEFAULT FALSE;")
+
+            # blocked_emails: 無料体験済みメールのブロック
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS blocked_emails (
+                    email_hash VARCHAR(64) PRIMARY KEY,
+                    blocked_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    reason VARCHAR(20) NOT NULL DEFAULT 'trial_used'
+                );
+            """)
 
             # companies: ��び順カラム追加
             cur.execute(
@@ -1110,9 +1120,40 @@ def verify_user_password(user: dict, password: str) -> bool:
     return ok
 
 
+def normalize_email_for_block(email: str) -> str:
+    normalized = email.strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _block_trial_email(cur, user_id: int):
+    """trial_used=TRUE のユーザーのメールをblocked_emailsに登録。"""
+    try:
+        cur.execute("SELECT email, trial_used FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row or not row[0] or not row[1]:
+            return
+        email_hash = normalize_email_for_block(row[0])
+        cur.execute(
+            "INSERT INTO blocked_emails (email_hash, reason) VALUES (%s, 'trial_used') "
+            "ON CONFLICT DO NOTHING",
+            (email_hash,),
+        )
+    except Exception as e:
+        logger.warning("[block_trial] failed user_id=%s: %s", user_id, e)
+
+
+def is_email_blocked_for_trial(email: str) -> bool:
+    email_hash = normalize_email_for_block(email)
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM blocked_emails WHERE email_hash = %s", (email_hash,))
+            return cur.fetchone() is not None
+
+
 def soft_delete_user(user_id: int, reason: str = ""):
     with _conn() as conn:
         with conn.cursor() as cur:
+            _block_trial_email(cur, user_id)
             cur.execute(
                 "UPDATE users SET deleted_at = NOW(), deletion_type = 'soft', "
                 "withdrawal_reason = %s WHERE id = %s",
@@ -1126,6 +1167,7 @@ def hard_delete_user(user_id: int, reason: str = ""):
     random_hash = secrets.token_urlsafe(64)
     with _conn() as conn:
         with conn.cursor() as cur:
+            _block_trial_email(cur, user_id)
             cur.execute(
                 "UPDATE users SET deleted_at = NOW(), deletion_type = 'hard', "
                 "withdrawal_reason = %s, "
