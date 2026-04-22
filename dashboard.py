@@ -1216,24 +1216,31 @@ def withdraw_execute():
     logger.info("[WITHDRAW_DEBUG] token=%s expires=%s now=%s delta=%s",
                 bool(token), expires, time.time(), expires - time.time() if expires else "N/A")
     if not token or time.time() > expires:
+        logger.info("[WITHDRAW_DEBUG] token expired or missing, redirecting to withdraw")
         flash("セッションが期限切れです。もう一度お手続きください。", "error")
         return redirect(url_for("withdraw"))
     user_id = session["user_id"]
+    logger.info("[WITHDRAW_DEBUG] user_id=%s withdraw_type=%s", user_id, withdraw_type)
     user = db.get_user_by_id(user_id)
     if not user:
+        logger.info("[WITHDRAW_DEBUG] user not found, redirecting to login")
         return redirect(url_for("login"))
+    logger.info("[WITHDRAW_DEBUG] user found email=%s deleted_at=%s", user.get("email"), user.get("deleted_at"))
     old_email = user["email"]
     try:
+        logger.info("[WITHDRAW_DEBUG] starting DB delete type=%s", withdraw_type)
         if withdraw_type == "hard":
             db.hard_delete_user(user_id, reason)
         else:
             db.soft_delete_user(user_id, reason)
         db.invalidate_email_change_tokens_for_user(user_id)
+        logger.info("[WITHDRAW_DEBUG] DB delete completed successfully")
     except Exception as e:
-        logger.exception("[withdraw] DB error user_id=%s: %s", user_id, e)
+        logger.exception("[WITHDRAW_DEBUG] DB error: %s", e)
         flash("退会処理に失敗しました。", "error")
         return redirect(url_for("withdraw"))
     try:
+        logger.info("[WITHDRAW_DEBUG] sending farewell email to %s", old_email)
         if withdraw_type == "hard":
             body = (
                 "<p>退会手続きが完了しました。これまでご利用いただき、ありがとうございました。</p>"
@@ -1247,8 +1254,10 @@ def withdraw_execute():
                 "<p>ご不明な点がございましたら bizradarofficial@gmail.com までお問い合わせください。</p>"
             )
         _send_simple_mail(old_email, "【BizRadar】退会手続き完了のお知らせ", body)
+        logger.info("[WITHDRAW_DEBUG] farewell email sent")
     except Exception as e:
-        logger.error("[withdraw] mail send failed user_id=%s: %s", user_id, e)
+        logger.error("[WITHDRAW_DEBUG] mail send failed: %s", e)
+    logger.info("[WITHDRAW_DEBUG] clearing session, redirecting to complete")
     session.clear()
     session["withdraw_completed"] = True
     session["withdraw_completed_type"] = withdraw_type
