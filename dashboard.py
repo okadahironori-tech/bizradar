@@ -1208,10 +1208,13 @@ def withdraw_confirm():
 @app.route("/withdraw/execute", methods=["POST"])
 @login_required
 def withdraw_execute():
+    logger.info("[WITHDRAW_DEBUG] execute reached, session keys=%s", list(session.keys()))
     token = session.pop("withdraw_token", None)
     expires = session.pop("withdraw_token_expires_at", 0)
     withdraw_type = session.pop("withdraw_type", "soft")
     reason = session.pop("withdraw_reason", "")
+    logger.info("[WITHDRAW_DEBUG] token=%s expires=%s now=%s delta=%s",
+                bool(token), expires, time.time(), expires - time.time() if expires else "N/A")
     if not token or time.time() > expires:
         flash("セッションが期限切れです。もう一度お手続きください。", "error")
         return redirect(url_for("withdraw"))
