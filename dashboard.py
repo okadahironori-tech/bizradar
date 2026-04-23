@@ -406,6 +406,13 @@ def inject_tdnet_banner():
     return {"tdnet_banner": banner}
 
 
+@app.context_processor
+def inject_support_chat():
+    uid = session.get("user_id")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    return {"support_chat_enabled": bool(uid and api_key)}
+
+
 @app.errorhandler(CSRFError)
 def _handle_csrf_error(e):
     """CSRFトークン切れ・不一致時はログイン画面へ誘導"""
@@ -4268,6 +4275,88 @@ def contact():
 
     flash("お問い合わせを受け付けました。3営業日以内にご返信いたします。", "success")
     return redirect(url_for("contact"))
+
+
+_CHAT_SYSTEM_PROMPT = """\
+あなたはBizRadarのサポートアシスタントです。
+BizRadarの操作方法・機能に関する質問にのみ回答してください。
+それ以外の質問には「申し訳ありませんが、BizRadarの操作方法に関するご質問にのみお答えしています。その他のお問い合わせは、お問い合わせフォームをご利用ください。」と返してください。
+
+【BizRadarとは】
+競合・取引先の動きを自動でキャッチする企業情報モニタリングサービスです。
+
+【主要機能】
+
+1. 企業登録・管理
+- 企業名・証券コードで手動登録できます
+- CSVファイルで複数企業を一括登録できます
+- 登録できる企業数はプランによって異なります（ベーシック:5社、ビジネス:30社、Pro:100社）
+
+2. キーワード設定
+- 企業に紐づけてキーワードを設定すると、関連ニュースを自動収集します
+- 重要アラートキーワードを設定すると、該当記事が重要としてハイライト表示されます
+- 設定できるキーワード数はプランによって異なります（ベーシック:15、ビジネス:50、Pro:150）
+
+3. モニターサイト登録
+- 競合・取引先のURLを登録すると、サイト更新を検知して通知します
+
+4. ニュースフィード
+- 登録企業・キーワードに関連するニュースを一覧で確認できます
+- 既読・未読の管理ができます
+- 同一記事の転載は「他N媒体が配信」としてまとめて表示されます
+
+5. TDnet開示情報（Proプランのみ）
+- 上場企業の適時開示情報を閲覧できます
+
+6. 通知設定
+- 即時通知：記事収集のたびに通知
+- ダイジェスト通知：毎朝6時にまとめて通知
+- 通知手段：メール（全プラン）、Slack・LINE（Proプランのみ）
+
+7. プラン
+- ベーシック：月額980円・最初の1ヶ月無料
+- ビジネス：月額2,980円・最初の1ヶ月無料
+- Pro：月額9,800円・最初の1ヶ月無料
+
+8. アカウント設定
+- メールアドレス変更・パスワード変更・退会が設定ページから行えます
+- 退会後は同じメールアドレスで無料体験の再利用はできません
+
+回答は簡潔に、日本語でお答えください。
+"""
+
+
+@app.route("/api/chat", methods=["POST"])
+@limiter.limit("20 per hour")
+def api_chat():
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "ログインが必要です"}), 401
+
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "メッセージを入力してください"}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        logger.error("[api/chat] ANTHROPIC_API_KEY が未設定です")
+        return jsonify({"error": "現在チャットをご利用いただけません。時間をおいてお試しください。"}), 503
+
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=api_key)
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=500,
+            system=_CHAT_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": message}],
+        )
+        reply = resp.content[0].text if resp.content else ""
+        return jsonify({"reply": reply})
+    except Exception as e:
+        logger.error("[api/chat] Anthropic API error: %s", e)
+        return jsonify({"error": "現在チャットをご利用いただけません。時間をおいてお試しください。"}), 503
 
 
 # ============================================================

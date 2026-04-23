@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>設定 — BizRadar</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
@@ -801,5 +802,6 @@ function deleteGlobalAlertKw(btn) {
   <span style="color:#d1d5db;">|</span>
   <a href="/privacy" style="color:#9ca3af; text-decoration:none; margin:0 8px;">プライバシーポリシー</a>
 </footer>
+{% include '_chat_widget.html' %}
 </body>
 </html>

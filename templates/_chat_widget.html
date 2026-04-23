@@ -1,0 +1,104 @@
+{% if support_chat_enabled %}
+<div id="bz-chat">
+  <button id="bz-chat-btn" aria-label="サポートチャットを開く">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  </button>
+  <div id="bz-chat-box" style="display:none">
+    <div id="bz-chat-head">
+      <span>BizRadarサポート</span>
+      <button id="bz-chat-close" aria-label="閉じる">&#x2715;</button>
+    </div>
+    <div id="bz-chat-msgs">
+      <div class="bz-msg bz-ai">BizRadarの操作方法についてご質問ください。</div>
+    </div>
+    <div id="bz-chat-foot">
+      <input id="bz-chat-in" type="text" placeholder="メッセージを入力..." autocomplete="off">
+      <button id="bz-chat-send">送信</button>
+    </div>
+  </div>
+</div>
+<style>
+#bz-chat{position:fixed;bottom:24px;right:24px;z-index:9999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#bz-chat-btn{width:52px;height:52px;border-radius:50%;background:#3949ab;border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(57,73,171,.4)}
+#bz-chat-btn:hover{background:#2d3a8c}
+#bz-chat-box{position:absolute;bottom:64px;right:0;width:320px;height:450px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 4px 24px rgba(0,0,0,.14);flex-direction:column}
+#bz-chat-head{background:#3949ab;color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;font-size:.9rem;font-weight:600;flex-shrink:0}
+#bz-chat-close{background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem;line-height:1;padding:0 2px}
+#bz-chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.bz-msg{max-width:82%;font-size:.85rem;line-height:1.55;padding:8px 12px;border-radius:12px;word-break:break-word;white-space:pre-wrap}
+.bz-ai{background:#f3f4f6;color:#1a1a2e;align-self:flex-start}
+.bz-usr{background:#3949ab;color:#fff;align-self:flex-end}
+.bz-err{background:#fef2f2;color:#991b1b;align-self:flex-start}
+#bz-chat-foot{padding:10px;border-top:1px solid #e5e7eb;display:flex;gap:6px;flex-shrink:0}
+#bz-chat-in{flex:1;padding:8px 10px;border:1.5px solid #d1d5db;border-radius:6px;font-size:.88rem;outline:none;color:#1a1a2e}
+#bz-chat-in:focus{border-color:#3949ab}
+#bz-chat-send{padding:8px 14px;background:#3949ab;color:#fff;border:none;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;white-space:nowrap}
+#bz-chat-send:hover:not(:disabled){background:#2d3a8c}
+#bz-chat-send:disabled{opacity:.6;cursor:default}
+</style>
+<script>
+(function(){
+  var box=document.getElementById('bz-chat-box');
+  var btn=document.getElementById('bz-chat-btn');
+  var closeB=document.getElementById('bz-chat-close');
+  var msgs=document.getElementById('bz-chat-msgs');
+  var inp=document.getElementById('bz-chat-in');
+  var sendB=document.getElementById('bz-chat-send');
+  var isOpen=false;
+
+  function toggle(){
+    isOpen=!isOpen;
+    box.style.display=isOpen?'flex':'none';
+    if(isOpen)inp.focus();
+  }
+  btn.addEventListener('click',toggle);
+  closeB.addEventListener('click',toggle);
+
+  function csrfToken(){
+    var m=document.querySelector('meta[name="csrf-token"]');
+    return m?m.getAttribute('content'):'';
+  }
+
+  function addMsg(text,cls){
+    var d=document.createElement('div');
+    d.className='bz-msg '+cls;
+    d.textContent=text;
+    msgs.appendChild(d);
+    msgs.scrollTop=msgs.scrollHeight;
+    return d;
+  }
+
+  function send(){
+    var msg=inp.value.trim();
+    if(!msg||sendB.disabled)return;
+    inp.value='';
+    addMsg(msg,'bz-usr');
+    sendB.disabled=true;
+    var loading=addMsg('…','bz-ai');
+    fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body:JSON.stringify({message:msg})
+    })
+    .then(function(r){return r.json();})
+    .then(function(data){
+      msgs.removeChild(loading);
+      addMsg(data.reply||data.error||'エラーが発生しました。',data.reply?'bz-ai':'bz-err');
+    })
+    .catch(function(){
+      msgs.removeChild(loading);
+      addMsg('送信に失敗しました。','bz-err');
+    })
+    .finally(function(){
+      sendB.disabled=false;
+      inp.focus();
+    });
+  }
+
+  sendB.addEventListener('click',send);
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}
+  });
+})();
+</script>
+{% endif %}
