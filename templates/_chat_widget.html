@@ -85,12 +85,6 @@
       msgs.removeChild(loading);
       if(res.data.reply){
         addMsg(res.data.reply,'bz-ai');
-      }else if(res.status===429){
-        var d=document.createElement('div');
-        d.className='bz-msg bz-err';
-        d.innerHTML='ご利用回数の上限に達しました。続けてご利用の場合は<a href="/login" style="color:#991b1b;">ログインしてください</a>。';
-        msgs.appendChild(d);
-        msgs.scrollTop=msgs.scrollHeight;
       }else{
         addMsg(res.data.error||'エラーが発生しました。','bz-err');
       }
