@@ -1466,10 +1466,13 @@ def check_single_keyword(keyword: str, user_id=None):
         _all_cos = db.load_companies(user_id)
         _kw_cid = db.get_user_keyword_company_id(user_id, keyword)
         _fb_examples = db.load_feedback_examples_for_user(user_id)
-        for _a in new_articles:
+        for _i, _a in enumerate(new_articles):
             candidates = _build_candidate_companies(
                 _a.get("title", ""), keyword, _kw_cid, user_id, _all_cos)
-            score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+            if _i < 20:
+                score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+            else:
+                score = {"importance": "low", "primary_company": None, "is_sports": False, "is_entertainment": False}
             _a["importance"] = score["importance"]
             _a["is_sports"] = score.get("is_sports", False)
             _a["is_entertainment"] = score.get("is_entertainment", False)
@@ -1589,10 +1592,13 @@ def check_all_keywords():
 
             if new_articles:
                 print(f"  → {len(new_articles)} 件の新着記事")
-                for _a in new_articles:
+                for _i, _a in enumerate(new_articles):
                     candidates = _build_candidate_companies(
                         _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+                    if _i < 20:
+                        score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+                    else:
+                        score = {"importance": "low", "primary_company": None, "is_sports": False, "is_entertainment": False}
                     _a["importance"] = score["importance"]
                     _a["is_sports"] = score.get("is_sports", False)
                     _a["is_entertainment"] = score.get("is_entertainment", False)
@@ -1732,10 +1738,13 @@ def check_keywords_for_user(user_id: int) -> dict:
         if new_articles:
             print(f"  -> {len(new_articles)} 件の新着記事")
             result["new_articles"] += len(new_articles)
-            for _a in new_articles:
+            for _i, _a in enumerate(new_articles):
                 candidates = _build_candidate_companies(
                     _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+                if _i < 20:
+                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+                else:
+                    score = {"importance": "low", "primary_company": None, "is_sports": False, "is_entertainment": False}
                 _a["importance"] = score["importance"]
                 _a["is_sports"] = score.get("is_sports", False)
                 _a["is_entertainment"] = score.get("is_entertainment", False)
