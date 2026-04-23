@@ -1361,19 +1361,18 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
     if not articles:
         return
 
-    alert_kws = db.get_alert_keywords_set(user_id) if user_id else set()
-    # 該当キーワードが紐づく企業の重要アラートキーワードも併用（per-company 判定）
+    user_alert_kws = db.get_alert_keywords_set(user_id) if user_id else set()
+    per_cid_alert: dict = {}
     if user_id:
-        cid = db.get_user_keyword_company_id(user_id, keyword)
-        if cid:
-            alert_kws = alert_kws | {
-                e["keyword"].lower()
-                for e in db.get_company_alert_keywords(cid)
-            }
+        for e in db.get_all_company_alert_keywords_for_user(user_id):
+            per_cid_alert.setdefault(e["company_id"], set()).add(e["keyword"].lower())
+
+    def _eff(a: dict) -> set:
+        return user_alert_kws | per_cid_alert.get(a.get("primary_company_id"), set())
 
     # 重要記事を上、通常記事を下に並び替え
-    important = [a for a in articles if _is_alert(a.get("title", ""), alert_kws)]
-    normal    = [a for a in articles if not _is_alert(a.get("title", ""), alert_kws)]
+    important = [a for a in articles if _is_alert(a.get("title", ""), _eff(a))]
+    normal    = [a for a in articles if not _is_alert(a.get("title", ""), _eff(a))]
     sorted_articles = important + normal
     has_alert = bool(important)
 
@@ -1383,7 +1382,7 @@ def send_news_email(keyword: str, articles: list, user_id: int = None):
 
     rows_html = ""
     for i, a in enumerate(sorted_articles[:10], 1):
-        rows_html += _article_row_html(i, a, _is_alert(a.get("title", ""), alert_kws))
+        rows_html += _article_row_html(i, a, _is_alert(a.get("title", ""), _eff(a)))
 
     alert_banner = ""
     if has_alert:

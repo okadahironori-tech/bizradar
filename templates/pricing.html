@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>料金プラン — BizRadar</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; }
+    header a { color: #8892b0; text-decoration: none; font-size: 0.85rem; }
+    header a:hover { color: #fff; }
+    main {
+      max-width: 1000px;
+      margin: 48px auto;
+      padding: 0 16px 64px;
+    }
+    .page-title {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .page-title h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+    .page-title p {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+    .plans {
+      display: flex;
+      gap: 20px;
+      align-items: stretch;
+    }
+    .plan-card {
+      flex: 1;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .plan-card.featured {
+      border-color: #3949ab;
+      box-shadow: 0 4px 24px rgba(57,73,171,0.12);
+    }
+    .badge {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #3949ab;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 16px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .plan-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+    .plan-price {
+      margin-top: 12px;
+    }
+    .plan-price .amount {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1a1a2e;
+    }
+    .plan-price .unit {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-left: 4px;
+    }
+    .plan-free {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: #3949ab;
+      font-weight: 600;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 20px 0;
+    }
+    .feature-list {
+      list-style: none;
+      flex: 1;
+    }
+    .feature-list li {
+      font-size: 0.875rem;
+      color: #374151;
+      padding: 8px 0;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .feature-list li:last-child { border-bottom: none; }
+    .feature-list .label { color: #9ca3af; font-size: 0.8rem; }
+    .feature-list .value { font-weight: 600; }
+    .feature-list .na { color: #d1d5db; font-weight: 400; }
+    .btn-register {
+      display: block;
+      margin-top: 24px;
+      padding: 11px 0;
+      text-align: center;
+      background: #1a1a2e;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 6px;
+    }
+    .btn-register:hover { background: #2d2d4e; }
+    .plan-card.featured .btn-register { background: #3949ab; }
+    .plan-card.featured .btn-register:hover { background: #2d3a8c; }
+    footer {
+      text-align: center;
+      padding: 24px 16px;
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+    footer a { color: #9ca3af; text-decoration: none; margin: 0 8px; }
+    @media (max-width: 720px) {
+      .plans { flex-direction: column; }
+    }
+  </style>
+  <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+  <header>
+    <h1>BizRadar</h1>
+    <a href="{{ back_url }}">&larr; 戻る</a>
+  </header>
+
+  <main>
+    <div class="page-title">
+      <h2>料金プラン</h2>
+      <p>全プラン、最初の1ヶ月は無料でお試しいただけます。</p>
+    </div>
+
+    <div class="plans">
+
+      <div class="plan-card">
+        <div class="plan-name">ベーシック</div>
+        <div class="plan-price">
+          <span class="amount">980</span><span class="unit">円/月</span>
+        </div>
+        <div class="plan-free">最初の1ヶ月無料</div>
+        <hr class="divider">
+        <ul class="feature-list">
+          <li><span class="label">モニタリング企業数</span><span class="value">5社</span></li>
+          <li><span class="label">キーワード数</span><span class="value">15</span></li>
+          <li><span class="label">通知手段</span><span class="value">メールのみ</span></li>
+          <li><span class="label">重要アラート</span><span class="value">あり</span></li>
+          <li><span class="label">YouTube監視</span><span class="value">あり</span></li>
+          <li><span class="label">AIフィルター</span><span class="value">あり（β）</span></li>
+          <li><span class="label">TDnet開示</span><span class="value na">なし</span></li>
+        </ul>
+        <a href="/register" class="btn-register">無料で始める</a>
+      </div>
+
+      <div class="plan-card featured">
+        <div class="badge">おすすめ</div>
+        <div class="plan-name">ビジネス</div>
+        <div class="plan-price">
+          <span class="amount">2,980</span><span class="unit">円/月</span>
+        </div>
+        <div class="plan-free">最初の1ヶ月無料</div>
+        <hr class="divider">
+        <ul class="feature-list">
+          <li><span class="label">モニタリング企業数</span><span class="value">30社</span></li>
+          <li><span class="label">キーワード数</span><span class="value">50</span></li>
+          <li><span class="label">通知手段</span><span class="value">メール</span></li>
+          <li><span class="label">重要アラート</span><span class="value">あり</span></li>
+          <li><span class="label">YouTube監視</span><span class="value">あり</span></li>
+          <li><span class="label">AIフィルター</span><span class="value">あり（β）</span></li>
+          <li><span class="label">TDnet開示</span><span class="value na">なし</span></li>
+        </ul>
+        <a href="/register" class="btn-register">無料で始める</a>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">
+          <span class="amount">9,800</span><span class="unit">円/月</span>
+        </div>
+        <div class="plan-free">最初の1ヶ月無料</div>
+        <hr class="divider">
+        <ul class="feature-list">
+          <li><span class="label">モニタリング企業数</span><span class="value">100社</span></li>
+          <li><span class="label">キーワード数</span><span class="value">150</span></li>
+          <li><span class="label">通知手段</span><span class="value">メール・Slack・LINE</span></li>
+          <li><span class="label">重要アラート</span><span class="value">あり</span></li>
+          <li><span class="label">YouTube監視</span><span class="value">あり</span></li>
+          <li><span class="label">AIフィルター</span><span class="value">あり</span></li>
+          <li><span class="label">TDnet開示</span><span class="value">あり</span></li>
+        </ul>
+        <a href="/register" class="btn-register">無料で始める</a>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <a href="/terms">利用規約</a>
+    <span style="color:#d1d5db;">|</span>
+    <a href="/privacy">プライバシーポリシー</a>
+  </footer>
+</body>
+</html>

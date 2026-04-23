@@ -83,7 +83,7 @@ def normalize_news_title(title: str) -> tuple:
     if not title or not title.strip():
         return (title or "").strip(), True
     s = unicodedata.normalize("NFKC", title)
-    for _ in range(5):
+    for _ in range(10):
         prev = s
         s = re.sub(r'\s*[（(][^）)]{1,30}[）)]\s*$', '', s)
         for sep in [' | ', ' ｜ ', ' - ', ' – ', '｜', '|']:
@@ -98,6 +98,7 @@ def normalize_news_title(title: str) -> tuple:
                 continue
             s = candidate
             break
+        s = re.sub(r'\s*[（(][^）)]{1,30}[）)]\s*$', '', s)
         if s == prev:
             break
     s = s.strip()
@@ -4205,6 +4206,12 @@ def terms():
 def privacy():
     back_url = url_for("index") if session.get("user_id") else url_for("login")
     return render_template("privacy.html", back_url=back_url)
+
+
+@app.route("/pricing")
+def pricing():
+    back_url = url_for("index") if session.get("user_id") else url_for("login")
+    return render_template("pricing.html", back_url=back_url)
 
 
 # ============================================================

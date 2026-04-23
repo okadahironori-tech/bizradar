@@ -11,7 +11,7 @@ def normalize_news_title(title):
     if not title or not title.strip():
         return (title or "").strip(), True
     s = unicodedata.normalize("NFKC", title)
-    for _ in range(5):
+    for _ in range(10):
         prev = s
         s = re.sub(r'\s*[（(][^）)]{1,30}[）)]\s*$', '', s)
         for sep in [' | ', ' ｜ ', ' - ', ' – ', '｜', '|']:
@@ -26,6 +26,7 @@ def normalize_news_title(title):
                 continue
             s = candidate
             break
+        s = re.sub(r'\s*[（(][^）)]{1,30}[）)]\s*$', '', s)
         if s == prev:
             break
     s = s.strip()
