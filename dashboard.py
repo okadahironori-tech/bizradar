@@ -4214,6 +4214,62 @@ def pricing():
     return render_template("pricing.html", back_url=back_url)
 
 
+@app.route("/contact", methods=["GET", "POST"])
+@limiter.limit("5 per hour", methods=["POST"])
+def contact():
+    back_url = url_for("index") if session.get("user_id") else url_for("login")
+    if request.method == "GET":
+        return render_template("contact.html", back_url=back_url)
+
+    name        = request.form.get("name", "").strip()
+    email       = request.form.get("email", "").strip()
+    company     = request.form.get("company", "").strip()
+    sel_category = request.form.get("category", "").strip()
+    body        = request.form.get("body", "").strip()
+
+    if not name or not email or not sel_category or not body:
+        return render_template("contact.html", back_url=back_url,
+                               error="必須項目をすべて入力してください。",
+                               name=name, email=email, company=company,
+                               sel_category=sel_category, body=body)
+
+    import html as _html
+    admin_html = (
+        f'<h2 style="font-size:1.1em;margin-bottom:16px">お問い合わせ内容</h2>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:0.9em">'
+        f'<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;width:110px">お名前</td>'
+        f'<td style="padding:8px;border-bottom:1px solid #e5e7eb">{_html.escape(name)}</td></tr>'
+        f'<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">メール</td>'
+        f'<td style="padding:8px;border-bottom:1px solid #e5e7eb">{_html.escape(email)}</td></tr>'
+        f'<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">会社名</td>'
+        f'<td style="padding:8px;border-bottom:1px solid #e5e7eb">{_html.escape(company) or "—"}</td></tr>'
+        f'<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">種別</td>'
+        f'<td style="padding:8px;border-bottom:1px solid #e5e7eb">{_html.escape(sel_category)}</td></tr>'
+        f'<tr><td style="padding:8px;color:#6b7280;vertical-align:top">内容</td>'
+        f'<td style="padding:8px;white-space:pre-wrap">{_html.escape(body)}</td></tr>'
+        f'</table>'
+    )
+    reply_html = (
+        f'<p>この度はBizRadarへのお問い合わせありがとうございます。<br>'
+        f'以下の内容でお問い合わせを受け付けました。</p>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:16px 0">'
+        f'<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;width:110px">種別</td>'
+        f'<td style="padding:8px;border-bottom:1px solid #e5e7eb">{_html.escape(sel_category)}</td></tr>'
+        f'<tr><td style="padding:8px;color:#6b7280;vertical-align:top">内容</td>'
+        f'<td style="padding:8px;white-space:pre-wrap">{_html.escape(body)}</td></tr>'
+        f'</table>'
+        f'<p>3営業日以内にご返信いたします。しばらくお待ちください。</p>'
+        f'<hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px">'
+        f'<p style="color:#9ca3af;font-size:0.78em">このメールはBizRadarにより自動送信されました。</p>'
+    )
+    _send_simple_mail("bizradarofficial@gmail.com",
+                      f"【BizRadar】お問い合わせ：{sel_category}", admin_html)
+    _send_simple_mail(email, "【BizRadar】お問い合わせを受け付けました", reply_html)
+
+    flash("お問い合わせを受け付けました。3営業日以内にご返信いたします。", "success")
+    return redirect(url_for("contact"))
+
+
 # ============================================================
 # PWA
 # ============================================================
