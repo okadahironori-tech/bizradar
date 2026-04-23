@@ -7,6 +7,7 @@ import base64
 import difflib
 import hashlib
 import re
+import unicodedata
 import smtplib
 import time
 import os
@@ -405,11 +406,48 @@ def _send_line_notification(line_user_id: str, message: str) -> tuple:
 
 
 
+def _normalize_news_title_local(title: str) -> tuple:
+    if not title or not title.strip():
+        return (title or "").strip(), True
+    s = unicodedata.normalize("NFKC", title)
+    for _ in range(10):
+        prev = s
+        s = re.sub(r'\s*[（(][^）)]{1,30}[）)]\s*$', '', s)
+        for sep in [' | ', ' ｜ ', ' - ', ' – ', '｜', '|']:
+            idx = s.rfind(sep)
+            if idx < 0:
+                continue
+            tail = s[idx + len(sep):]
+            if len(tail.strip()) > 30:
+                continue
+            candidate = s[:idx]
+            if len(candidate.strip()) < 10:
+                continue
+            s = candidate
+            break
+        s = re.sub(r'\s*[（(][^）)]{1,30}[）)]\s*$', '', s)
+        if s == prev:
+            break
+    s = s.strip()
+    if not s:
+        return title.strip(), True
+    return s, False
+
+
+def _normalize_title_hash(title: str) -> tuple:
+    norm, fallback = _normalize_news_title_local(title)
+    if fallback:
+        return "", True
+    h = hashlib.sha1(norm.encode("utf-8")).hexdigest()[:16]
+    return h, False
+
+
 def _score_article_importance(title: str, plan: str,
                               candidate_companies: list | None = None,
                               feedback_examples: dict | None = None,
                               sports_filter: str = "off",
-                              entertainment_filter: str = "off") -> dict:
+                              entertainment_filter: str = "off",
+                              user_id: int | None = None) -> dict:
     """記事タイトルの重要度と主役企業名を返す。
     candidate_companies: ユーザーの登録企業名リスト（優先照合用）。
     feedback_examples: few-shot 学習例 dict。
@@ -417,6 +455,16 @@ def _score_article_importance(title: str, plan: str,
     business/pro プラン以外は AI 未呼び出し。
     """
     result = {"importance": "low", "primary_company": None, "is_sports": False, "is_entertainment": False}
+    _api_ok = False
+    _cache_hash, _cache_skip = _normalize_title_hash(title)
+    if not _cache_skip and user_id is not None:
+        try:
+            cached = db.get_importance_cache(_cache_hash, user_id)
+            if cached:
+                result["importance"] = cached
+                return result
+        except Exception:
+            pass
     if plan not in ("business", "pro"):
         return result
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
@@ -543,6 +591,7 @@ def _score_article_importance(title: str, plan: str,
             imp = parsed.get("importance", "low")
             if imp in ("high", "medium", "low"):
                 result["importance"] = imp
+                _api_ok = True
             pc = parsed.get("primary_company")
             if pc and pc != "null" and isinstance(pc, str):
                 result["primary_company"] = pc.strip()
@@ -572,6 +621,11 @@ def _score_article_importance(title: str, plan: str,
         print(f"[importance] {result['importance']}: {title[:30]} company={result['primary_company']!r} candidates={len(candidates)} examples={_ex_count}")
     except Exception as e:
         print(f"[importance] API error title={title[:30]!r}: {e}")
+    if _api_ok and not _cache_skip and user_id is not None:
+        try:
+            db.set_importance_cache(_cache_hash, user_id, result["importance"])
+        except Exception:
+            pass
     return result
 
 
@@ -1469,7 +1523,7 @@ def check_single_keyword(keyword: str, user_id=None):
         for _a in new_articles:
             candidates = _build_candidate_companies(
                 _a.get("title", ""), keyword, _kw_cid, user_id, _all_cos)
-            score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+            score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter, user_id=user_id)
             _a["importance"] = score["importance"]
             _a["is_sports"] = score.get("is_sports", False)
             _a["is_entertainment"] = score.get("is_entertainment", False)
@@ -1592,7 +1646,7 @@ def check_all_keywords():
                 for _a in new_articles:
                     candidates = _build_candidate_companies(
                         _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+                    score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter, user_id=user_id)
                     _a["importance"] = score["importance"]
                     _a["is_sports"] = score.get("is_sports", False)
                     _a["is_entertainment"] = score.get("is_entertainment", False)
@@ -1735,7 +1789,7 @@ def check_keywords_for_user(user_id: int) -> dict:
             for _a in new_articles:
                 candidates = _build_candidate_companies(
                     _a.get("title", ""), keyword, company_id, user_id, _all_cos)
-                score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter)
+                score = _score_article_importance(_a.get("title", ""), user_plan, candidates, _fb_examples, _sports_filter, _ent_filter, user_id=user_id)
                 _a["importance"] = score["importance"]
                 _a["is_sports"] = score.get("is_sports", False)
                 _a["is_entertainment"] = score.get("is_entertainment", False)

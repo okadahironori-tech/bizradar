@@ -887,6 +887,21 @@ def _run_migrations():
                 "AND d.suggested_url <> '';"
             )
 
+            # article_importance_cache: _score_article_importance のユーザー別キャッシュ
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS article_importance_cache (
+                    title_hash VARCHAR(16) NOT NULL,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    importance TEXT NOT NULL,
+                    cached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (title_hash, user_id)
+                );
+            """)
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_article_importance_cache_user_id "
+                "ON article_importance_cache(user_id);"
+            )
+
             # ADMIN_EMAIL で指定されたユーザーを管理者に設定
             admin_email = os.environ.get("ADMIN_EMAIL", "").lower().strip()
             if admin_email:
@@ -3778,7 +3793,44 @@ def save_badge_feedback(article_id: int, user_id: int,
                 (article_id, user_id, correct_company_id, reason_type,
                  (reason_text or "")[:500], importance_feedback),
             )
-            return cur.rowcount > 0
+            ok = cur.rowcount > 0
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM article_importance_cache WHERE user_id = %s",
+                    (user_id,),
+                )
+    except Exception:
+        pass
+    return ok
+
+
+def get_importance_cache(title_hash: str, user_id: int) -> str | None:
+    """7日TTL内のキャッシュを返す。なければ None。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT importance FROM article_importance_cache "
+                "WHERE title_hash = %s AND user_id = %s "
+                "AND cached_at >= NOW() - INTERVAL '7 days'",
+                (title_hash, user_id),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def set_importance_cache(title_hash: str, user_id: int, importance: str) -> None:
+    """キャッシュを保存する。既存エントリは上書きする。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO article_importance_cache (title_hash, user_id, importance) "
+                "VALUES (%s, %s, %s) "
+                "ON CONFLICT (title_hash, user_id) DO UPDATE "
+                "SET importance = EXCLUDED.importance, cached_at = CURRENT_TIMESTAMP",
+                (title_hash, user_id, importance),
+            )
 
 
 def count_user_unread(user_id: int, hide_sports: bool = False, hide_entertainment: bool = False) -> int:
