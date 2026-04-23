@@ -80,10 +80,20 @@
       headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
       body:JSON.stringify({message:msg})
     })
-    .then(function(r){return r.json();})
-    .then(function(data){
+    .then(function(r){return r.json().then(function(d){return{status:r.status,data:d};});})
+    .then(function(res){
       msgs.removeChild(loading);
-      addMsg(data.reply||data.error||'エラーが発生しました。',data.reply?'bz-ai':'bz-err');
+      if(res.data.reply){
+        addMsg(res.data.reply,'bz-ai');
+      }else if(res.status===429){
+        var d=document.createElement('div');
+        d.className='bz-msg bz-err';
+        d.innerHTML='ご利用回数の上限に達しました。続けてご利用の場合は<a href="/login" style="color:#991b1b;">ログインしてください</a>。';
+        msgs.appendChild(d);
+        msgs.scrollTop=msgs.scrollHeight;
+      }else{
+        addMsg(res.data.error||'エラーが発生しました。','bz-err');
+      }
     })
     .catch(function(){
       msgs.removeChild(loading);

@@ -408,9 +408,8 @@ def inject_tdnet_banner():
 
 @app.context_processor
 def inject_support_chat():
-    uid = session.get("user_id")
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    return {"support_chat_enabled": bool(uid and api_key)}
+    return {"support_chat_enabled": bool(api_key)}
 
 
 @app.errorhandler(CSRFError)
@@ -4352,13 +4351,16 @@ BizRadarを初めてご利用の方には、以下の順番でのセットアッ
 @limiter.limit("20 per hour")
 def api_chat():
     uid = session.get("user_id")
-    if not uid:
-        return jsonify({"error": "ログインが必要です"}), 401
 
     data = request.get_json(silent=True) or {}
     message = (data.get("message") or "").strip()
     if not message:
         return jsonify({"error": "メッセージを入力してください"}), 400
+
+    if not uid:
+        chat_count = session.get("chat_count", 0)
+        if chat_count >= 5:
+            return jsonify({"error": "ご利用回数の上限に達しました。続けてご利用の場合はログインしてください。"}), 429
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
@@ -4375,6 +4377,9 @@ def api_chat():
             messages=[{"role": "user", "content": message}],
         )
         reply = resp.content[0].text if resp.content else ""
+        if not uid:
+            session["chat_count"] = session.get("chat_count", 0) + 1
+            session.modified = True
         return jsonify({"reply": reply})
     except Exception as e:
         logger.error("[api/chat] Anthropic API error: %s", e)
