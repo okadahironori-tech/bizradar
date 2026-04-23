@@ -155,6 +155,11 @@
       {% if error %}
       <div class="error">{{ error }}</div>
       {% endif %}
+      {% if request.args.get('reset') %}
+      <div style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:8px;padding:10px 14px;font-size:0.85rem;margin-bottom:18px;">
+        パスワードを変更しました。新しいパスワードでログインしてください。
+      </div>
+      {% endif %}
       <form method="POST" action="/login">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="next" value="{{ next }}">
@@ -173,11 +178,6 @@
         </div>
         <button type="submit" class="btn-login">ログイン</button>
       </form>
-      {% if request.args.get('reset') %}
-      <div style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:8px;padding:10px 14px;font-size:0.85rem;margin-top:16px;">
-        パスワードを変更しました。新しいパスワードでログインしてください。
-      </div>
-      {% endif %}
       <div style="margin:20px 0; border-top:1px solid #e5e7eb;"></div>
       <p style="text-align:center; font-size:0.85rem; color:#6b7280;">
         <a href="/magic-login" style="color:#3949ab; text-decoration:none; font-weight:600;">メールでログインする</a>
