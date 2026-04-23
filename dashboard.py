@@ -4367,6 +4367,9 @@ def api_chat():
         if chat_count >= 5:
             return jsonify({"error": "ご利用回数の上限に達しました。続けてご利用の場合はログインしてください。"}), 429
 
+    if session.get("chat_reject_count", 0) >= 3:
+        return jsonify({"error": "ご利用を一時的に制限しています。BizRadarに関するご質問をお試しください。"}), 429
+
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         logger.error("[api/chat] ANTHROPIC_API_KEY が未設定です")
@@ -4382,9 +4385,14 @@ def api_chat():
             messages=[{"role": "user", "content": message}],
         )
         reply = resp.content[0].text if resp.content else ""
+        _REJECT_PHRASE = "申し訳ありませんが、BizRadarに関するご質問にのみお答えしています"
+        if _REJECT_PHRASE in reply:
+            session["chat_reject_count"] = session.get("chat_reject_count", 0) + 1
+        else:
+            session["chat_reject_count"] = 0
+        session.modified = True
         if not uid:
             session["chat_count"] = session.get("chat_count", 0) + 1
-            session.modified = True
         return jsonify({"reply": reply})
     except Exception as e:
         logger.error("[api/chat] Anthropic API error: %s", e)
