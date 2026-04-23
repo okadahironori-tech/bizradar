@@ -127,6 +127,7 @@
       <div class="alert-error">{{ error }}</div>
       {% endif %}
 
+      <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:14px;">よくある操作方法のご質問は、画面右下のチャットでもお答えできます。</p>
       <form method="POST" action="/contact">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
